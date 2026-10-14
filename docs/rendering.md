@@ -28,7 +28,7 @@ page shows the legend and a swatch per dictionary character.
 
 **Other views.** Decoded text hashed in thirds (R, G, B); dictionary cursor
 position; raw bits hashed 16 at a time; bit density in thirds (set bits of
-positions 0–42, 43–85 and 86–127 scaled to R, G, B). With a byte changer
+positions 0–42, 43–85 and 86–127 scaled to R, G, B). With a local changer
 active, the "decoded bytes" view draws the pixel bytes directly, since
 they already are the latest decoded output.
 

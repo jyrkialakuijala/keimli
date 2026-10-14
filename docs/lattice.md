@@ -19,14 +19,14 @@ The grid is a plane with edges, not a torus.
    not counted.
 2. **Four swap phases**, one per neighbour direction and parity, in this
    turn's order (below).
-3. **Bit-plane smoothing passes**, 0 to 5 per turn (default 3).
-4. **The byte changer** rewrites every pixel's 16 bytes with its output
+3. **Bit-plane median filtering passes** (entropy decrease), 0 to 5 per turn (default 3).
+4. **The local changer** rewrites every pixel's 16 bytes with its output
    (see [changers.md](changers.md)). It can be switched off, in which case
    it only feeds the views.
 
 The view is refreshed once per turn.
 
-## Swapping
+## Entropy increase through gene swapping
 
 A swap phase pairs every pixel with one neighbour: left–right (LR) or
 up–down (UD), at an even (0) or odd (1) offset. Pairs never cross a row end
@@ -81,7 +81,7 @@ shows the current order next to the turn counter.
 | 6 | UD0 LR0 UD1 LR1 |
 | 7 | UD1 LR1 UD0 LR0 |
 
-## Bit-plane smoothing
+## Entropy decrease through bit-plane median filtering
 
 A pass works on each of the 128 bit planes separately and is computed
 synchronously into a scratch buffer. For every pixel and bit position where

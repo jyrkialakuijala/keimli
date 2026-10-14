@@ -1,4 +1,4 @@
-# Byte changers
+# Local changers
 
 Source: `src/changers/` — `decode.wat` (the entry point and the LZ
 decoder), `codec.js` (code tables, memory layout, the byte colour LUT),
@@ -6,14 +6,14 @@ decoder), `codec.js` (code tables, memory layout, the byte colour LUT),
 `dct.wat`, and `cpu/` for the emulated machines (see [cpus.md](cpus.md)).
 Tests: `test/mix.test.mjs` and `test/activity.test.mjs`.
 
-A byte changer takes a pixel's 16 bytes and produces 16 bytes. At the end of
+A local changer takes a pixel's 16 bytes and produces 16 bytes. At the end of
 every turn `change` runs the selected changer over every pixel and writes
 the output back over it, so what the changer makes of a pixel becomes the
 pixel's new content: the decompressed text, the Brainfuck tape, the memory
 a CPU left behind. `decode_pixel` runs it on one pixel for the inspector and
 the views without writing back.
 
-The "Byte changer" box picks a mode: none, the LZ decompressor, a transform
+The "Local changer" box picks a mode: none, the LZ decompressor, a transform
 (second box: do nothing, invert, reverse, add 17, DCT, inverse DCT) or a CPU
 (second box: Brainfuck and the sixteen machines; a "CPU steps" box appears
 with it).
