@@ -122,8 +122,9 @@
   ;; the pixel and its 4-connected neighbours do, k0 otherwise (edge pixels: the neighbours that exist);
   ;; the frame is then replaced by the rounded accumulator. k = 65536 copies the frame (first frame,
   ;; resets). Pass 1 marks the tier in the alpha byte (253 / 254 / 255), pass 2 blends and restores alpha
-  ;; 255. n4 counts the pixels that were 4- but not 8-connected flat, n8 the 8-connected flat ones.
-  (func (export "blend") (param $w i32) (param $h i32) (param $pix i32) (param $acc i32) (param $k0 i32) (param $k4 i32) (param $k8 i32) (result i64)
+  ;; 255. n4 counts the pixels that were 4- but not 8-connected flat, n8 the 8-connected flat ones, both over
+  ;; rows cy0 <= y < cy1 only (a band counts its own rows, not the neighbour rows it processes alongside).
+  (func (export "blend") (param $w i32) (param $h i32) (param $pix i32) (param $acc i32) (param $k0 i32) (param $k4 i32) (param $k8 i32) (param $cy0 i32) (param $cy1 i32) (result i64)
     (local $x i32) (local $y i32) (local $i i32) (local $c i32) (local $f4 i32) (local $f8 i32) (local $dx i32) (local $dy i32) (local $xx i32) (local $yy i32)
     (local $n i32) (local $n4 i32) (local $n8 i32) (local $k i32) (local $ch i32) (local $a i32) (local $p i32) (local $q i32) (local $t i32)
     (local.set $n (i32.mul (local.get $w) (local.get $h)))
@@ -149,8 +150,9 @@
               (local.set $dx (i32.add (local.get $dx) (i32.const 1))) (br $el)))))
           (local.set $dy (i32.add (local.get $dy) (i32.const 1))) (br $dl)))
         (i32.store8 offset=3 (local.get $p) (i32.sub (i32.sub (i32.const 255) (local.get $f4)) (local.get $f8)))
-        (local.set $n8 (i32.add (local.get $n8) (local.get $f8)))
-        (local.set $n4 (i32.add (local.get $n4) (i32.and (local.get $f4) (i32.eqz (local.get $f8)))))
+        (if (i32.and (i32.ge_u (local.get $y) (local.get $cy0)) (i32.lt_u (local.get $y) (local.get $cy1))) (then
+          (local.set $n8 (i32.add (local.get $n8) (local.get $f8)))
+          (local.set $n4 (i32.add (local.get $n4) (i32.and (local.get $f4) (i32.eqz (local.get $f8)))))))
         (local.set $x (i32.add (local.get $x) (i32.const 1))) (br $xl)))
       (local.set $y (i32.add (local.get $y) (i32.const 1))) (br $yl)))
     (local.set $i (i32.const 0))

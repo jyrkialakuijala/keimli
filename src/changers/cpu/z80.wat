@@ -344,13 +344,16 @@
     ;; work on a copy in the output buffer so the pixel itself is untouched until change() commits it
     (i64.store (local.get $out) (i64.load (local.get $p)))
     (i64.store offset=8 (local.get $out) (i64.load offset=8 (local.get $p)))
+    (if (i32.eq (global.get $cw) (i32.const 32)) (then   ;; a joint cell of two pixels
+      (i64.store offset=16 (local.get $out) (i64.load offset=16 (local.get $p)))
+      (i64.store offset=24 (local.get $out) (i64.load offset=24 (local.get $p)))))
     (global.set $zp (local.get $out))
     (block $re (loop $rl (br_if $re (i32.ge_u (local.get $i) (i32.const 28))) (call $zw (local.get $i) (i32.const 0)) (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $rl)))
     (local.set $i (i32.const 0))
     (block $se (loop $sl (br_if $se (i32.ge_u (local.get $i) (i32.load offset=92 (local.get $prm)))) (call $zstep) (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $sl)))
     (local.set $i (i32.const 0))
     (block $ce (loop $cl
-      (br_if $ce (i32.ge_u (local.get $i) (i32.const 16)))
+      (br_if $ce (i32.ge_u (local.get $i) (global.get $cw)))
       (local.set $c (i32.ne (i32.load8_u (i32.add (local.get $out) (local.get $i))) (i32.load8_u (i32.add (local.get $p) (local.get $i)))))
       (i32.store8 (i32.add (local.get $flags) (local.get $i)) (local.get $c))
       (local.set $changed (i32.add (local.get $changed) (local.get $c)))

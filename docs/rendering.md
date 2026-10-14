@@ -65,6 +65,13 @@ the current half-time in turns and counts the flat neighbourhoods of the
 frame. The buffer resets when the grid, the view or the settings change or
 a pixel is painted.
 
+**Threads.** With the worker pool, each band runs the render buffer and
+the sharpening on its own rows inside its worker (`Band.postFrame`, shared
+with the single-thread path), using three neighbour rows from each side
+that the main thread passes along with the render message; the per-frame
+constants are still decided on the main thread. The result is identical to
+the whole-frame computation, band edges included.
+
 ## Spatial sharpening
 
 After the render buffer the frame is sharpened a little (`sharpen`, on by

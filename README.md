@@ -32,8 +32,8 @@ tree.
 
 | Layer | What it is | Documentation | Source |
 |---|---|---|---|
-| Lattice | 128-bit cells, entropy increase through gene swapping, the swap-order cycle, entropy decrease through bit-plane median filtering, the worker band pipeline | [docs/lattice.md](docs/lattice.md) | `src/lattice/` |
-| Changers | The local changers that rewrite every cell each turn: the LZ decompressor and its code tables, Brainfuck, simple transforms, DCT | [docs/changers.md](docs/changers.md) | `src/changers/` |
+| Lattice | 128-bit cells, entropy increase through gene swapping, the swap-order cycle, entropy decrease through median filtering, the worker band pipeline | [docs/lattice.md](docs/lattice.md) | `src/lattice/` |
+| Local changers | Entropy decrease through local changers, which rewrite every cell each turn: the LZ decompressor and its code tables, Brainfuck, simple transforms, DCT | [docs/changers.md](docs/changers.md) | `src/changers/` |
 | CPUs | Sixteen emulated machines that run a cell's 16 bytes as their whole memory, from the 4004 to the CDC 6600 | [docs/cpus.md](docs/cpus.md) | `src/changers/cpu/` |
 | Rendering | Views and the byte colour LUT, the temporal render buffer, spatial sharpening, drawing | [docs/rendering.md](docs/rendering.md) | `src/render/`, `src/page/` |
 | Life | Conway's Game of Life in 600 bytes of wasm | [docs/life.md](docs/life.md) | `src/life/` |

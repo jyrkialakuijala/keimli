@@ -1,4 +1,4 @@
-# Local changers
+# Entropy decrease through local changers
 
 Source: `src/changers/` — `decode.wat` (the entry point and the LZ
 decoder), `codec.js` (code tables, memory layout, the byte colour LUT),
@@ -79,6 +79,35 @@ same way. Both offset by 128 and clamp to 0..255. The cosines come from a
 64-entry table that `Codec.install` writes at `LAYOUT.COS`. A DCT followed
 by an inverse DCT returns a pixel to within rounding unless a coefficient
 clipped.
+
+## Pairs: two cells changed together
+
+The "Cells" box in the Local changer section can change two neighbouring
+cells, columns 2i and 2i + 1, as one. Their 256 bits are joined into a
+32-byte joint cell, the changer runs once on it, and the result is split
+back by the same mapping in reverse (`$join` and `$split` in `decode.wat`;
+the host sets `pairMode` and this turn's `pairFlip` in the parameter block,
+and `change` walks the pairs). Two joinings are offered, and each alternates
+from turn to turn so that neither cell keeps the first role:
+
+- **Concatenated.** A then B on even turns, B then A on odd turns. A CPU
+  then has 32 bytes of memory, so a program in one cell can read and write
+  the other; the decompressor reads its cursor and commands from 256 input
+  bits and emits 32 bytes.
+- **Bit-interleaved.** On even turns A's bits take the even positions of
+  the joint cell and B's the odd ones; on odd turns the other way round.
+  Every byte of the joint cell then mixes four bits of each cell, so
+  whatever the changer does is spread over both.
+
+The changers see the joint cell through the cell width `$cw` (16 or 32
+bytes): memory accesses wrap at it, Brainfuck's program and tape have that
+many cells, the simple transforms run over it, and the decompressor's bit
+reader covers 256 bits. The changers defined on exactly 128 bits, the DCT
+and inverse DCT, the PDP-8, the UNIVAC 1101 and the CDC 6600, are handed
+the joint cell as two consecutive 16-byte cells. The inspector always
+decodes a single cell. A pair never crosses a row (the width is even), so
+the band pipeline is unaffected; `test/band.test.mjs` runs pair
+configurations through it.
 
 ## How much each changer changes
 

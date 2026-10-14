@@ -81,7 +81,7 @@ shows the current order next to the turn counter.
 | 6 | UD0 LR0 UD1 LR1 |
 | 7 | UD1 LR1 UD0 LR0 |
 
-## Entropy decrease through bit-plane median filtering
+## Entropy decrease through median filtering
 
 A pass works on each of the 128 bit planes separately and is computed
 synchronously into a scratch buffer. For every pixel and bit position where
@@ -123,6 +123,16 @@ band snapshots its whole buffer, halos included, at the start of the turn.
 `band.js` holds this bookkeeping and `test/band.test.mjs` checks that the
 pipeline reproduces the full-grid functions bit for bit, counts included,
 for several band counts, pass counts, neighbourhoods and changers.
+
+Rendering is threaded the same way. Each band renders its own rows and
+runs the render buffer and the sharpening on them (see
+[rendering.md](rendering.md)): the main thread sends three neighbour rows
+from each side with the render message, taken from the edge rows the bands
+return after every turn, because the first blend stage's flatness test
+reads one row beyond a pixel, the second stage's reads the first stage's
+output one row beyond, and the sharpening reads the second stage's output
+one row beyond. `test/band.test.mjs` checks that a band's rows come out
+bit-identical to a whole-frame run over a sequence of frames.
 
 Changing the thread count, the pass count or the neighbourhood rebuilds the
 worker pool but carries the lattice over bit for bit: the old engine's cells

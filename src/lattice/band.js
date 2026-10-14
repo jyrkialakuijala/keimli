@@ -28,13 +28,13 @@ const Band = (() => {
   const depthFor = (passes, nbr = 0) => { const n = radius(nbr) * passes; return 2 + n + (n & 1); };
   // st = { wasm, W, H, y0, rows, D, GRID, GRID2, PRM, THR, THRY }
   // msg = { haloTop, haloBottom (Uint8Array of D rows or null at the grid edge), order (the turn's four phase ids), passes,
-  //         thrSwap (BigUint64Array W), thrSmooth (BigUint64Array H), salts (BigInt per step), changer (bool),
+  //         thrSwap (BigUint64Array W), thrSmooth (BigUint64Array H), salts (BigInt per step), changer (bool), pair ({ mode, flip }),
   //         nbr (smoothing neighbourhood 0 cross / 1 3x3 / 2 5x5) }
   function runTurn(st, msg) {
     const { wasm, W, H, y0, rows, D, GRID, GRID2 } = st, S = 16 * W, y1 = y0 + rows, gy0 = y0 - D;
     const m8 = new Uint8Array(wasm.memory.buffer);
-    if (msg.haloTop) m8.set(msg.haloTop, GRID);
-    if (msg.haloBottom) m8.set(msg.haloBottom, GRID + (D + rows) * S);
+    if (msg.haloTop) m8.set(msg.haloTop.subarray(msg.haloTop.length - D * S), GRID);           // the D rows nearest the band
+    if (msg.haloBottom) m8.set(msg.haloBottom.subarray(0, D * S), GRID + (D + rows) * S);
     new BigUint64Array(wasm.memory.buffer, st.THR, W).set(msg.thrSwap);
     new BigUint64Array(wasm.memory.buffer, st.THRY, H).set(msg.thrSmooth);
     const topArt = y0 > 0, botArt = y1 < H;                 // artificial boundaries (a real grid edge needs no halo)
@@ -58,13 +58,34 @@ const Band = (() => {
       m8.copyWithin(GRID + a * S, GRID2 + a * S, GRID2 + b * S);
       for (let i = 0; i < R; i++) { if (topArt) useTop(); if (botArt) useBot(); }
     }
+    if (msg.pair) new Int32Array(wasm.memory.buffer, st.PRM + 104, 2).set([msg.pair.mode | 0, msg.pair.flip ? 1 : 0]);   // pairs: mode and this turn's flip
     const rewritten = msg.changer ? wasm.change(rows * W, GRID + D * S, st.PRM) : 0;
     return { moved, smoothed, rewritten };
   }
-  // the band's first and last D interior rows, for the neighbours' halos next turn
+  // the band's first and last E interior rows, E = max(D, POST_HALO): the neighbours' halos for the next turn
+  // (D rows) and for rendering (POST_HALO rows)
   function edges(st) {
-    const S = 16 * st.W, m8 = new Uint8Array(st.wasm.memory.buffer), base = st.GRID + st.D * S;
-    return { top: m8.slice(base, base + st.D * S), bottom: m8.slice(base + (st.rows - st.D) * S, base + st.rows * S) };
+    const S = 16 * st.W, m8 = new Uint8Array(st.wasm.memory.buffer), base = st.GRID + st.D * S, E = Math.min(st.rows, Math.max(st.D, POST_HALO));
+    return { top: m8.slice(base, base + E * S), bottom: m8.slice(base + (st.rows - E) * S, base + st.rows * S) };
+  }
+  // ---- render post-processing, shared by the page (single-thread engine) and the band workers ----
+  // A frame of w x h RGBA pixels at base is followed by two sets of 16.16 accumulators (12 bytes a pixel) and a
+  // 4-byte scratch copy: POST_BYTES per pixel in all. p = { stages (0..2), sharp, k0, k4, k8 } comes from the page,
+  // which decides the per-frame constants; rows [cy0, cy1) are the ones counted as flat. A band processes its own
+  // rows plus POST_HALO neighbour rows on each side: the first stage's flatness test reads one row beyond a pixel,
+  // the second stage's reads the first stage's output one row beyond, and the sharpening reads the second stage's
+  // output one row beyond, so three correct neighbour rows make a band's own rows identical to a whole-frame run.
+  const POST_HALO = 3, POST_BYTES = 32;
+  function postFrame(wasm, base, w, h, p, cy0 = 0, cy1 = h) {
+    const n = w * h, acc1 = base + 4 * n, acc2 = acc1 + 12 * n, scratch = acc2 + 12 * n;
+    let flat = null;
+    if (p.stages) {
+      const r = wasm.blend(w, h, base, acc1, p.k0, p.k4, p.k8, cy0, cy1);
+      if (p.stages > 1) wasm.blend(w, h, base, acc2, p.k0, p.k4, p.k8, cy0, cy1);   // the second stage reads the first stage's output
+      flat = { n4: Number(r >> 32n), n8: Number(r & 0xffffffffn) };
+    }
+    if (p.sharp) { new Uint8Array(wasm.memory.buffer).copyWithin(scratch, base, base + 4 * n); wasm.sharpen(w, h, scratch, base); }
+    return flat;
   }
   // split H rows into K bands of even heights, each at least D rows, starting at even rows
   function split(H, K, D) {
@@ -80,5 +101,5 @@ const Band = (() => {
   // sampled at pixel centres: entry i is a + (b - a) * (i + 0.5) / n, so no pixel sits at exactly a or b
   // and the first and last columns (or rows) are not frozen when an edge value is 0.
   const gradient = (a, b, n) => { const tab = new BigUint64Array(n); for (let i = 0; i < n; i++) tab[i] = toThreshold(a + (b - a) * (i + 0.5) / n); return tab; };
-  return { PHASE_NAMES, PERMS, order, orderName, orderDistance, radius, depthFor, runTurn, edges, split, toThreshold, gradient };
+  return { PHASE_NAMES, PERMS, order, orderName, orderDistance, radius, depthFor, runTurn, edges, split, toThreshold, gradient, POST_HALO, POST_BYTES, postFrame };
 })();

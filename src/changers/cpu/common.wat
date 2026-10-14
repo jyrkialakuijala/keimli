@@ -1,7 +1,8 @@
   ;; Shared by every CPU core: the register file and the pixel memory.
   ;; The register file lives at byte 256 of linear memory, 128 bytes, zeroed (or loaded by the driver)
   ;; before a run: $zr/$zw and the 16-, 32- and 64-bit forms read and write it at an offset. $zp is the
-  ;; address of the pixel being run; $mrd/$mwr read and write its 16 bytes with the address taken mod 16,
+  ;; address of the pixel being run; $mrd/$mwr read and write its bytes with the address taken mod the cell
+  ;; width $cw (16, or 32 when two cells are changed together),
   ;; and the 16-bit little-endian ($mrd16, $mrd16le), big-endian ($mrd16be) and 32-bit forms build on
   ;; them byte by byte, so every access wraps. $fetch reads the byte at PC (register-file offset 22) and
   ;; advances it; $push/$pop use SP at offset 20. $fld_rd/$fld_wr access an n-bit field (n <= 64) at any
@@ -11,8 +12,8 @@
   (func $zw (param $o i32) (param $v i32) (i32.store8 offset=256 (local.get $o) (local.get $v)))
   (func $zr16 (param $o i32) (result i32) (i32.load16_u offset=256 (local.get $o)))
   (func $zw16 (param $o i32) (param $v i32) (i32.store16 offset=256 (local.get $o) (local.get $v)))
-  (func $mrd (param $a i32) (result i32) (i32.load8_u (i32.add (global.get $zp) (i32.and (local.get $a) (i32.const 15)))))
-  (func $mwr (param $a i32) (param $v i32) (i32.store8 (i32.add (global.get $zp) (i32.and (local.get $a) (i32.const 15))) (local.get $v)))
+  (func $mrd (param $a i32) (result i32) (i32.load8_u (i32.add (global.get $zp) (i32.and (local.get $a) (i32.sub (global.get $cw) (i32.const 1))))))
+  (func $mwr (param $a i32) (param $v i32) (i32.store8 (i32.add (global.get $zp) (i32.and (local.get $a) (i32.sub (global.get $cw) (i32.const 1)))) (local.get $v)))
   (func $mrd16 (param $a i32) (result i32)
     (i32.or (call $mrd (local.get $a)) (i32.shl (call $mrd (i32.add (local.get $a) (i32.const 1))) (i32.const 8))))
   (func $mwr16 (param $a i32) (param $v i32)

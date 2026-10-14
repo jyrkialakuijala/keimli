@@ -190,7 +190,7 @@
     </div>
   </div>
   <div class="section" role="group" aria-labelledby="sec-smooth">
-    <span class="sec" id="sec-smooth">Entropy decrease through bit-plane median filtering</span>
+    <span class="sec" id="sec-smooth">Entropy decrease through median filtering</span>
     <div class="group">
       <label for="smoothT">p, top edge</label>
       <input id="smoothT" type="range" min="0" max="1" value="0" step="0.01">
@@ -221,7 +221,7 @@
     </div>
   </div>
   <div class="section" role="group" aria-labelledby="sec-algo">
-    <span class="sec" id="sec-algo">Local changer</span>
+    <span class="sec" id="sec-algo">Entropy decrease through local changer</span>
     <div class="group">
       <label for="changer">Changer</label>
       <select id="changer">
@@ -229,6 +229,14 @@
         <option value="lz" selected>LZ decompressor</option>
         <option value="xf">Transform</option>
         <option value="cpu">CPU</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="pair">Cells</label>
+      <select id="pair">
+        <option value="0" selected>Each cell on its own</option>
+        <option value="1">Pairs, concatenated: A then B, then B then A on alternating turns</option>
+        <option value="2">Pairs, bit-interleaved: A on the even bits and B on the odd, swapped on alternating turns</option>
       </select>
     </div>
     <div class="group" id="xfGroup" hidden>
@@ -387,7 +395,11 @@
   a prefix-coded copy length of 2 to N bytes followed by a 3-bit skip: the cursor skips that many bytes, the copy is
   taken from the dictionary at the cursor, and the cursor moves past it. Copies are the only way to make output; there
   are no literals and no distances, and neither the image nor the output is ever read back. The decompression slider
-  sets N, the longest copy. The local changer can instead be a Brainfuck interpreter: the 16 bytes are a program (values 0–7
+  sets N, the longest copy. Optionally two neighbouring cells (columns 2i and 2i + 1) are changed together: their 256 bits are
+  joined, either concatenated (A then B on even turns, B then A on odd turns) or bit-interleaved (A on the even bit positions and
+  B on the odd ones, swapped on odd turns), the changer runs once on the 32-byte joint cell (a CPU then has 32 bytes of memory, the
+  decompressor 256 input bits and 32 output bytes), and the result is split back by the same mapping in reverse. The changers defined
+  on exactly 128 bits (DCT, PDP-8, UNIVAC 1101, CDC 6600) see the joint cell as two consecutive 16-byte cells. The local changer can instead be a Brainfuck interpreter: the 16 bytes are a program (values 0–7
   are the eight commands, anything else a comment) run on a 16-cell tape, and the tape afterwards is the new content; the
   "Random bytes 0–7" start fills the field with programs. Simpler processors are available too: do nothing, invert, reverse bytes, add 17 (1 to the smallest byte, 17 to the byte after it, 5 to the byte before it), a 16-point DCT and its inverse. And sixteen machines, a Zilog Z80, MOS 6502, Intel 8080, Subleq, CHIP-8, Intel 4004, Game Boy SM83, Intel 8051, Motorola 6809,
   RISC-V RV32EC, DEC PDP-8 (8 words of 12 bits), DEC PDP-11 and Motorola 68000: the 16 bytes are the whole memory, the selected number of instructions run, the memory is written
@@ -431,7 +443,7 @@ function fillPattern(m8, grid, W, H, y0, rows, pattern, seed, wasm) {
 // Worker body: one horizontal band of rows with D halo rows above and below (see Band.runTurn).
 function workerMain() {
   const LAY = Codec.LAYOUT;
-  let wasm, text, built, io, lut, W, H, y0, rows, D, S, GRID, GRID2, PIX, PAL, m8, st;
+  let wasm, text, built, io, lut, W, H, y0, rows, D, S, GRID, GRID2, PIX, HALO, PAL, m8, st;
   const bandBits = () => wasm.bits(rows * W, GRID + D * S);
   onmessage = async e => {
     const d = e.data, reply = { id: d.id };
@@ -451,7 +463,9 @@ function workerMain() {
         case 'resize': {
           W = d.W; H = d.H; y0 = d.y0; rows = d.rows; D = d.D; S = 16 * W;
           const L = rows + 2 * D;
-          GRID = LAY.GRID; GRID2 = GRID + L * S + 64; PIX = GRID2 + L * S + 64; PAL = PIX + 4 * rows * W + 64;
+          GRID = LAY.GRID; GRID2 = GRID + L * S + 64; PIX = GRID2 + L * S + 64;
+          HALO = PIX + Band.POST_BYTES * (rows + 2 * Band.POST_HALO) * W + 64;   // PIX: the band's frame with POST_HALO neighbour rows each side, then its accumulators
+          PAL = HALO + 2 * Band.POST_HALO * S + 64;                                // HALO: staging for the neighbours' edge rows at render time
           const need = PAL + 129 * 4, have = wasm.memory.buffer.byteLength;
           if (need > have) wasm.memory.grow(Math.ceil((need - have) / 65536));
           m8 = new Uint8Array(wasm.memory.buffer);
@@ -472,9 +486,16 @@ function workerMain() {
         }
         case 'render': {
           if (d.mean !== undefined) io.setMean(d.mode, d.mean);
-          wasm.render(rows * W, GRID + D * S, PIX, PAL, d.mode, LAY.PRM);
-          const px = m8.slice(PIX, PIX + 4 * rows * W);
-          reply.pixels = px.buffer; reply.sums = io.frameSums();
+          const R = Band.POST_HALO, hT = d.haloTop ? R : 0, hB = d.haloBottom ? R : 0;
+          // the neighbours' edge rows are rendered from the staging area first, the band's own rows last, so that
+          // frameSums() afterwards covers the band's own rows only
+          if (hT) { m8.set(new Uint8Array(d.haloTop), HALO); wasm.render(R * W, HALO, PIX, PAL, d.mode, LAY.PRM); }
+          if (hB) { m8.set(new Uint8Array(d.haloBottom), HALO + R * S); wasm.render(R * W, HALO + R * S, PIX + 4 * (hT + rows) * W, PAL, d.mode, LAY.PRM); }
+          wasm.render(rows * W, GRID + D * S, PIX + 4 * hT * W, PAL, d.mode, LAY.PRM);
+          reply.sums = io.frameSums();
+          reply.flat = d.post ? Band.postFrame(wasm, PIX, W, hT + rows + hB, d.post, hT, hT + rows) : null;   // render buffer and sharpening, this band's rows
+          const px = m8.slice(PIX + 4 * hT * W, PIX + 4 * (hT + rows) * W);
+          reply.pixels = px.buffer;
           postMessage(reply, [px.buffer]);
           return;
         }
@@ -604,6 +625,7 @@ function workerMain() {
         m8.copyWithin(GRID2, GRID, GRID + 16 * N);   // snapshot: all swap decisions of the turn come from the map before the first phase
         for (const ph of t.order) moved += wasm.mix_from(W, H, GRID, GRID2, ph, LAYOUT.THR, t.salts[k++]);
         for (let i = 0; i < t.passes; i++) { smoothed += wasm.smooth(W, H, GRID, GRID2, LAYOUT.THRY, t.salts[k++], t.nbr); m8.copyWithin(GRID, GRID2, GRID2 + 16 * N); }
+        io.setPair(t.pair ? t.pair.mode : 0, t.pair ? t.pair.flip : 0);
         const rewritten = t.changer ? wasm.change(N, GRID, PRM) : 0;
         return { moved, smoothed, rewritten, bits: wasm.bits(N, GRID) };
       },
@@ -664,9 +686,13 @@ function workerMain() {
         rs.forEach((r, k) => { moved += r.moved; smoothed += r.smoothed; rewritten += r.rewritten; edgesFrom(r, k); });
         return { moved, smoothed, rewritten, bits: bandBits.reduce((a, b) => a + b, 0) };
       },
-      async render(mode) {
-        const rs = await all(() => ({ type: 'render', mode, mean: frameMean[mode] }));
+      async render(mode, post) {   // each band renders and post-processes its own rows, with POST_HALO neighbour rows from the edges kept here
+        const R = Band.POST_HALO, S = 16 * W;
+        const rs = await all(k => ({ type: 'render', mode, mean: frameMean[mode], post,
+          haloTop: k > 0 && bands[k - 1].bottom ? bands[k - 1].bottom.slice(bands[k - 1].bottom.length - R * S) : null,
+          haloBottom: k + 1 < K && bands[k + 1].top ? bands[k + 1].top.slice(0, R * S) : null }));
         rs.forEach((r, k) => image.data.set(new Uint8ClampedArray(r.pixels), 4 * W * bands[k].y0));
+        this.lastFlat = post && post.stages ? rs.reduce((a, r) => ({ n4: a.n4 + r.flat.n4, n8: a.n8 + r.flat.n8 }), { n4: 0, n8: 0 }) : null;
         if (mode >= 4) { const tot = rs.reduce((a, r) => ({ r: a.r + r.sums.r, g: a.g + r.sums.g, b: a.b + r.sums.b, n: a.n + r.sums.n }), { r: 0, g: 0, b: 0, n: 0 }); if (tot.n) frameMean[mode] = packMean(tot); }
         return image;
       },
@@ -790,42 +816,39 @@ function workerMain() {
     const mode = Number($('view').value);
     return mode === 5 && changerActive() ? 4 : mode;   // the bytes already are the latest decoded output: no second decode
   }
-  // ---- render buffer: an exponential average of the frames, slower where a frame is locally flat (wasm blend) ----
-  const BPIX = LAYOUT.GRID;   // in the blender's memory: the frame at BPIX (4 bytes a pixel), the 16.16 accumulators after it (12 bytes a pixel)
+  // ---- post-processing of a rendered frame: the render buffer (blend, one or two stages in cascade), then the
+  // spatial sharpening. The main thread decides the per-frame constants (postParams); the work is Band.postFrame,
+  // run here in a second wasm instance for the single-thread engine, or inside each band worker for the pool.
+  const BPIX = LAYOUT.GRID;   // in the blender's memory: the frame, then its accumulators and scratch (Band.POST_BYTES a pixel)
   const FLAT_TIERS = { 1: [1, 1], 2: [1, 2], 4: [1, 4], 24: [2, 4] };   // half-time factors for 4-connected / 8-connected flat pixels
   let blendReset = true, blendMode = -1, blendN = 0, blendTurn = 0, blendMs = 0, flatCount = null, halfTurns = 0;
-  // post-processing of a rendered frame, in place: the render buffer, then the spatial sharpening (2 x pixel - mean of the 4-connected neighbours)
-  function postFrame(image, mode) {
+  function postParams(mode) {
     const stages = Number($('avg').value) || 0, sharp = $('sharp').value === '1';
-    if (!stages) { blendReset = true; flatCount = null; }
-    if (!stages && !sharp) return;
-    const need = BPIX + 32 * N, have = blender.memory.buffer.byteLength;   // frame, two sets of 12-byte accumulators and a 4-byte scratch copy per pixel
-    if (need > have) blender.memory.grow(Math.ceil((need - have) / 65536));
-    const mem = new Uint8Array(blender.memory.buffer);
-    mem.set(image.data, BPIX);
-    if (stages) blendFrame(mem, mode, stages);
-    if (sharp) { mem.copyWithin(BPIX + 28 * N, BPIX, BPIX + 4 * N); blender.sharpen(W, H, BPIX + 28 * N, BPIX); }
-    image.data.set(mem.subarray(BPIX, BPIX + 4 * N));
-  }
-  // stages = 1: the frame pulls the first accumulator; stages = 2: the rounded output of the first stage then pulls a second
-  // accumulator in the same way (leaky integration of the already integrated image), which damps flicker more for the same half-time
-  function blendFrame(mem, mode, stages) {
+    if (!stages) { blendReset = true; return { stages: 0, sharp }; }
     const [f4, f8] = FLAT_TIERS[$('flat').value] || [1, 2];
     const now = performance.now(), reset = blendReset || mode !== blendMode || N !== blendN;
     const dt = turn - blendTurn, ms = now - blendMs;   // turns and wall time since the last blended frame
     // the half-time is 200 ms or 4 turns, whichever is longer: keep the larger remaining fraction of the two
     const rem = Math.max(2 ** (-ms / 200), 2 ** (-dt / 4));
     halfTurns = dt > 0 ? Math.max(4, 200 * dt / Math.max(ms, 1e-6)) : halfTurns;
-    const kOf = f => reset ? 65536 : Math.round(65536 * (1 - rem ** (1 / f)));
-    const r = blender.blend(W, H, BPIX, BPIX + 4 * N, kOf(1), kOf(f4), kOf(f8));
-    if (stages > 1) blender.blend(W, H, BPIX, BPIX + 16 * N, kOf(1), kOf(f4), kOf(f8));   // second stage reads the first stage's output
-    flatCount = { n4: Number(r >> 32n), n8: Number(r & 0xffffffffn) };
+    const kOf = f => reset ? 65536 : Math.round(65536 * (1 - rem ** (1 / f)));   // k = 65536 copies the frame
     blendReset = false; blendMode = mode; blendN = N; blendTurn = turn; blendMs = now;
+    return { stages, sharp, reset, k0: kOf(1), k4: kOf(f4), k8: kOf(f8) };
+  }
+  function postLocal(image, p) {   // single-thread engine: the whole frame through the blender instance
+    if (!p.stages && !p.sharp) return null;
+    const need = BPIX + Band.POST_BYTES * N, have = blender.memory.buffer.byteLength;
+    if (need > have) blender.memory.grow(Math.ceil((need - have) / 65536));
+    const mem = new Uint8Array(blender.memory.buffer);
+    mem.set(image.data, BPIX);
+    const flat = Band.postFrame(blender, BPIX, W, H, p, 0, H);
+    image.data.set(mem.subarray(BPIX, BPIX + 4 * N));
+    return flat;
   }
   async function draw() {
-    const mode = viewMode();
-    const image = await engine.render(mode);
-    postFrame(image, mode);
+    const mode = viewMode(), post = postParams(mode);
+    const image = await engine.render(mode, post);
+    flatCount = engine.threads > 1 ? engine.lastFlat : postLocal(image, post);
     if (oneToOne()) ctx.putImageData(image, 0, 0);
     else { bctx.putImageData(image, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(back, 0, 0, canvas.width, canvas.height); }
     if (sel >= 0) {
@@ -931,7 +954,7 @@ function workerMain() {
     const t0 = performance.now();
     const seeded = $('seedmode').value === '1', passes = Number($('iters').value);
     const salts = Array.from({ length: 4 + passes }, (_, k) => seeded ? BigInt(turn * 64 + k + 1) : 0n);   // a distinct salt per phase and pass
-    const r = await engine.turn({ order: Band.order(turn), passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, changer: changerActive() });
+    const r = await engine.turn({ order: Band.order(turn), passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, changer: changerActive(), pair: { mode: Number($('pair').value), flip: turn & 1 } });
     moved = r.moved; smoothed = r.smoothed; rewritten = r.rewritten; totalBits = r.bits;
     turn++;
     timeSum += performance.now() - t0; timed++;
@@ -1039,7 +1062,7 @@ function workerMain() {
     const selftest = location.hash === '#selftest' || location.hash === '#selftest-workers';
     if (saved && saved.w) {
       for (const [id, key, dflt] of [['size', 'size', '128x128'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['flat', 'flat', '2'], ['sharp', 'sharp', '1'], ['seedmode', 'seedmode', '0'],
-            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '0'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 3], ['threads', 'threads', 1], ['changer', 'changer', 'lz'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['steps', 'steps', '256'], ['coff', 'coff', '600']])
+            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '0'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 3], ['threads', 'threads', 1], ['changer', 'changer', 'lz'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['steps', 'steps', '256'], ['coff', 'coff', '600'], ['pair', 'pair', '0']])
         $(id).value = saved[key] ?? dflt;
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
       if (!$('size').value) { const w = parseInt(saved.size) || 128; $('size').value = [...$('size').options].some(o => o.value === `${w}x${w}`) ? `${w}x${w}` : '128x128'; }
@@ -1060,7 +1083,7 @@ function workerMain() {
   window.claude?.hot?.snapshot?.(() => ({
     w: W, h: H, turn, running, sel,
     size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, flat: $('flat').value, sharp: $('sharp').value, seedmode: $('seedmode').value, thrL: $('thrL').value, thrR: $('thrR').value,
-    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, steps: $('steps').value, coff: $('coff').value,
+    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, steps: $('steps').value, coff: $('coff').value, pair: $('pair').value,
     cells: engine && engine.cellsSync() ? Array.from(engine.cellsSync()) : null,   // the worker pool keeps no copy on the main thread
   }));
   window.claude?.hot?.ready ? window.claude.hot.ready(d => run(() => start(d))) : run(() => start(window.claude?.hot?.data ?? null));

@@ -711,7 +711,7 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   const px = new Uint8Array(memory.buffer, PIXB, 4 * N), ac = new Int32Array(memory.buffer, ACC, 3 * N);
   const setFrame = f => { for (let i = 0; i < N; i++) { const [r, g, b] = f(i % W, Math.floor(i / W)); px.set([r, g, b, 255], 4 * i); } };
   const rgb = i => [px[4 * i], px[4 * i + 1], px[4 * i + 2]];
-  const run = (k0, k4, k8) => { const r = blend(W, H, PIXB, ACC, k0, k4, k8); return { n4: Number(r >> 32n), n8: Number(r & 0xffffffffn) }; };
+  const run = (k0, k4, k8) => { const r = blend(W, H, PIXB, ACC, k0, k4, k8, 0, H); return { n4: Number(r >> 32n), n8: Number(r & 0xffffffffn) }; };
   setFrame(() => [100, 150, 200]);
   let r = run(65536, 65536, 65536);
   check('blend with k = 65536 copies the frame into the accumulator; a flat frame is 8-connected flat everywhere', r.n8 === N && r.n4 === 0 && ac[0] === 100 << 16 && ac[3 * N - 1] === 200 << 16 && rgb(N - 1).join() === '100,150,200' && px[3] === 255);
@@ -719,6 +719,8 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   setFrame((x, y) => x === 2 && y === 2 ? [0, 150, 200] : [100, 150, 200]);
   r = run(32768, 6554, 2185);   // k = 1/2, 1/10, 1/30
   check(`a changed pixel: it and its 4 cross neighbours are not flat, its 4 diagonal neighbours are 4-connected flat only (${r.n4}), the rest 8-connected flat (${r.n8})`, r.n4 === 4 && r.n8 === N - 9);
+  { const r0 = blend(W, H, PIXB, ACC, 0, 0, 0, 0, 1);   // k = 0: nothing moves; count row 0 only
+    check(`the flat counts honour the row range: row 0 alone has ${W} 8-connected flat pixels`, r0 === BigInt(W)); }
   check('the changed pixel moves half way (100 -> 50), its flat neighbours stay', rgb(2 * W + 2)[0] === 50 && rgb(0)[0] === 100 && rgb(2 * W + 1)[0] === 100 && px.every((v, i) => (i & 3) !== 3 || v === 255));
   // a uniform change of the whole frame moves only at the slowest constant
   setFrame(() => [0, 150, 200]);
@@ -743,9 +745,9 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   check('alpha is ignored for the flatness test and written back as 255', r.n8 === N && px[3] === 255);
   // two stages in cascade: the second accumulator reads the first stage's output
   const ACC2 = ACC + 12 * N;
-  setFrame(() => [0, 0, 0]); blend(W, H, PIXB, ACC, 65536, 65536, 65536); blend(W, H, PIXB, ACC2, 65536, 65536, 65536);
+  setFrame(() => [0, 0, 0]); blend(W, H, PIXB, ACC, 65536, 65536, 65536, 0, H); blend(W, H, PIXB, ACC2, 65536, 65536, 65536, 0, H);
   const two = [];
-  for (let t = 0; t < 4; t++) { setFrame(() => [200, 0, 0]); blend(W, H, PIXB, ACC, 32768, 32768, 32768); blend(W, H, PIXB, ACC2, 32768, 32768, 32768); two.push(rgb(0)[0]); }
+  for (let t = 0; t < 4; t++) { setFrame(() => [200, 0, 0]); blend(W, H, PIXB, ACC, 32768, 32768, 32768, 0, H); blend(W, H, PIXB, ACC2, 32768, 32768, 32768, 0, H); two.push(rgb(0)[0]); }
   check(`two stages at k = 1/2 give the cascade step response 50, 100, 137.5, 162.5 of 200: ${two.join(', ')}`, two.join() === '50,100,138,162' || two.join() === '50,100,137,163' || two.join() === '50,100,138,163');
   // ---- spatial sharpening: dst = 2 * src - mean of the 4-connected neighbours
   const DST = ACC + 12 * N, out = new Uint8Array(memory.buffer, DST, 4 * N), org = i => [out[4 * i], out[4 * i + 1], out[4 * i + 2]];
@@ -757,5 +759,59 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   setFrame((x, y) => [10 * x, 0, 0]); sharpen(W, H, PIXB, DST);   // a ramp: interior pixels keep their value, the edges are extrapolated
   check('sharpen: a linear ramp is unchanged inside, the edge columns extrapolate (2*0-(10+0)/3 -> 0 at the corner, 2*50-(40+50+50)/3 = 53 at the right edge)',
     org(2 * W + 2)[0] === 20 && org(2 * W + 3)[0] === 30 && org(0)[0] === 0 && org(2 * W + 5)[0] === 53);
+}
+// ---- pairs: two cells changed together (change() with pairMode 1 = concatenated, 2 = bit-interleaved; flip swaps the roles)
+{
+  const bitsOf = arr => { const o = []; for (let i = 0; i < arr.length * 8; i++) o.push((arr[i >> 3] >> (i & 7)) & 1); return o; };
+  const fromBits = bits => { const a = new Uint8Array(bits.length / 8); bits.forEach((b, i) => { a[i >> 3] |= b << (i & 7); }); return a; };
+  const joinRef = (A, B, mode, flip) => { const [a, b] = flip ? [B, A] : [A, B]; if (mode === 1) return Uint8Array.from([...a, ...b]);
+    const ab = bitsOf(a), bb = bitsOf(b), j = []; for (let k = 0; k < 128; k++) j.push(ab[k], bb[k]); return fromBits(j); };
+  const splitRef = (J, mode, flip) => { let a, b; if (mode === 1) { a = J.slice(0, 16); b = J.slice(16); }
+    else { const jb = bitsOf(J); a = fromBits(jb.filter((_, i) => i % 2 === 0)); b = fromBits(jb.filter((_, i) => i % 2 === 1)); } return flip ? [b, a] : [a, b]; };
+  const A = Uint8Array.from({ length: 16 }, (_, k) => (k * 37 + 11) & 255), B = Uint8Array.from({ length: 16 }, (_, k) => (k * 91 + 200) & 255);
+  const px = i => m8.slice(GRID + 16 * i, GRID + 16 * i + 16), eq = (x, y) => x.length === y.length && x.every((v, k) => v === y[k]);
+  const { change } = instance.exports;
+  const run = (changer, mode, flip, a = A, b = B) => { io.setChanger(changer); io.setPair(mode, flip); m8.set(a, GRID); m8.set(b, GRID + 16); const n = change(2, GRID, PRM); io.setPair(0, 0); return n; };
+  // the bijection: do nothing round-trips both representations, in both flips
+  let ok = true;
+  for (const mode of [1, 2]) for (const flip of [0, 1]) { const n = run(3, mode, flip); if (n !== 0 || !eq(px(0), A) || !eq(px(1), B)) ok = false; }
+  check('pairs: "do nothing" on a joint cell leaves both cells unchanged (concatenated and interleaved, both flips)', ok);
+  // invert commutes with the mapping
+  ok = true;
+  for (const mode of [1, 2]) for (const flip of [0, 1]) { run(4, mode, flip); if (!eq(px(0), A.map(v => v ^ 255)) || !eq(px(1), B.map(v => v ^ 255))) ok = false; }
+  check('pairs: invert on a joint cell inverts both cells', ok);
+  // reverse bytes: compare with a JavaScript reference of join / reverse / split
+  ok = true;
+  for (const mode of [1, 2]) for (const flip of [0, 1]) {
+    run(5, mode, flip);
+    const J = joinRef(A, B, mode, flip), R = J.slice().reverse(), [a2, b2] = splitRef(R, mode, flip);
+    if (!eq(px(0), a2) || !eq(px(1), b2)) ok = false;
+  }
+  check('pairs: reverse bytes on the joint cell matches the reference join / reverse / split (both modes, both flips)', ok);
+  check('pairs: interleaving really mixes the cells: reversed interleaved A, B differ from reversed A and reversed B', !eq(px(0), A.slice().reverse()));
+  // a Z80 program in A writes into B's half: the joint cell is the whole address space
+  const prog = new Uint8Array(16); prog.set([0x3E, 0x42, 0x32, 0x14, 0x00, 0x76]);   // LD A,42h; LD (0014h),A; HALT
+  const zero = new Uint8Array(16);
+  io.setSteps(64);
+  run(6, 1, 0, prog, zero);
+  check('pairs (concatenated, A then B): a Z80 program in A stores to address 20, which is byte 4 of B', px(1)[4] === 0x42 && px(0)[3] === 0x14 && px(0)[4] === 0);
+  run(6, 1, 1, prog, zero);
+  check('pairs (concatenated, B then A): the same store lands in A itself, since A now occupies addresses 16..31', px(0)[4] === 0x42 && px(1)[4] === 0);
+  io.setSteps(256);
+  // the 128-bit changers see the joint cell as two 16-byte cells: a pair DCT equals two single DCTs
+  io.setChanger(17); io.setPair(0, 0); m8.set(A, GRID); decode_pixel(GRID, 0, PRM); const dA = m8.slice(io.OUT, io.OUT + 16);
+  m8.set(B, GRID); decode_pixel(GRID, 0, PRM); const dB = m8.slice(io.OUT, io.OUT + 16);
+  run(17, 1, 1);
+  check('pairs: the DCT on a concatenated joint cell transforms each cell separately (B then A, then split back)', eq(px(0), dA) && eq(px(1), dB));
+  // the LZ decompressor on a joint cell: 32 bytes of dictionary text, cursor from the first 13 of the 256 bits
+  io.setChanger(0); io.setCursorOffset(0);
+  const words = new BigUint64Array(memory.buffer, GRID, 4); words.fill(0n);
+  m8.set(new Uint8Array(32), GRID); io.setPair(1, 0); change(2, GRID, PRM); io.setPair(0, 0);
+  const joint = m8.slice(GRID, GRID + 32), txt = i => built.bytes[i % built.bytes.length];
+  check('pairs: the decompressor expands the 256-bit joint cell into 32 bytes of dictionary text (zero cell: from the start)', joint.every((b, k) => b === txt(k)));
+  io.setCursorOffset(600); io.setChanger(0);
+  // single-cell decoding is untouched afterwards: the cell width is back at 16
+  m8.set(A, GRID); io.setChanger(3); decode_pixel(GRID, 0, PRM);
+  check('after a pair change the single-cell path is back: decode_pixel of "do nothing" copies 16 bytes', m8.slice(io.OUT, io.OUT + 16).every((b, k) => b === A[k]));
 }
 console.log(fails ? fails + ' failures' : 'all passed'); process.exit(fails ? 1 : 0);
