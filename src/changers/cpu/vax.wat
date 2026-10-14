@@ -1,4 +1,3 @@
-  ;; ========================================================================
   ;; DEC VAX-11/780 (kind 23). 16 little-endian bytes, byte addressed; R0..R14 (R12 AP, R13 FP,
   ;; R14 SP) live in the register file at 64 + 4n, R15 is the PC at 22, the PSL condition codes
   ;; (N8 Z4 V2 C1) at 20. Every operand specifier: short literal, index, register, register

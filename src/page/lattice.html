@@ -1,4 +1,4 @@
-<title>Bit Swap Lattice</title>
+<title>Keimli</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
   /* Layout: one toolbar row, a full-width canvas, a stats strip, then an inspector
@@ -40,6 +40,7 @@
   }
   header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
   h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  h1 .sub { font-weight: 400; color: var(--muted); font-size: 16px; margin-left: 6px; }
   .badge { font: 12px/1 var(--font-mono); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
   .badge b { color: var(--accent); font-weight: 500; }
 
@@ -117,7 +118,7 @@
 </style>
 
 <header>
-  <h1>Bit Swap Lattice</h1>
+  <h1>Keimli <span class="sub">bit swap lattice</span></h1>
   <span class="badge">128-bit pixels mixed and inflated by a <b>__WASM_SIZE__-byte</b> hand-written WebAssembly module</span>
 </header>
 
@@ -517,7 +518,7 @@ function workerMain() {
   const bctx = back.getContext('2d');
 
   const SPEEDS = [1, 2, 5, 10, 30, 60, 120, 300, 1000];
-  // wasm phase ids: 0 = LR even, 1 = UD even, 2 = LR odd, 3 = UD odd; a turn runs the four in order Band.order(turn), see mix-band.js.
+  // wasm phase ids: 0 = LR even, 1 = UD even, 2 = LR odd, 3 = UD odd; a turn runs the four in order Band.order(turn), see src/lattice/band.js.
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const LAYOUT = Codec.LAYOUT, PRM = LAYOUT.PRM;
   const declText = $('decl').textContent.trim();

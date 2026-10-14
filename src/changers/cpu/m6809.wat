@@ -1,4 +1,3 @@
-  ;; ========================================================================
   ;; Motorola 6809 (kind 14). Register file: A 0, B 1, DP 2, CC 3, X 4, Y 6,
   ;; U 8, S 10 (u16 each), PC 22. CC: E 80 F 40 H 20 I 10 N 08 Z 04 V 02 C 01.
   ;; All addressing modes including the full indexed postbyte with indirection,
@@ -33,9 +32,6 @@
     (local.set $ea (i32.and (local.get $ea) (i32.const 0xffff)))
     (if (i32.and (local.get $pb) (i32.const 0x10)) (then (local.set $ea (call $mrd16be (local.get $ea)))))
     (local.get $ea))
-  (func $fetch16be (result i32) (local $hi i32) (local.set $hi (call $fetch)) (i32.or (i32.shl (local.get $hi) (i32.const 8)) (call $fetch)))
-  (func $mrd16be (param $a i32) (result i32) (i32.or (i32.shl (call $mrd (local.get $a)) (i32.const 8)) (call $mrd (i32.add (local.get $a) (i32.const 1)))))
-  (func $mwr16be (param $a i32) (param $v i32) (call $mwr (local.get $a) (i32.shr_u (local.get $v) (i32.const 8))) (call $mwr (i32.add (local.get $a) (i32.const 1)) (i32.and (local.get $v) (i32.const 255))))
   ;; effective address by mode: 0 immediate (returns PC and advances by n bytes), 1 direct, 2 indexed, 3 extended
   (func $ea9 (param $mode i32) (param $n i32) (result i32)
     (local $t i32)

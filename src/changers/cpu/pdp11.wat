@@ -1,4 +1,3 @@
-  ;; ========================================================================
   ;; DEC PDP-11 (kind 20). Register file: R0..R6 as u16 at 0,2,..,12 (R6 = SP),
   ;; PSW at 20 (N 8, Z 4, V 2, C 1, T 16), PC (R7) at 22. The 16 bytes are the
   ;; whole address space (little-endian words, byte addressed, wrapping mod 16;

@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>Life in WebAssembly</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: the grid is the page. A full-width canvas sits under a single
+     toolbar row; a slim stats strip sits below it. Everything stacks at phone width. */
+  :root {
+    --bg: #eef0f4;
+    --panel: #ffffff;
+    --fg: #1a1d24;
+    --muted: #5c6270;
+    --line: #d4d8e1;
+    --accent: #0e7c6b;
+    --accent-ink: #ffffff;
+    --cell-dead: #f7f8fa;
+    --cell-new: #f2a93b;
+    --cell-mid: #159a85;
+    --cell-old: #1f4f6b;
+    --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1218; --panel: #171b23; --fg: #e4e7ee; --muted: #8e95a5; --line: #2a303c;
+      --accent: #37d1b2; --accent-ink: #0b1a17;
+      --cell-dead: #0b0e14; --cell-new: #ffc857; --cell-mid: #2fd3b5; --cell-old: #1d6f8a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1218; --panel: #171b23; --fg: #e4e7ee; --muted: #8e95a5; --line: #2a303c;
+    --accent: #37d1b2; --accent-ink: #0b1a17;
+    --cell-dead: #0b0e14; --cell-new: #ffc857; --cell-mid: #2fd3b5; --cell-old: #1d6f8a;
+    color-scheme: dark;
+  }
+
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.45 var(--font-body);
+    padding-block: 18px; padding-inline: 16px;
+    display: flex; flex-direction: column; gap: 14px;
+    max-width: 1100px; margin-inline: auto; box-sizing: border-box;
+  }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  .badge {
+    font: 12px/1 var(--font-mono); color: var(--muted);
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .badge b { color: var(--accent); font-weight: 500; }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  label { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  button, select {
+    font: 500 14px var(--font-body); color: var(--fg);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 12px; cursor: pointer;
+  }
+  button:hover, select:hover { border-color: var(--muted); }
+  button:focus-visible, select:focus-visible, input:focus-visible, canvas:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; min-width: 84px; }
+  input[type=range] { width: 130px; accent-color: var(--accent); }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .speed-val { min-width: 7ch; font-size: 13px; }
+
+  .stage {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px; min-width: 0;
+  }
+  canvas {
+    display: block; width: 100%; max-width: 100%; height: auto;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    border-radius: 4px; cursor: crosshair; touch-action: none;
+  }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 20px;
+    font-size: 13px; color: var(--muted);
+  }
+  .stats div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .stats dt { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+  .stats dd { margin: 0; font: 500 18px var(--font-mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+  .hint { font-size: 13px; color: var(--muted); margin: 0; max-width: 70ch; }
+  .hint kbd {
+    font: 12px var(--font-mono); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 5px; background: var(--panel);
+  }
+  @media (max-width: 520px) {
+    input[type=range] { width: 100px; }
+    .toolbar { gap: 8px 10px; }
+  }
+</style>
+
+<header>
+  <h1>Conway's Game of Life</h1>
+  <span class="badge">simulation in a <b>609-byte</b> hand-written WebAssembly module</span>
+</header>
+
+<div class="toolbar" role="toolbar" aria-label="Simulation controls">
+  <div class="group">
+    <button id="play" class="primary" type="button">Pause</button>
+    <button id="step" type="button">Step</button>
+    <button id="clear" type="button">Clear</button>
+    <button id="random" type="button">Random</button>
+  </div>
+  <div class="group">
+    <label for="pattern">Pattern</label>
+    <select id="pattern">
+      <option value="soup">Random soup</option>
+      <option value="glider">Glider</option>
+      <option value="lwss">Lightweight spaceship</option>
+      <option value="rpentomino">R-pentomino</option>
+      <option value="acorn">Acorn</option>
+      <option value="diehard">Diehard</option>
+      <option value="pulsar">Pulsar</option>
+      <option value="gun">Gosper glider gun</option>
+    </select>
+  </div>
+  <div class="group">
+    <label for="size">Grid</label>
+    <select id="size">
+      <option value="64x48">64 × 48</option>
+      <option value="128x96" selected>128 × 96</option>
+      <option value="256x192">256 × 192</option>
+      <option value="512x384">512 × 384</option>
+      <option value="1024x768">1024 × 768</option>
+    </select>
+  </div>
+  <div class="group">
+    <label for="speed">Speed</label>
+    <input id="speed" type="range" min="0" max="9" value="4" step="1">
+    <span id="speedVal" class="mono speed-val">15 gen/s</span>
+  </div>
+</div>
+
+<div class="stage">
+  <canvas id="view" tabindex="0" aria-label="Game of Life grid. Click or drag to draw cells."></canvas>
+</div>
+
+<dl class="stats">
+  <div><dt>Generation</dt><dd id="gen">0</dd></div>
+  <div><dt>Population</dt><dd id="pop">0</dd></div>
+  <div><dt>Wasm step time</dt><dd id="stepTime">–</dd></div>
+  <div><dt>Cells per second</dt><dd id="throughput">–</dd></div>
+</dl>
+<p class="hint">
+  Click or drag on the grid to draw live cells. Edges wrap around. Colour shows a cell's age:
+  newborn cells are amber and settle toward teal as they survive.
+  Keys: <kbd>space</kbd> play/pause, <kbd>n</kbd> step, <kbd>r</kbd> random, <kbd>c</kbd> clear.
+</p>
+
+<script>
+(async () => {
+  const WASM_B64 = "AGFzbQEAAAABFgNgBH9/f38AYAJ/fwF/YAR/f39/AX8DBQQAAAECBQMBAEAHMwUGbWVtb3J5AgAEc3RlcAAABnJlbmRlcgABCnBvcHVsYXRpb24AAglyYW5kb21pemUAAwr9AwSvAgEKfyADIQ1BACEFAkADQCAFIAFPDQEgAiAFIABsaiEGIAIgAUEBayAAbGogBiAAayAFRRshByACIAYgAGogBSABQQFrRhshCEEAIQQCQANAIAQgAE8NASAAQQFrIARBAWsgBEUbIQlBACAEQQFqIAQgAEEBa0YbIQogByAJai0AAEEARyAHIARqLQAAQQBHaiAHIApqLQAAQQBHIAYgCWotAABBAEdqaiAGIApqLQAAQQBHIAggCWotAABBAEdqIAggBGotAABBAEcgCCAKai0AAEEAR2pqaiELIAYgBGotAAAhDCANQf8BIAxBAWogDEH/AUYbQQEgDBtBACALQQNGIAxBAEcgC0ECRnFyGzoAACANQQFqIQ0gBEEBaiEEDAALCyAFQQFqIQUMAAsLCzoBAX9BACEEAkADQCAEIABPDQEgAiAEQQJ0aiADIAEgBGotAABBAnRqKAIANgIAIARBAWohBAwACwsLMAECf0EAIQICQANAIAIgAE8NASADIAEgAmotAABBAEdqIQMgAkEBaiECDAALCyADC14BAX8gAkUEQEG5893xeSECC0EAIQQCQANAIAQgAE8NASACIAJBDXRzIQIgAiACQRF2cyECIAIgAkEFdHMhAiABIARqIAJB//8DcSADSToAACAEQQFqIQQMAAsLIAIL";
+  const bytes = Uint8Array.from(atob(WASM_B64), c => c.charCodeAt(0));
+  const { instance } = await WebAssembly.instantiate(bytes);
+  const wasm = instance.exports;
+
+  const $ = id => document.getElementById(id);
+  const canvas = $('view');
+  const ctx = canvas.getContext('2d');
+  const back = document.createElement('canvas');     // 1 pixel per cell
+  const bctx = back.getContext('2d');
+
+  const SPEEDS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 1000];
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let W = 0, H = 0, N = 0;
+  let cur = 0, nxt = 0, PIX = 0, PAL = 0;   // offsets into wasm memory
+  let cells, image;                          // views over wasm memory
+  let gen = 0, running = !reduceMotion;
+  let seed = (Date.now() ^ 0x5bd1e995) >>> 0;
+  let acc = 0, lastT = 0, stepMs = 0, stepsTimed = 0, timeSum = 0;
+
+  // ---- memory layout -------------------------------------------------------
+  function layout(w, h) {
+    W = w; H = h; N = w * h;
+    cur = 0; nxt = N;
+    PIX = (2 * N + 3) & ~3;
+    PAL = PIX + 4 * N;
+    const need = PAL + 256 * 4;
+    const have = wasm.memory.buffer.byteLength;
+    if (need > have) wasm.memory.grow(Math.ceil((need - have) / 65536));
+    refreshViews();
+    new Uint8Array(wasm.memory.buffer, 0, 2 * N).fill(0);
+    back.width = W; back.height = H;
+    fillPalette();
+    fitCanvas();
+  }
+  function refreshViews() {
+    cells = new Uint8Array(wasm.memory.buffer);
+    image = new ImageData(new Uint8ClampedArray(wasm.memory.buffer, PIX, 4 * N), W, H);
+  }
+
+  // ---- palette: derived from the page's theme tokens -----------------------
+  function cssColor(name) {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const n = parseInt(v.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function fillPalette() {
+    const dead = cssColor('--cell-dead'), young = cssColor('--cell-new');
+    const mid = cssColor('--cell-mid'), old = cssColor('--cell-old');
+    const pal = new Uint32Array(wasm.memory.buffer, PAL, 256);
+    const pack = ([r, g, b]) => ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
+    const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    pal[0] = pack(dead);
+    for (let age = 1; age < 256; age++) {
+      const c = age <= 6 ? mix(young, mid, (age - 1) / 5)
+                         : mix(mid, old, Math.min(1, (age - 6) / 40));
+      pal[age] = pack(c);
+    }
+  }
+
+  // ---- drawing -------------------------------------------------------------
+  function fitCanvas() {
+    const dpr = devicePixelRatio || 1;
+    const cssW = canvas.parentElement.clientWidth - 16;
+    const cell = Math.max(1, Math.floor(cssW * dpr / W));
+    canvas.width = W * cell; canvas.height = H * cell;
+    canvas.style.width = (W * cell / dpr) + 'px';
+    draw();
+  }
+  function draw() {
+    wasm.render(N, cur, PIX, PAL);
+    bctx.putImageData(image, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(back, 0, 0, canvas.width, canvas.height);
+    $('gen').textContent = gen.toLocaleString();
+    $('pop').textContent = wasm.population(N, cur).toLocaleString();
+  }
+
+  // ---- simulation ----------------------------------------------------------
+  function stepOnce() {
+    const t0 = performance.now();
+    wasm.step(W, H, cur, nxt);
+    const dt = performance.now() - t0;
+    [cur, nxt] = [nxt, cur];
+    gen++;
+    timeSum += dt; stepsTimed++;
+    if (stepsTimed >= 20) { stepMs = timeSum / stepsTimed; timeSum = 0; stepsTimed = 0; showTiming(); }
+  }
+  function showTiming() {
+    $('stepTime').textContent = stepMs >= 1 ? stepMs.toFixed(2) + ' ms' : (stepMs * 1000).toFixed(0) + ' µs';
+    const cps = N / (stepMs / 1000);
+    $('throughput').textContent = cps >= 1e9 ? (cps / 1e9).toFixed(2) + ' G' : (cps / 1e6).toFixed(1) + ' M';
+  }
+  function frame(t) {
+    if (running) {
+      const sps = SPEEDS[$('speed').value];
+      acc += Math.min(0.1, (t - lastT) / 1000) * sps;
+      let n = Math.min(Math.floor(acc), 40);
+      acc -= n;
+      while (n-- > 0) stepOnce();
+      draw();
+    }
+    lastT = t;
+    requestAnimationFrame(frame);
+  }
+
+  // ---- patterns ------------------------------------------------------------
+  // Run-length encoded in the standard RLE pattern format.
+  const RLE = {
+    glider: 'bo$2bo$3o!',
+    lwss: 'bo2bo$o4b$o3bo$4o!',
+    rpentomino: 'b2o$2ob$bo!',
+    acorn: 'bo5b$3bo3b$2o2b3o!',
+    diehard: '6bob$2o6b$bo3b3o!',
+    pulsar: '2b3o3b3o2b$o4bobo4bo$o4bobo4bo$o4bobo4bo$2b3o3b3o2b2$2b3o3b3o2b$o4bobo4bo$o4bobo4bo$o4bobo4bo$2b3o3b3o!',
+    gun: '24bo$22bobo$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o$2o8bo3bob2o4bobo$10bo5bo7bo$11bo3bo$12b2o!',
+  };
+  function decodeRLE(s) {
+    const pts = []; let x = 0, y = 0, run = '';
+    for (const ch of s) {
+      if (ch >= '0' && ch <= '9') { run += ch; continue; }
+      const n = run ? parseInt(run, 10) : 1; run = '';
+      if (ch === 'b') x += n;
+      else if (ch === 'o') { for (let i = 0; i < n; i++) pts.push([x++, y]); }
+      else if (ch === '$') { y += n; x = 0; }
+      else if (ch === '!') break;
+    }
+    return pts;
+  }
+  function place(name) {
+    cells.fill(0, cur, cur + N);
+    const pts = decodeRLE(RLE[name]);
+    const pw = Math.max(...pts.map(p => p[0])) + 1, ph = Math.max(...pts.map(p => p[1])) + 1;
+    const ox = name === 'gun' ? 4 : (W - pw) >> 1;
+    const oy = name === 'gun' ? 4 : (H - ph) >> 1;
+    for (const [x, y] of pts) cells[cur + ((y + oy) % H) * W + ((x + ox) % W)] = 1;
+  }
+  function soup() {
+    seed = wasm.randomize(N, cur, seed, Math.floor(65536 * 0.28)) >>> 0;
+  }
+  function reset(fn) { fn(); gen = 0; acc = 0; draw(); }
+
+  // ---- interaction ---------------------------------------------------------
+  let painting = false, paintValue = 1;
+  function cellAt(ev) {
+    const r = canvas.getBoundingClientRect();
+    const x = Math.floor((ev.clientX - r.left) / r.width * W);
+    const y = Math.floor((ev.clientY - r.top) / r.height * H);
+    return (x >= 0 && y >= 0 && x < W && y < H) ? cur + y * W + x : -1;
+  }
+  canvas.addEventListener('pointerdown', ev => {
+    const i = cellAt(ev); if (i < 0) return;
+    canvas.setPointerCapture(ev.pointerId);
+    painting = true;
+    paintValue = cells[i] ? 0 : 1;
+    cells[i] = paintValue; draw();
+  });
+  canvas.addEventListener('pointermove', ev => {
+    if (!painting) return;
+    const i = cellAt(ev); if (i < 0) return;
+    if (cells[i] !== paintValue) { cells[i] = paintValue; draw(); }
+  });
+  const stopPaint = () => { painting = false; };
+  canvas.addEventListener('pointerup', stopPaint);
+  canvas.addEventListener('pointercancel', stopPaint);
+
+  function setRunning(on) {
+    running = on;
+    $('play').textContent = on ? 'Pause' : 'Play';
+    $('play').setAttribute('aria-pressed', String(on));
+  }
+  $('play').addEventListener('click', () => setRunning(!running));
+  $('step').addEventListener('click', () => { setRunning(false); stepOnce(); draw(); });
+  $('clear').addEventListener('click', () => { setRunning(false); reset(() => cells.fill(0, cur, cur + N)); });
+  $('random').addEventListener('click', () => reset(soup));
+  $('pattern').addEventListener('change', ev => {
+    const v = ev.target.value;
+    reset(v === 'soup' ? soup : () => place(v));
+  });
+  $('size').addEventListener('change', ev => {
+    const [w, h] = ev.target.value.split('x').map(Number);
+    layout(w, h);
+    const v = $('pattern').value;
+    reset(v === 'soup' ? soup : () => place(v));
+    stepMs = 0; $('stepTime').textContent = '–'; $('throughput').textContent = '–';
+  });
+  const showSpeed = () => { $('speedVal').textContent = SPEEDS[$('speed').value] + ' gen/s'; };
+  $('speed').addEventListener('input', showSpeed);
+  document.addEventListener('keydown', ev => {
+    if (ev.target.tagName === 'SELECT' || ev.target.tagName === 'INPUT') return;
+    if (ev.key === ' ') { ev.preventDefault(); setRunning(!running); }
+    else if (ev.key === 'n') { setRunning(false); stepOnce(); draw(); }
+    else if (ev.key === 'r') reset(soup);
+    else if (ev.key === 'c') { setRunning(false); reset(() => cells.fill(0, cur, cur + N)); }
+  });
+  addEventListener('resize', fitCanvas);
+  const themeChanged = () => { fillPalette(); draw(); };
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeChanged);
+  new MutationObserver(themeChanged).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // ---- boot ----------------------------------------------------------------
+  function start(saved) {
+    if (saved && saved.w && saved.cells) {
+      layout(saved.w, saved.h);
+      cells.set(saved.cells, cur);
+      gen = saved.gen || 0;
+      $('size').value = saved.w + 'x' + saved.h;
+      $('pattern').value = saved.pattern || 'soup';
+      $('speed').value = saved.speed ?? 4;
+      setRunning(saved.running ?? running);
+      draw();
+    } else {
+      layout(128, 96);
+      reset(soup);
+      setRunning(running);
+    }
+    showSpeed();
+    // #selftest: run 50 generations synchronously so a headless browser can check the page works
+    if (location.hash === '#selftest') { for (let i = 0; i < 50; i++) stepOnce(); draw(); }
+    requestAnimationFrame(t => { lastT = t; frame(t); });
+  }
+  window.claude?.hot?.snapshot?.(() => ({
+    w: W, h: H, gen, running, speed: $('speed').value, pattern: $('pattern').value,
+    cells: Array.from(cells.subarray(cur, cur + N)),
+  }));
+  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? null);
+})();
+</script>
+</body>
+</html>

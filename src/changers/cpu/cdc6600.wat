@@ -1,4 +1,3 @@
-  ;; ========================================================================
   ;; CDC 6600 central processor (kind 24). The pixel is 2 words of 60 bits (word w = bits
   ;; 60w..60w+59), each holding four 15-bit parcels executed from the high end; P counts parcels
   ;; 0..7 and is kept at 22. Register file: X0..X7 (60 bits) at 64 + 8n, A0..A7 (18 bits) at

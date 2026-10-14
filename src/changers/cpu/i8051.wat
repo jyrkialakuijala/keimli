@@ -1,4 +1,3 @@
-  ;; ========================================================================
   ;; Intel 8051 (kind 13). Internal RAM is the pixel's 16 bytes (direct and
   ;; indirect addresses below 80h wrap mod 16), so the register banks live in
   ;; the pixel: R0..R7 of bank 0 are bytes 0..7. Program memory is the same 16
@@ -79,8 +78,11 @@
         (br $end)))
       ;; ---- regular groups (columns 4..F) by row
       (if (i32.ge_u (local.get $lo) (i32.const 4)) (then
-        (if (i32.eqz (local.get $hi)) (then (local.set $v (call $src51 (local.get $lo))) (if (i32.eq (local.get $lo) (i32.const 4)) (then (call $zw (i32.const 0) (i32.and (i32.add (local.get $a) (i32.const 1)) (i32.const 255)))) (else (call $dst51 (local.get $lo) (i32.and (i32.add (local.get $v) (i32.const 1)) (i32.const 255))))) (br $end)))   ;; INC (04 INC A has no operand byte: src51(4) would fetch; handle below)
-        (if (i32.eq (local.get $hi) (i32.const 1)) (then (local.set $v (call $src51 (local.get $lo))) (if (i32.eq (local.get $lo) (i32.const 4)) (then (call $zw (i32.const 0) (i32.and (i32.sub (local.get $a) (i32.const 1)) (i32.const 255)))) (else (call $dst51 (local.get $lo) (i32.and (i32.sub (local.get $v) (i32.const 1)) (i32.const 255))))) (br $end)))
+        (if (i32.lt_u (local.get $hi) (i32.const 2)) (then   ;; INC / DEC: 04/14 act on A without an operand byte
+          (local.set $t (select (i32.const 1) (i32.const -1) (i32.eqz (local.get $hi))))
+          (if (i32.eq (local.get $lo) (i32.const 4)) (then (call $zw (i32.const 0) (i32.and (i32.add (local.get $a) (local.get $t)) (i32.const 255))))
+            (else (local.set $v (call $src51 (local.get $lo))) (call $dst51 (local.get $lo) (i32.and (i32.add (local.get $v) (local.get $t)) (i32.const 255)))))
+          (br $end)))
         (if (i32.eq (local.get $hi) (i32.const 2)) (then (call $add51 (call $src51 (local.get $lo)) (i32.const 0)) (br $end)))
         (if (i32.eq (local.get $hi) (i32.const 3)) (then (call $add51 (call $src51 (local.get $lo)) (call $cy51)) (br $end)))
         (if (i32.eq (local.get $hi) (i32.const 4)) (then (call $zw (i32.const 0) (i32.or (local.get $a) (call $src51 (local.get $lo)))) (br $end)))

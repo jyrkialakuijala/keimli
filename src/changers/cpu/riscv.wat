@@ -1,4 +1,3 @@
-  ;; ========================================================================
   ;; RISC-V RV32EC (kind 15): 16 registers x0..x15 (i32 each at register-file
   ;; offset 64 + 4n; x0 reads as zero; field values 16..31 alias x0..x15), PC at
   ;; 22. The 16 bytes are the whole address space; words and halfwords are
@@ -9,11 +8,6 @@
     (if (result i32) (i32.and (local.get $n) (i32.const 15)) (then (i32.load offset=320 (i32.shl (i32.and (local.get $n) (i32.const 15)) (i32.const 2)))) (else (i32.const 0))))
   (func $xw (param $n i32) (param $v i32)
     (if (i32.and (local.get $n) (i32.const 15)) (then (i32.store offset=320 (i32.shl (i32.and (local.get $n) (i32.const 15)) (i32.const 2)) (local.get $v)))))
-  (func $mrd16le (param $a i32) (result i32) (i32.or (call $mrd (local.get $a)) (i32.shl (call $mrd (i32.add (local.get $a) (i32.const 1))) (i32.const 8))))
-  (func $mrd32 (param $a i32) (result i32) (i32.or (call $mrd16le (local.get $a)) (i32.shl (call $mrd16le (i32.add (local.get $a) (i32.const 2))) (i32.const 16))))
-  (func $mwr16le (param $a i32) (param $v i32) (call $mwr (local.get $a) (i32.and (local.get $v) (i32.const 255))) (call $mwr (i32.add (local.get $a) (i32.const 1)) (i32.and (i32.shr_u (local.get $v) (i32.const 8)) (i32.const 255))))
-  (func $mwr32 (param $a i32) (param $v i32) (call $mwr16le (local.get $a) (local.get $v)) (call $mwr16le (i32.add (local.get $a) (i32.const 2)) (i32.shr_u (local.get $v) (i32.const 16))))
-  (func $sx (param $v i32) (param $bits i32) (result i32) (i32.shr_s (i32.shl (local.get $v) (i32.sub (i32.const 32) (local.get $bits))) (i32.sub (i32.const 32) (local.get $bits))))
   (func $bit (param $v i32) (param $pos i32) (param $to i32) (result i32) (i32.shl (i32.and (i32.shr_u (local.get $v) (local.get $pos)) (i32.const 1)) (local.get $to)))
   (func $bits (param $v i32) (param $pos i32) (param $n i32) (param $to i32) (result i32)
     (i32.shl (i32.and (i32.shr_u (local.get $v) (local.get $pos)) (i32.sub (i32.shl (i32.const 1) (local.get $n)) (i32.const 1))) (local.get $to)))

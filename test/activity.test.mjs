@@ -6,9 +6,9 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 const dir = process.argv[2] || new URL('..', import.meta.url).pathname.replace(/\/$/, '');
-const Codec = vm.runInThisContext(fs.readFileSync(dir + '/mix-codec.js', 'utf8') + '; Codec');
-const text = fs.readFileSync(dir + '/declaration.txt', 'utf8').trim();
-const { instance } = await WebAssembly.instantiate(fs.readFileSync(dir + '/mix.wasm'));
+const Codec = vm.runInThisContext(fs.readFileSync(dir + '/src/changers/codec.js', 'utf8') + '; Codec');
+const text = fs.readFileSync(dir + '/src/changers/declaration.txt', 'utf8').trim();
+const { instance } = await WebAssembly.instantiate(fs.readFileSync(dir + '/build/keimli.wasm'));
 const { memory, change, randomize } = instance.exports;
 const io = Codec.install(memory, Codec.build(text, 4));
 const L = Codec.LAYOUT, W = 64, H = 64, N = W * H, GRID = L.GRID;

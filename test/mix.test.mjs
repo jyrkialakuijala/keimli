@@ -3,9 +3,9 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 const dir = process.argv[2] || new URL('..', import.meta.url).pathname.replace(/\/$/, '');
-const Codec = vm.runInThisContext(fs.readFileSync(dir + '/mix-codec.js', 'utf8') + '; Codec');
-const text = fs.readFileSync(dir + '/declaration.txt', 'utf8').trim();
-const { instance } = await WebAssembly.instantiate(fs.readFileSync(dir + '/mix.wasm'));
+const Codec = vm.runInThisContext(fs.readFileSync(dir + '/src/changers/codec.js', 'utf8') + '; Codec');
+const text = fs.readFileSync(dir + '/src/changers/declaration.txt', 'utf8').trim();
+const { instance } = await WebAssembly.instantiate(fs.readFileSync(dir + '/build/keimli.wasm'));
 const { memory, mix, mix_from, render, bits, randomize, decode_pixel, blend, sharpen } = instance.exports;
 let fails = 0; const check = (n, ok) => { console.log((ok ? 'ok  ' : 'FAIL') + ' ' + n); if (!ok) fails++; };
 const L = Codec.LAYOUT, PRM = L.PRM, GRID = L.GRID;

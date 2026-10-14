@@ -5,38 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
-<title>Life in WebAssembly</title>
+<title>Keimli</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-  /* Layout: the grid is the page. A full-width canvas sits under a single
-     toolbar row; a slim stats strip sits below it. Everything stacks at phone width. */
+  /* Layout: one toolbar row, a full-width canvas, a stats strip, then an inspector
+     for one pixel's bits and decoded text. Everything stacks at phone width. */
   :root {
     --bg: #eef0f4;
     --panel: #ffffff;
     --fg: #1a1d24;
     --muted: #5c6270;
     --line: #d4d8e1;
-    --accent: #0e7c6b;
+    --accent: #6b3fc9;
     --accent-ink: #ffffff;
-    --cell-dead: #f7f8fa;
-    --cell-new: #f2a93b;
-    --cell-mid: #159a85;
-    --cell-old: #1f4f6b;
+    --copied-bg: #e9e1fb;
+    --dens-lo: #f7f8fa;
+    --dens-hi: #3a1f7a;
     --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
     --font-mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #0f1218; --panel: #171b23; --fg: #e4e7ee; --muted: #8e95a5; --line: #2a303c;
-      --accent: #37d1b2; --accent-ink: #0b1a17;
-      --cell-dead: #0b0e14; --cell-new: #ffc857; --cell-mid: #2fd3b5; --cell-old: #1d6f8a;
+      --accent: #a98bff; --accent-ink: #130c2a; --copied-bg: #2b2250; --dens-lo: #0b0e14; --dens-hi: #c9b6ff;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --bg: #0f1218; --panel: #171b23; --fg: #e4e7ee; --muted: #8e95a5; --line: #2a303c;
-    --accent: #37d1b2; --accent-ink: #0b1a17;
-    --cell-dead: #0b0e14; --cell-new: #ffc857; --cell-mid: #2fd3b5; --cell-old: #1d6f8a;
+    --accent: #a98bff; --accent-ink: #130c2a; --copied-bg: #2b2250; --dens-lo: #0b0e14; --dens-hi: #c9b6ff;
     color-scheme: dark;
   }
 
@@ -50,283 +47,1233 @@
   }
   header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
   h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
-  .badge {
-    font: 12px/1 var(--font-mono); color: var(--muted);
-    letter-spacing: 0.04em; text-transform: uppercase;
-  }
+  h1 .sub { font-weight: 400; color: var(--muted); font-size: 16px; margin-left: 6px; }
+  .badge { font: 12px/1 var(--font-mono); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
   .badge b { color: var(--accent); font-weight: 500; }
 
   .toolbar {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+  }
+  .section { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; min-width: 0; border-top: 1px solid var(--line); padding-top: 8px; }
+  .section:first-child { border-top: 0; padding-top: 0; }
+  .sec { flex: 0 0 100%; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .layout, .main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  /* landscape screens: the controls in a column on the left, the square takes the rest of the width and the height */
+  @media (min-width: 1000px) {
+    body { max-width: none; }
+    .layout { display: grid; grid-template-columns: 350px minmax(0, 1fr); align-items: start; gap: 16px; }
+    .toolbar { position: sticky; top: 18px; max-height: calc(100vh - 36px); overflow-y: auto; box-sizing: border-box; }
+    .section { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }   /* nowrap: a wrapping column would size its groups to the widest content */
+    .section .group { flex-wrap: wrap; }
+    .section .group > select { flex: 1 1 120px; min-width: 0; }
+    .section .group > input[type="range"] { flex: 1 1 60px; width: 60px; min-width: 0; }
+    .section .group > label { flex: 0 0 auto; }
+    .section .group > .val { flex: 0 0 auto; white-space: nowrap; }
+    /* the square only as wide as it is tall; the stats use the space to its right */
+    .main { display: grid; grid-template-columns: auto minmax(200px, 1fr); align-items: start; gap: 14px 20px; }
+    .stage { grid-column: 1; justify-self: start; }
+    .stats { grid-column: 2; grid-template-columns: 1fr; gap: 12px; align-self: stretch; align-content: start; }
+    .inspect, .hint { grid-column: 1 / -1; }
   }
   .group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  [hidden] { display: none !important; }
   label { font-size: 13px; color: var(--muted); white-space: nowrap; }
   button, select {
     font: 500 14px var(--font-body); color: var(--fg);
-    background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
-    padding: 6px 12px; cursor: pointer;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer;
   }
   button:hover, select:hover { border-color: var(--muted); }
   button:focus-visible, select:focus-visible, input:focus-visible, canvas:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
   button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; min-width: 84px; }
-  input[type=range] { width: 130px; accent-color: var(--accent); }
+  input[type=range] { width: 110px; accent-color: var(--accent); }
   .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-  .speed-val { min-width: 7ch; font-size: 13px; }
+  .val { min-width: 7ch; font-size: 13px; }
 
-  .stage {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-    padding: 8px; min-width: 0;
-  }
+  .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-width: 0; }
   canvas {
     display: block; width: 100%; max-width: 100%; height: auto;
     image-rendering: pixelated; image-rendering: crisp-edges;
     border-radius: 4px; cursor: crosshair; touch-action: none;
   }
 
-  .stats {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 20px;
-    font-size: 13px; color: var(--muted);
-  }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 20px; font-size: 13px; color: var(--muted); margin: 0; }
   .stats div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .stats dt { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
   .stats dd { margin: 0; font: 500 18px var(--font-mono); color: var(--fg); font-variant-numeric: tabular-nums; }
-  .hint { font-size: 13px; color: var(--muted); margin: 0; max-width: 70ch; }
-  .hint kbd {
-    font: 12px var(--font-mono); border: 1px solid var(--line); border-radius: 4px;
-    padding: 1px 5px; background: var(--panel);
+
+  .inspect {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+    display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 13px; min-width: 0;
   }
-  @media (max-width: 520px) {
-    input[type=range] { width: 100px; }
-    .toolbar { gap: 8px 10px; }
-  }
+  .inspect .k { color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; padding-top: 3px; }
+  .inspect .v { font-family: var(--font-mono); overflow-wrap: anywhere; min-width: 0; }
+  .inspect .text { font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
+  .inspect .text .c { background: var(--copied-bg); border-bottom: 2px solid var(--accent); }
+  .inspect .text .c2 { border-bottom: 2px solid var(--line); }
+  .inspect .text .n { color: var(--muted); }
+  .inspect .note { font-family: var(--font-body); color: var(--muted); }
+  #lutLegend { width: 256px; max-width: 100%; height: 12px; vertical-align: middle; border-radius: 3px; image-rendering: pixelated; }
+  #lutAlpha { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+  #lutAlpha span { display: inline-block; min-width: 18px; padding: 1px 3px; text-align: center; border-radius: 3px; font: 12px var(--font-mono); }
+  @media (max-width: 520px) { .inspect { grid-template-columns: 1fr; } .inspect .k { padding-top: 6px; } }
+
+  .hint { font-size: 13px; color: var(--muted); margin: 0; max-width: 76ch; }
+  .hint kbd { font: 12px var(--font-mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; background: var(--panel); }
 </style>
 
 <header>
-  <h1>Conway's Game of Life</h1>
-  <span class="badge">simulation in a <b>609-byte</b> hand-written WebAssembly module</span>
+  <h1>Keimli <span class="sub">bit swap lattice</span></h1>
+  <span class="badge">128-bit pixels mixed and inflated by a <b>45009-byte</b> hand-written WebAssembly module</span>
 </header>
 
+<div class="layout">
 <div class="toolbar" role="toolbar" aria-label="Simulation controls">
-  <div class="group">
-    <button id="play" class="primary" type="button">Pause</button>
-    <button id="step" type="button">Step</button>
-    <button id="clear" type="button">Clear</button>
-    <button id="random" type="button">Random</button>
+  <div class="section" role="group" aria-labelledby="sec-run">
+    <span class="sec" id="sec-run">Run</span>
+    <div class="group">
+      <button id="play" class="primary" type="button">Pause</button>
+      <button id="step" type="button">Step</button>
+      <button id="random" type="button">Random</button>
+    </div>
+    <div class="group">
+      <label for="pattern">Start</label>
+      <select id="pattern">
+        <option value="halves">Left half set, right half clear</option>
+        <option value="square">Centre square of ones</option>
+        <option value="pixel">Single pixel of ones</option>
+        <option value="stripes">Stripes</option>
+        <option value="random" selected>Random bits</option>
+        <option value="small">Random bytes 0–7 (Brainfuck programs)</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="size">Grid</label>
+      <select id="size">
+        <option value="64x64">64 × 64</option>
+        <option value="128x128" selected>128 × 128</option>
+        <option value="256x256">256 × 256</option>
+        <option value="512x512">512 × 512</option>
+        <option value="1024x1024">1024 × 1024</option>
+        <option value="2048x2048">2048 × 2048</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="speed">Speed</label>
+      <input id="speed" type="range" min="0" max="8" value="3" step="1">
+      <span id="speedVal" class="mono val">10 turns/s</span>
+    </div>
+    <div class="group">
+      <label for="threads">Threads</label>
+      <select id="threads">
+        <option value="1">1 (in page)</option>
+        <option value="2">2 workers</option>
+        <option value="4">4 workers</option>
+        <option value="8">8 workers</option>
+        <option value="16">16 workers</option>
+      </select>
+    </div>
   </div>
-  <div class="group">
-    <label for="pattern">Pattern</label>
-    <select id="pattern">
-      <option value="soup">Random soup</option>
-      <option value="glider">Glider</option>
-      <option value="lwss">Lightweight spaceship</option>
-      <option value="rpentomino">R-pentomino</option>
-      <option value="acorn">Acorn</option>
-      <option value="diehard">Diehard</option>
-      <option value="pulsar">Pulsar</option>
-      <option value="gun">Gosper glider gun</option>
-    </select>
+  <div class="section" role="group" aria-labelledby="sec-swap">
+    <span class="sec" id="sec-swap">Swapping</span>
+    <div class="group">
+      <label for="thrL">p, left edge</label>
+      <input id="thrL" type="range" min="0" max="1" value="0" step="0.01">
+      <span id="thrLVal" class="mono val">p = 0.00</span>
+    </div>
+    <div class="group">
+      <label for="thrR">p, right edge</label>
+      <input id="thrR" type="range" min="0" max="1" value="1" step="0.01">
+      <span id="thrRVal" class="mono val">p = 1.00</span>
+    </div>
+    <div class="group">
+      <label for="seedmode">Hash seed</label>
+      <select id="seedmode">
+        <option value="0" selected>Neighbouring bits only</option>
+        <option value="1">Neighbouring bits and turn number</option>
+      </select>
+    </div>
   </div>
-  <div class="group">
-    <label for="size">Grid</label>
-    <select id="size">
-      <option value="64x48">64 × 48</option>
-      <option value="128x96" selected>128 × 96</option>
-      <option value="256x192">256 × 192</option>
-      <option value="512x384">512 × 384</option>
-      <option value="1024x768">1024 × 768</option>
-    </select>
+  <div class="section" role="group" aria-labelledby="sec-smooth">
+    <span class="sec" id="sec-smooth">Bit-plane smoothing</span>
+    <div class="group">
+      <label for="smoothT">p, top edge</label>
+      <input id="smoothT" type="range" min="0" max="1" value="0" step="0.01">
+      <span id="smoothTVal" class="mono val">p = 0.00</span>
+    </div>
+    <div class="group">
+      <label for="smoothB">p, bottom edge</label>
+      <input id="smoothB" type="range" min="0" max="1" value="1" step="0.01">
+      <span id="smoothBVal" class="mono val">p = 1.00</span>
+    </div>
+    <div class="group">
+      <label for="nbr">Neighbourhood</label>
+      <select id="nbr">
+        <option value="0" selected>4-connected (5 votes)</option>
+        <option value="1">8-connected (9 votes)</option>
+        <option value="2">5 × 5 (25 votes)</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="iters">Passes</label>
+      <select id="iters">
+        <option value="0">0 per turn</option>
+        <option value="1">1 per turn</option>
+        <option value="2">2 per turn</option>
+        <option value="3" selected>3 per turn</option>
+        <option value="5">5 per turn</option>
+      </select>
+    </div>
   </div>
-  <div class="group">
-    <label for="speed">Speed</label>
-    <input id="speed" type="range" min="0" max="9" value="4" step="1">
-    <span id="speedVal" class="mono speed-val">15 gen/s</span>
+  <div class="section" role="group" aria-labelledby="sec-algo">
+    <span class="sec" id="sec-algo">Byte changer</span>
+    <div class="group">
+      <label for="changer">Changer</label>
+      <select id="changer">
+        <option value="none">None (view only)</option>
+        <option value="lz" selected>LZ decompressor</option>
+        <option value="xf">Transform</option>
+        <option value="cpu">CPU</option>
+      </select>
+    </div>
+    <div class="group" id="xfGroup" hidden>
+      <label for="xf">Transform</label>
+      <select id="xf">
+        <option value="3">Do nothing</option>
+        <option value="4" selected>Invert</option>
+        <option value="5">Reverse bytes</option>
+        <option value="16">Add 17 (1 to the smallest byte, 17 next, 5 previous)</option>
+        <option value="17">DCT (16-point, signed samples)</option>
+        <option value="18">Inverse DCT</option>
+      </select>
+    </div>
+    <div class="group" id="cpuGroup" hidden>
+      <label for="cpu">CPU</label>
+      <select id="cpu">
+        <option value="1">Brainfuck, empty tape</option>
+        <option value="2">Brainfuck, tape = pixel</option>
+        <option value="6" selected>Zilog Z80</option>
+        <option value="7">MOS 6502</option>
+        <option value="8">Intel 8080</option>
+        <option value="9">Subleq one-instruction machine</option>
+        <option value="10">CHIP-8 virtual machine</option>
+        <option value="11">Intel 4004 (4-bit, 32 nibbles)</option>
+        <option value="12">Game Boy SM83</option>
+        <option value="13">Intel 8051</option>
+        <option value="14">Motorola 6809</option>
+        <option value="15">RISC-V RV32EC</option>
+        <option value="19">DEC PDP-8 (8 words of 12 bits)</option>
+        <option value="20">DEC PDP-11</option>
+        <option value="21">Motorola 68000</option>
+        <option value="22">ERA / UNIVAC 1101 (5 words of 24 bits)</option>
+        <option value="23">DEC VAX-11/780</option>
+        <option value="24">CDC 6600 (2 words of 60 bits)</option>
+      </select>
+    </div>
+    <div class="group" id="stepsGroup" hidden>
+      <label for="steps">CPU steps</label>
+      <select id="steps">
+        <option value="32">32 per pixel</option>
+        <option value="64">64 per pixel</option>
+        <option value="128">128 per pixel</option>
+        <option value="256" selected>256 per pixel</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="coff">LZ cursor offset</label>
+      <input id="coff" type="range" min="0" max="8122" value="600" step="1">
+      <span id="coffVal" class="mono val">+600</span>
+    </div>
+    <div class="group">
+      <label for="maxlen">Decompression</label>
+      <input id="maxlen" type="range" min="2" max="16" value="3" step="1">
+      <span id="maxlenVal" class="mono val">N = 3</span>
+    </div>
+  </div>
+  <div class="section" role="group" aria-labelledby="sec-render">
+    <span class="sec" id="sec-render">Rendering</span>
+    <div class="group">
+      <label for="view">View</label>
+      <select id="view">
+        <option value="4" selected>Byte colours, raw bytes (LUT average)</option>
+        <option value="5">Byte colours, decoded bytes (LUT average)</option>
+        <option value="0">Decoded text, hashed in thirds</option>
+        <option value="2">Dictionary cursor position</option>
+        <option value="1">Raw bits, hashed 16 at a time</option>
+        <option value="3">Bit density, thirds as R G B</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="scale">Scale</label>
+      <select id="scale">
+        <option value="fit" selected>Fit to width</option>
+        <option value="one">1:1 device pixels</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="avg">Temporal averaging</label>
+      <select id="avg">
+        <option value="0">Off, show every frame</option>
+        <option value="1">One stage, half-time 200 ms or 4 turns, whichever is longer</option>
+        <option value="2" selected>Two stages in cascade, same half-time each</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="flat">Flat neighbourhoods</label>
+      <select id="flat">
+        <option value="1">Same half-time</option>
+        <option value="2" selected>8-connected flat: 2 × longer</option>
+        <option value="4">8-connected flat: 4 × longer</option>
+        <option value="24">4-connected flat 2 ×, 8-connected flat 4 × longer</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="sharp">Sharpening</label>
+      <select id="sharp">
+        <option value="0">Off</option>
+        <option value="1" selected>2 × pixel − mean of its 4 neighbours</option>
+      </select>
+    </div>
   </div>
 </div>
 
+<div class="main">
 <div class="stage">
-  <canvas id="view" tabindex="0" aria-label="Game of Life grid. Click or drag to draw cells."></canvas>
+  <canvas id="view-canvas" tabindex="0" aria-label="Bit swap lattice. Click to inspect a pixel, shift-drag to paint."></canvas>
 </div>
 
 <dl class="stats">
-  <div><dt>Generation</dt><dd id="gen">0</dd></div>
-  <div><dt>Population</dt><dd id="pop">0</dd></div>
-  <div><dt>Wasm step time</dt><dd id="stepTime">–</dd></div>
-  <div><dt>Cells per second</dt><dd id="throughput">–</dd></div>
+  <div><dt>Turn</dt><dd id="turn">0</dd></div>
+  <div><dt>Swap order this turn</dt><dd id="phase">LR0 UD0 LR1 UD1</dd></div>
+  <div><dt>Bits bit-plane smoothed last turn</dt><dd id="smoothed">0</dd></div>
+  <div><dt>Render half-time</dt><dd id="halfT">–</dd></div>
+  <div><dt>Flat neighbourhoods in the frame</dt><dd id="flatN">–</dd></div>
+  <div><dt>Bits moved last turn</dt><dd id="moved">0</dd></div>
+  <div><dt>Pixels rewritten last turn</dt><dd id="rewritten">0</dd></div>
+  <div><dt>Total set bits</dt><dd id="total">0</dd></div>
+  <div><dt>Turn time</dt><dd id="turnTime">–</dd></div>
 </dl>
-<p class="hint">
-  Click or drag on the grid to draw live cells. Edges wrap around. Colour shows a cell's age:
-  newborn cells are amber and settle toward teal as they survive.
-  Keys: <kbd>space</kbd> play/pause, <kbd>n</kbd> step, <kbd>r</kbd> random, <kbd>c</kbd> clear.
-</p>
 
+<div class="inspect" aria-live="polite">
+  <div class="k">Pixel</div><div class="v" id="selPos">–</div>
+  <div class="k">128 bits</div><div class="v" id="selHex">–</div>
+  <div class="k">Dictionary</div><div class="v" id="selWindow">–</div>
+  <div class="k">Decoded</div><div class="v text" id="selText">–</div>
+  <div class="k">Decoder</div><div class="v note" id="selNote">–</div>
+  <div class="k">Code</div><div class="v note" id="codeNote">–</div>
+  <div class="k">Byte LUT</div><div class="v"><canvas id="lutLegend" width="256" height="1" aria-label="Byte colour legend, values 0 to 255 left to right"></canvas><span class="note"> byte 0 … 255: a–z span the hue circle, A–Z are pastels of the same hues, space is white, other values are dark grey. Values 0–7 (the Brainfuck commands) get eight hues of their own. A pixel shows the average of its 16 bytes' colours, stretched 3× around the previous frame's mean colour. Bytes that occur in the dictionary:</span>
+    <div id="lutAlpha" aria-label="Colours of the dictionary's characters"></div></div>
+</div>
+
+<p class="hint">
+  Every pixel holds a 128-bit string on a plane with edges (no wrap-around). Each turn runs the four swap phases LR0, UD0, LR1, UD1 once each, always alternating
+  left–right and up–down, which leaves 8 orders: turn t uses order t mod 8, so the orders cycle and none of them shapes the long run.
+  The cycle is arranged so that consecutive orders differ as much as possible (every phase moves at least one place, 6 of the 8 steps
+  move the phases the maximum total of 8 places, and no two consecutive turns share a first or a last phase). Then comes a block of bit-plane smoothing passes, and finally the byte changer: every pixel's 16
+  bytes are replaced by what the changer makes of them, so the decompressed text or the Brainfuck tape becomes the
+  pixel's new content.
+  A swap phase pairs every pixel with one neighbour, left–right (LR) or up–down (UD), at an even (0) or odd (1)
+  offset, so within one turn every pixel exchanges once with each of its four neighbours. For each pair the two
+  strings are compared position by position; where the bits differ, the 32 bits around that position in each pixel are
+  hashed separately and the two 64-bit hashes added, so the decision does not depend on which pixel is which. The first
+  position whose sum falls below the swap threshold is swapped; swaps conserve the total number of set bits. The swap
+  probability is a linear gradient along the x axis from the left-edge value to the right-edge value, each 0 to 1. A bit-plane smoothing
+  pass works on each of the 128 bit planes separately: it looks at every bit that disagrees with the majority of its neighbourhood (itself and its four 4-connected neighbours, the 3 × 3 block, or the 5 × 5 block, selectable), hashes the
+  pixel's 32 bits around that position, and if the hash is below the smoothing threshold the bit takes the majority
+  value. The bit-plane smoothing probability is a linear gradient along the y axis from the top-edge value to the bottom-edge value.
+  The image is drawn through a render buffer: each pixel's colour is an exponential average of the rendered frames
+  whose half-time is 200 ms or 4 turns, whichever is longer at the current turn rate, and by default a second buffer integrates
+  the output of the first in the same way (two stages in cascade), so flicker is damped and the slower
+  dynamics carry more weight. Where a pixel's whole 3 × 3 neighbourhood in the new frame has exactly its colour (8-connected
+  flat) the half-time is 2 × longer by default (4 × selectable, or the same, or 2 × for 4-connected flat and 4 × for 8-connected flat). The averaged image is then sharpened a little: each channel becomes
+  2 × the pixel minus the mean of its four 4-connected neighbours, clamped to 0–255 (switchable). Neither step feeds back into the lattice.
+  Each pixel's bits are also read as a stream of copy commands against a static dictionary, the Declaration of
+  Independence, and expanded to exactly 128 bits. The first ⌈log₂ N⌉ bits (13 for this dictionary of N = 8,122 bytes) select a start byte, the "LZ cursor offset" (0 to N) is added, and the cursor wraps at the end of the text. Every command is
+  a prefix-coded copy length of 2 to N bytes followed by a 3-bit skip: the cursor skips that many bytes, the copy is
+  taken from the dictionary at the cursor, and the cursor moves past it. Copies are the only way to make output; there
+  are no literals and no distances, and neither the image nor the output is ever read back. The decompression slider
+  sets N, the longest copy. The byte changer can instead be a Brainfuck interpreter: the 16 bytes are a program (values 0–7
+  are the eight commands, anything else a comment) run on a 16-cell tape, and the tape afterwards is the new content; the
+  "Random bytes 0–7" start fills the field with programs. Simpler processors are available too: do nothing, invert, reverse bytes, add 17 (1 to the smallest byte, 17 to the byte after it, 5 to the byte before it), a 16-point DCT and its inverse. And sixteen machines, a Zilog Z80, MOS 6502, Intel 8080, Subleq, CHIP-8, Intel 4004, Game Boy SM83, Intel 8051, Motorola 6809,
+  RISC-V RV32EC, DEC PDP-8 (8 words of 12 bits), DEC PDP-11 and Motorola 68000: the 16 bytes are the whole memory, the selected number of instructions run, the memory is written
+  back, and halting instructions are NOPs.
+  Threads splits the grid into horizontal bands, one Web Worker with its own wasm instance per band; each band receives a
+  few halo rows from its neighbours once per turn and runs the whole turn locally, bit-identical to the single-threaded run. Scale 1:1 maps one lattice pixel to one
+  device pixel and blits the wasm pixel buffer straight to the canvas.
+  Click a pixel to inspect it; shift-drag paints pixels to all ones, ctrl-shift-drag to all zeros.
+  Keys: <kbd>space</kbd> play/pause, <kbd>n</kbd> step, <kbd>r</kbd> random.
+</p>
+</div>
+</div>
+
+<script type="text/plain" id="decl">In Congress, July 4, 1776.
+
+The unanimous Declaration of the thirteen united States of America, When in the Course of human events, it becomes necessary for one people to dissolve the political bands which have connected them with another, and to assume among the powers of the earth, the separate and equal station to which the Laws of Nature and of Nature's God entitle them, a decent respect to the opinions of mankind requires that they should declare the causes which impel them to the separation.
+
+We hold these truths to be self-evident, that all men are created equal, that they are endowed by their Creator with certain unalienable Rights, that among these are Life, Liberty and the pursuit of Happiness.--That to secure these rights, Governments are instituted among Men, deriving their just powers from the consent of the governed, --That whenever any Form of Government becomes destructive of these ends, it is the Right of the People to alter or to abolish it, and to institute new Government, laying its foundation on such principles and organizing its powers in such form, as to them shall seem most likely to effect their Safety and Happiness. Prudence, indeed, will dictate that Governments long established should not be changed for light and transient causes; and accordingly all experience hath shewn, that mankind are more disposed to suffer, while evils are sufferable, than to right themselves by abolishing the forms to which they are accustomed. But when a long train of abuses and usurpations, pursuing invariably the same Object evinces a design to reduce them under absolute Despotism, it is their right, it is their duty, to throw off such Government, and to provide new Guards for their future security.--Such has been the patient sufferance of these Colonies; and such is now the necessity which constrains them to alter their former Systems of Government. The history of the present King of Great Britain is a history of repeated injuries and usurpations, all having in direct object the establishment of an absolute Tyranny over these States. To prove this, let Facts be submitted to a candid world.
+
+He has refused his Assent to Laws, the most wholesome and necessary for the public good.
+He has forbidden his Governors to pass Laws of immediate and pressing importance, unless suspended in their operation till his Assent should be obtained; and when so suspended, he has utterly neglected to attend to them.
+He has refused to pass other Laws for the accommodation of large districts of people, unless those people would relinquish the right of Representation in the Legislature, a right inestimable to them and formidable to tyrants only.
+He has called together legislative bodies at places unusual, uncomfortable, and distant from the depository of their public Records, for the sole purpose of fatiguing them into compliance with his measures.
+He has dissolved Representative Houses repeatedly, for opposing with manly firmness his invasions on the rights of the people.
+He has refused for a long time, after such dissolutions, to cause others to be elected; whereby the Legislative powers, incapable of Annihilation, have returned to the People at large for their exercise; the State remaining in the mean time exposed to all the dangers of invasion from without, and convulsions within.
+He has endeavoured to prevent the population of these States; for that purpose obstructing the Laws for Naturalization of Foreigners; refusing to pass others to encourage their migrations hither, and raising the conditions of new Appropriations of Lands.
+He has obstructed the Administration of Justice, by refusing his Assent to Laws for establishing Judiciary powers.
+He has made Judges dependent on his Will alone, for the tenure of their offices, and the amount and payment of their salaries.
+He has erected a multitude of New Offices, and sent hither swarms of Officers to harrass our people, and eat out their substance.
+He has kept among us, in times of peace, Standing Armies without the Consent of our legislatures.
+He has affected to render the Military independent of and superior to the Civil power.
+He has combined with others to subject us to a jurisdiction foreign to our constitution, and unacknowledged by our laws; giving his Assent to their Acts of pretended Legislation:
+For Quartering large bodies of armed troops among us:
+For protecting them, by a mock Trial, from punishment for any Murders which they should commit on the Inhabitants of these States:
+For cutting off our Trade with all parts of the world:
+For imposing Taxes on us without our Consent:
+For depriving us in many cases, of the benefits of Trial by Jury:
+For transporting us beyond Seas to be tried for pretended offences
+For abolishing the free System of English Laws in a neighbouring Province, establishing therein an Arbitrary government, and enlarging its Boundaries so as to render it at once an example and fit instrument for introducing the same absolute rule into these Colonies:
+For taking away our Charters, abolishing our most valuable Laws, and altering fundamentally the Forms of our Governments:
+For suspending our own Legislatures, and declaring themselves invested with power to legislate for us in all cases whatsoever.
+He has abdicated Government here, by declaring us out of his Protection and waging War against us.
+He has plundered our seas, ravaged our Coasts, burnt our towns, and destroyed the lives of our people.
+He is at this time transporting large Armies of foreign Mercenaries to compleat the works of death, desolation and tyranny, already begun with circumstances of Cruelty & perfidy scarcely paralleled in the most barbarous ages, and totally unworthy the Head of a civilized nation.
+He has constrained our fellow Citizens taken Captive on the high Seas to bear Arms against their Country, to become the executioners of their friends and Brethren, or to fall themselves by their Hands.
+He has excited domestic insurrections amongst us, and has endeavoured to bring on the inhabitants of our frontiers, the merciless Indian Savages, whose known rule of warfare, is an undistinguished destruction of all ages, sexes and conditions.
+
+In every stage of these Oppressions We have Petitioned for Redress in the most humble terms: Our repeated Petitions have been answered only by repeated injury. A Prince whose character is thus marked by every act which may define a Tyrant, is unfit to be the ruler of a free people.
+
+Nor have We been wanting in attentions to our Brittish brethren. We have warned them from time to time of attempts by their legislature to extend an unwarrantable jurisdiction over us. We have reminded them of the circumstances of our emigration and settlement here. We have appealed to their native justice and magnanimity, and we have conjured them by the ties of our common kindred to disavow these usurpations, which, would inevitably interrupt our connections and correspondence. They too have been deaf to the voice of justice and of consanguinity. We must, therefore, acquiesce in the necessity, which denounces our Separation, and hold them, as we hold the rest of mankind, Enemies in War, in Peace Friends.
+
+We, therefore, the Representatives of the united States of America, in General Congress, Assembled, appealing to the Supreme Judge of the world for the rectitude of our intentions, do, in the Name, and by Authority of the good People of these Colonies, solemnly publish and declare, That these United Colonies are, and of Right ought to be Free and Independent States; that they are Absolved from all Allegiance to the British Crown, and that all political connection between them and the State of Great Britain, is and ought to be totally dissolved; and that as Free and Independent States, they have full Power to levy War, conclude Peace, contract Alliances, establish Commerce, and to do all other Acts and Things which Independent States may of right do. And for the support of this Declaration, with a firm reliance on the protection of divine Providence, we mutually pledge to each other our Lives, our Fortunes and our sacred Honor.
+</script>
+<script id="codec-src">
+// Code-table builder for the bit-swap lattice decoder.
+// Plain script (no modules) so it can be inlined into the page and loaded by tests.
+// The decoder has no literals and no distances: a pixel's bits are a 10-bit start
+// cursor into a static dictionary followed by copy commands, each a prefix-coded
+// length (2..maxMatch bytes) and a 3-bit skip. This builds the length code, reports
+// the expected decompression rate on random input, and writes everything into wasm memory.
+const Codec = (() => {
+  const MIN_MATCH = 2, MAX_MATCH_LIMIT = 16, SKIP_BITS = 3;
+  const LIT_BITS = 12;                       // lookup table width for the length code
+  const OUT_BYTES = 16;                      // decoded output is always 128 bits
+  const cursorBits = textLen => Math.max(1, Math.ceil(Math.log2(textLen)));   // start-cursor header width: ceil(log2 of the dictionary size), every byte a start position
+  const CURSOR_OFFSET = 600;   // bytes added to the LZ start cursor (the dictionary's opening is a dull start)
+  const pixelRate = (rSym, hb) => 8 * OUT_BYTES / (hb + 8 * OUT_BYTES / rSym);  // command-level rate -> whole-pixel rate
+
+  // Fixed memory map (bytes). The grid starts after the static region.
+  const LAYOUT = { PRM: 0, COS: 512, LIT: 1024, TEXT: 1024 + (4 << LIT_BITS) + 4096, LUT: 31744, THR: 32768, THRY: 49152, GRID: 65536 };
+  // LUT: 256 x i32 byte colours; THR: per-column swap thresholds (i64, up to 2048 columns); THRY: per-row smoothing thresholds (i64, up to 2048 rows)
+
+  // Huffman code lengths limited to `limit` bits; the result is always a complete code.
+  function huffmanLengths(freq, limit) {
+    const n = freq.length, lengths = new Array(n).fill(0);
+    const syms = []; for (let i = 0; i < n; i++) if (freq[i] > 0) syms.push(i);
+    if (syms.length === 0) return lengths;
+    if (syms.length === 1) { lengths[syms[0]] = 1; return lengths; }
+    const leaves = syms.map(i => ({ f: freq[i], sym: i })).sort((a, b) => a.f - b.f || a.sym - b.sym);
+    const inner = []; let li = 0, ii = 0;
+    const pop = () => (ii >= inner.length || (li < leaves.length && leaves[li].f <= inner[ii].f)) ? leaves[li++] : inner[ii++];
+    while ((leaves.length - li) + (inner.length - ii) > 1) { const a = pop(), b = pop(); inner.push({ f: a.f + b.f, kids: [a, b] }); }
+    const stack = [[pop(), 0]];
+    while (stack.length) { const [nd, d] = stack.pop(); if (nd.kids) stack.push([nd.kids[0], d + 1], [nd.kids[1], d + 1]); else lengths[nd.sym] = Math.max(1, d); }
+    for (const s of syms) if (lengths[s] > limit) lengths[s] = limit;
+    const unit = l => 2 ** (limit - l), T = 2 ** limit;
+    let K = 0; for (const s of syms) K += unit(lengths[s]);
+    const asc = syms.slice().sort((a, b) => freq[a] - freq[b] || a - b);
+    while (K > T) {
+      let moved = false;
+      for (const s of asc) { if (lengths[s] < limit) { K -= unit(lengths[s]) / 2; lengths[s]++; moved = true; if (K <= T) break; } }
+      if (!moved) break;
+    }
+    const desc = asc.slice().reverse();
+    let changed = true;
+    while (K < T && changed) {
+      changed = false;
+      for (const s of desc) { if (lengths[s] > 1 && unit(lengths[s]) <= T - K) { K += unit(lengths[s]); lengths[s]--; changed = true; } }
+    }
+    return lengths;
+  }
+
+  const reverseBits = (c, l) => { let r = 0; for (let i = 0; i < l; i++) { r = (r << 1) | (c & 1); c >>= 1; } return r; };
+
+  // Canonical code -> direct lookup table for an LSB-first bit reader. entry = sym << 8 | len.
+  function canonicalTable(lengths, maxBits) {
+    const blCount = new Array(maxBits + 1).fill(0);
+    for (const l of lengths) if (l) blCount[l]++;
+    const next = new Array(maxBits + 1).fill(0);
+    let code = 0;
+    for (let b = 1; b <= maxBits; b++) { code = (code + blCount[b - 1]) << 1; next[b] = code; }
+    const table = new Uint32Array(1 << maxBits);
+    for (let sym = 0; sym < lengths.length; sym++) {
+      const l = lengths[sym]; if (!l) continue;
+      const r = reverseBits(next[l]++, l);
+      for (let k = r; k < table.length; k += 1 << l) table[k] = (sym << 8) | l;
+    }
+    return table;
+  }
+
+  // Build the length code for copies of MIN_MATCH..maxMatch bytes. Lengths are weighted
+  // equally, so the canonical code gives the shorter copies the shorter codes.
+  function build(text, maxMatch, headerBits) {
+    maxMatch = Math.max(MIN_MATCH, Math.min(MAX_MATCH_LIMIT, maxMatch | 0));
+    const bytes = Uint8Array.from(text, ch => { const c = ch.charCodeAt(0); return c < 128 ? c : 63; });
+    headerBits ??= cursorBits(bytes.length);
+    const n = maxMatch - MIN_MATCH + 1;
+    const lenLengths = n === 1 ? [0] : huffmanLengths(new Array(n).fill(1), LIT_BITS);   // one length needs no code bits
+    let inBits = 0, outBits = 0, meanCode = 0;
+    for (let s = 0; s < n; s++) { const p = 2 ** -lenLengths[s]; inBits += p * (lenLengths[s] + SKIP_BITS); outBits += p * 8 * (s + MIN_MATCH); meanCode += p * lenLengths[s]; }
+    return { bytes, maxMatch, headerBits, lenLengths, symbolRate: outBits / inBits, rate: pixelRate(outBits / inBits, headerBits),
+             meanCommandBits: inBits, meanCodeBits: meanCode, meanCopyBytes: outBits / 8,
+             expectedConsumed: headerBits + 8 * OUT_BYTES / (outBits / inBits) };
+  }
+
+  // Mean LUT colour (packed 8-bit channels) under a byte distribution given as 256 weights.
+  function lutMean(lut, weights) {
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let v = 0; v < 256; v++) { const wgt = weights[v]; if (!wgt) continue; const e = lut[v]; r += wgt * (e & 15) * 17; g += wgt * ((e >> 8) & 15) * 17; b += wgt * ((e >> 16) & 15) * 17; n += wgt; }
+    return Math.round(r / n) | (Math.round(g / n) << 8) | (Math.round(b / n) << 16);
+  }
+
+  // Write the table, the dictionary, the byte LUT and the parameter block into wasm memory.
+  // `gain` stretches the LUT-average views around the palette mean (1 = plain average).
+  function install(memory, built, lut = byteLut(built.bytes), gain = 3) {
+    const m8 = new Uint8Array(memory.buffer), m32 = new Int32Array(memory.buffer);
+    const put = (off, arr) => { for (let i = 0; i < arr.length; i++) m32[(off >> 2) + i] = arr[i]; };
+    put(LAYOUT.LIT, canonicalTable(built.lenLengths, LIT_BITS));
+    put(LAYOUT.LUT, lut);
+    const freq = new Float64Array(256); for (const b of built.bytes) freq[b]++;
+    const meanRaw = lutMean(lut, new Float64Array(256).fill(1)), meanDec = lutMean(lut, freq);
+    const textLen = built.bytes.length, OUT = LAYOUT.TEXT + textLen, FLAGS = OUT + 256;
+    if (FLAGS + 256 > LAYOUT.LUT) throw new Error('dictionary too long for the static region');
+    m8.set(built.bytes, LAYOUT.TEXT);
+    const headerBits = built.headerBits ?? cursorBits(textLen), offsetUnit = Math.ceil(textLen / 2 ** headerBits);
+    put(LAYOUT.PRM, [OUT, OUT_BYTES, LAYOUT.LIT, 0, 0, 0, 0, 0, textLen, FLAGS, 0, offsetUnit, 0, 0, LAYOUT.LUT, meanRaw, meanDec, gain, 0, 0, 0, 0, 0, 256, headerBits, CURSOR_OFFSET]);
+    const cosTab = new Float64Array(memory.buffer, LAYOUT.COS, 64);   // cos(pi m / 32) for the DCT processors
+    for (let m = 0; m < 64; m++) cosTab[m] = Math.cos(Math.PI * m / 32);
+    const io = { OUT, FLAGS, textLen, OUT_BYTES, offsetUnit, headerBits, cursorOffset: CURSOR_OFFSET, meanRaw, meanDec, gain, lastOffset: () => new Int32Array(memory.buffer, LAYOUT.PRM, 13)[12],
+             // cursor header width: 2^bits start positions, ceil(textLen / 2^bits) bytes apart
+             setHeaderBits: bits => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 25); io.headerBits = bits; io.offsetUnit = Math.ceil(textLen / 2 ** bits); a[11] = io.offsetUnit; a[24] = bits; },
+             setCursorOffset: n => { io.cursorOffset = n; new Int32Array(memory.buffer, LAYOUT.PRM, 26)[25] = n; },
+             setChanger: m => { new Int32Array(memory.buffer, LAYOUT.PRM, 19)[18] = m; },
+             setSteps: n => { new Int32Array(memory.buffer, LAYOUT.PRM, 24)[23] = n; },
+             frameSums: () => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 23); return { r: a[19], g: a[20], b: a[21], n: a[22] }; },
+             setMean: (mode, packed) => { new Int32Array(memory.buffer, LAYOUT.PRM, 17)[mode === 4 ? 15 : 16] = packed; } };
+    return io;
+  }
+
+  // Byte-colour LUT, 4 bits per channel packed as R | G << 8 | B << 16 so 16 entries can be
+  // summed without carries. Designed around the dictionary's alphabet: a-z take the whole hue
+  // circle in order at full saturation, A-Z are pastel versions of the same hue as their lowercase
+  // letter, digits and punctuation are light neutral tones, space is white and newline light grey.
+  // Byte values 0-7, the Brainfuck commands, get eight vivid hues of their own. Every other byte
+  // value is coloured by its Z80 opcode class (x = bits 7-6, y = bits 5-3, z = bits 2-0): teal for
+  // the x=0 loads/inc/dec/rotates/jumps, blue for LD r,r', red-to-orange for the ALU block, violet
+  // for control flow and stack, pale lilac for the CB/DD/ED/FD prefixes; all kept darker than letters.
+  function byteLut(dictBytes) {
+    const hsl = (h, s, l) => { const f = n => { const k = (n + h / 30) % 12, a = s * Math.min(l, 1 - l); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return [f(0), f(8), f(4)]; };
+    const pack = rgb => rgb.map(v => Math.max(0, Math.min(15, Math.round(v * 15)))).reduce((acc, q, k) => acc | (q << (8 * k)), 0);
+    const inDict = new Uint8Array(256); if (dictBytes) for (const b of dictBytes) inDict[b] = 1;
+    const lut = new Uint32Array(256);
+    let punct = 0;
+    for (let v = 0; v < 256; v++) {
+      let rgb;
+      if (v < 8) rgb = hsl(v * 45 + 10, 0.9, 0.55);                                        // 0-7: the eight Brainfuck commands, eight hues
+      else if (v >= 97 && v <= 122) rgb = hsl((v - 97) * 360 / 26, 0.9, 0.5);            // a-z: the full hue circle
+      else if (v >= 65 && v <= 90) rgb = hsl((v - 65) * 360 / 26, 0.85, 0.74);           // A-Z: pastel of the same hue
+      else if (v === 32) rgb = [0.95, 0.95, 0.95];                                        // space
+      else if (v === 10 || v === 13) rgb = [0.8, 0.8, 0.84];                              // newline
+      else if (v >= 48 && v <= 57) rgb = hsl(200 + (v - 48) * 16, 0.25, 0.68);           // digits: cool light neutrals
+      else if (inDict[v]) rgb = hsl(30 + 37 * punct++, 0.18, 0.5 + 0.04 * (punct % 4));  // punctuation: warm mid neutrals
+      else {                                                                                // everything else: coloured by Z80 opcode class
+        const x = v >> 6, y = (v >> 3) & 7, z = v & 7;
+        if (v === 0xCB || v === 0xDD || v === 0xED || v === 0xFD) rgb = [0.92, 0.84, 0.95];   // prefixes: pale lilac
+        else if (x === 0) rgb = hsl(165 + z * 7, 0.55, 0.30 + 0.04 * y);                    // loads, inc/dec, rotates, jumps: teal
+        else if (x === 1) rgb = hsl(215 + z * 4, 0.45, 0.34 + 0.04 * y);                    // LD r,r': blue
+        else if (x === 2) rgb = hsl(y * 7, 0.75, 0.32 + 0.04 * z);                           // ALU: ADD..CP across red to orange
+        else rgb = hsl(275 + z * 8, 0.55, 0.30 + 0.04 * y);                                  // control flow, stack, I/O: violet
+      }
+      lut[v] = pack(rgb);
+    }
+    return lut;
+  }
+
+  // Mean LUT colour (packed 8-bit channels) under a byte distribution given as 256 weights.
+  return { MIN_MATCH, MAX_MATCH_LIMIT, SKIP_BITS, LIT_BITS, OUT_BYTES, cursorBits, CURSOR_OFFSET, pixelRate, LAYOUT,
+           huffmanLengths, canonicalTable, build, install, reverseBits, byteLut, lutMean };
+})();
+
+</script>
+<script id="band-src">
+// Band execution shared by the worker pool and the band test.
+// A band owns rows [y0, y0 + rows) of the grid and keeps D halo rows above and below
+// in its buffer (local row r is global row y0 - D + r). One message carries a whole
+// turn: the halos are the neighbours' edge rows as they were at the end of the last
+// turn, and every step that would read or pair with a row outside the valid zone
+// shrinks the zone by one row on that side. Pairs across band boundaries are computed
+// redundantly by both neighbours, which is deterministic, so no exchange is needed
+// within a turn. The depth is chosen so the interior rows always stay valid.
+const Band = (() => {
+  // wasm phase ids: 0 LR even, 1 UD even, 2 LR odd, 3 UD odd. A turn runs each of the four
+  // swap phases once, always alternating left-right and up-down, which leaves 8 of the 24
+  // orders (LR or UD first, and the order within each pair); turn t uses order t mod 8, so
+  // over 8 turns every order has been used once. The cycle is arranged so consecutive orders
+  // differ as much as possible: the difference of two orders is the sum over the phases of how
+  // far each phase's position moves (at most 8). No cycle through the 8 keeps every step at 8;
+  // this one (found by search) has 6 steps of 8 and 2 of 6, the optimum. Each phase goes first
+  // twice per cycle, and no two consecutive turns share a first or a last phase.
+  // Names as shown in the page: LR0 UD0 LR1 UD1.
+  const PHASE_NAMES = ['LR0', 'UD0', 'LR1', 'UD1'];
+  const PERMS = ['0123', '1230', '0321', '2103', '3012', '2301', '1032', '3210'].map(s => [...s].map(Number));
+  const orderDistance = (a, b) => [0, 1, 2, 3].reduce((s, ph) => s + Math.abs(a.indexOf(ph) - b.indexOf(ph)), 0);
+  const order = turn => PERMS[((turn % 8) + 8) % 8];
+  const orderName = turn => order(turn).map(p => PHASE_NAMES[p]).join(' ');
+  // The two up-down phases cost at most two rows per side (given even band starts and an
+  // even depth), each smoothing pass R rows per side, R = radius(nbr): 1 for the 4- and
+  // 8-connected neighbourhoods, 2 for 5x5. Kept even so the parity argument holds.
+  const radius = nbr => nbr === 2 ? 2 : 1;
+  const depthFor = (passes, nbr = 0) => { const n = radius(nbr) * passes; return 2 + n + (n & 1); };
+  // st = { wasm, W, H, y0, rows, D, GRID, GRID2, PRM, THR, THRY }
+  // msg = { haloTop, haloBottom (Uint8Array of D rows or null at the grid edge), order (the turn's four phase ids), passes,
+  //         thrSwap (BigUint64Array W), thrSmooth (BigUint64Array H), salts (BigInt per step), changer (bool),
+  //         nbr (smoothing neighbourhood 0 cross / 1 3x3 / 2 5x5) }
+  function runTurn(st, msg) {
+    const { wasm, W, H, y0, rows, D, GRID, GRID2 } = st, S = 16 * W, y1 = y0 + rows, gy0 = y0 - D;
+    const m8 = new Uint8Array(wasm.memory.buffer);
+    if (msg.haloTop) m8.set(msg.haloTop, GRID);
+    if (msg.haloBottom) m8.set(msg.haloBottom, GRID + (D + rows) * S);
+    new BigUint64Array(wasm.memory.buffer, st.THR, W).set(msg.thrSwap);
+    new BigUint64Array(wasm.memory.buffer, st.THRY, H).set(msg.thrSmooth);
+    const topArt = y0 > 0, botArt = y1 < H;                 // artificial boundaries (a real grid edge needs no halo)
+    let vt = topArt ? D : 0, vb = botArt ? D : 0;           // valid halo rows above / below the interior
+    const useTop = () => { if (vt === 0) throw new Error('band halo exhausted above'); vt--; };
+    const useBot = () => { if (vb === 0) throw new Error('band halo exhausted below'); vb--; };
+    let moved = 0, smoothed = 0, k = 0;
+    m8.copyWithin(GRID2, GRID, GRID + (rows + 2 * D) * S);   // snapshot: every swap decision of the turn is read from the map before the first phase
+    for (const ph of msg.order) {
+      moved += wasm.mix_zone(W, GRID, GRID2, ph, st.THR, gy0, H, D - vt, D + rows + vb, D, D + rows, msg.salts[k++]);   // count only the band's own rows
+      if (ph & 1) {   // up-down: a zone-edge row whose partner lies outside the zone is no longer valid
+        const off = ph >> 1;
+        if (topArt) { const g = y0 - vt; if (((g - 1) & 1) === off) useTop(); }
+        if (botArt) { const gb = y1 + vb - 1; if ((gb & 1) === off) useBot(); }
+      }
+    }
+    const nbr = msg.nbr | 0, R = radius(nbr);
+    for (let p = 0; p < msg.passes; p++) {
+      const a = D - vt, b = D + rows + vb;
+      smoothed += wasm.smooth_zone(W, GRID, GRID2, st.THRY, gy0, H, a, b, D, D + rows, msg.salts[k++], nbr);
+      m8.copyWithin(GRID + a * S, GRID2 + a * S, GRID2 + b * S);
+      for (let i = 0; i < R; i++) { if (topArt) useTop(); if (botArt) useBot(); }
+    }
+    const rewritten = msg.changer ? wasm.change(rows * W, GRID + D * S, st.PRM) : 0;
+    return { moved, smoothed, rewritten };
+  }
+  // the band's first and last D interior rows, for the neighbours' halos next turn
+  function edges(st) {
+    const S = 16 * st.W, m8 = new Uint8Array(st.wasm.memory.buffer), base = st.GRID + st.D * S;
+    return { top: m8.slice(base, base + st.D * S), bottom: m8.slice(base + (st.rows - st.D) * S, base + st.rows * S) };
+  }
+  // split H rows into K bands of even heights, each at least D rows, starting at even rows
+  function split(H, K, D) {
+    K = Math.max(1, Math.min(K, Math.floor(H / Math.max(D, 2))));
+    const pairs = H / 2, base = Math.floor(pairs / K); let extra = pairs - base * K, y = 0;
+    const bands = [];
+    for (let k = 0; k < K; k++) { const rows = 2 * (base + (extra-- > 0 ? 1 : 0)); bands.push({ y0: y, rows }); y += rows; }
+    return bands;
+  }
+  // Probability p as a 64-bit threshold (p * 2^64); 0 and 1 are exact so the kernels can skip hashing.
+  const toThreshold = p => p <= 0 ? 0n : p >= 1 ? (1n << 64n) - 1n : BigInt(Math.round(p * 2 ** 32)) << 32n;
+  // Linear gradient of n thresholds from probability a at one edge of the image to b at the other,
+  // sampled at pixel centres: entry i is a + (b - a) * (i + 0.5) / n, so no pixel sits at exactly a or b
+  // and the first and last columns (or rows) are not frozen when an edge value is 0.
+  const gradient = (a, b, n) => { const tab = new BigUint64Array(n); for (let i = 0; i < n; i++) tab[i] = toThreshold(a + (b - a) * (i + 0.5) / n); return tab; };
+  return { PHASE_NAMES, PERMS, order, orderName, orderDistance, radius, depthFor, runTurn, edges, split, toThreshold, gradient };
+})();
+
+</script>
 <script>
+// ---- shared helpers (plain functions: their source is also shipped to the workers) ----
+function fillPattern(m8, grid, W, H, y0, rows, pattern, seed, wasm) {
+  if (pattern === 'random') { wasm.randomize(4 * rows * W, grid, seed >>> 0); return; }
+  if (pattern === 'small') { wasm.randomize(4 * rows * W, grid, seed >>> 0); for (let i = grid, e = grid + 16 * rows * W; i < e; i++) m8[i] &= 7; return; }
+  const x0 = W * 3 / 8, x1 = W * 5 / 8, ya = H * 3 / 8, yb = H * 5 / 8, stripe = Math.max(2, W >> 4);
+  for (let r = 0; r < rows; r++) {
+    const y = y0 + r;
+    for (let x = 0; x < W; x++) {
+      let on = false;
+      if (pattern === 'halves') on = x < W / 2;
+      else if (pattern === 'square') on = x >= x0 && x < x1 && y >= ya && y < yb;
+      else if (pattern === 'pixel') on = x === (W >> 1) && y === (H >> 1);
+      else if (pattern === 'stripes') on = Math.floor(x / stripe) % 2 === 1;
+      const o = grid + 16 * (r * W + x);
+      m8.fill(on ? 255 : 0, o, o + 16);
+    }
+  }
+}
+
+// Worker body: one horizontal band of rows with D halo rows above and below (see Band.runTurn).
+function workerMain() {
+  const LAY = Codec.LAYOUT;
+  let wasm, text, built, io, lut, W, H, y0, rows, D, S, GRID, GRID2, PIX, PAL, m8, st;
+  const bandBits = () => wasm.bits(rows * W, GRID + D * S);
+  onmessage = async e => {
+    const d = e.data, reply = { id: d.id };
+    try {
+      switch (d.type) {
+        case 'init': {
+          const { instance } = await WebAssembly.instantiate(d.wasm);
+          wasm = instance.exports; text = d.text;
+          lut = d.lut; built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut); io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); io.setCursorOffset(d.coff);
+          break;
+        }
+        case 'setN': built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut); io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); io.setCursorOffset(d.coff); break;
+        case 'hbits': io.setHeaderBits(d.hbits); break;
+        case 'coff': io.setCursorOffset(d.coff); break;
+        case 'changer': io.setChanger(d.changer); break;
+        case 'steps': io.setSteps(d.steps); break;
+        case 'resize': {
+          W = d.W; H = d.H; y0 = d.y0; rows = d.rows; D = d.D; S = 16 * W;
+          const L = rows + 2 * D;
+          GRID = LAY.GRID; GRID2 = GRID + L * S + 64; PIX = GRID2 + L * S + 64; PAL = PIX + 4 * rows * W + 64;
+          const need = PAL + 129 * 4, have = wasm.memory.buffer.byteLength;
+          if (need > have) wasm.memory.grow(Math.ceil((need - have) / 65536));
+          m8 = new Uint8Array(wasm.memory.buffer);
+          m8.fill(0, GRID, PIX);
+          new Uint32Array(wasm.memory.buffer, PAL, 129).set(d.palette);
+          st = { wasm, W, H, y0, rows, D, GRID, GRID2, PRM: LAY.PRM, THR: LAY.THR, THRY: LAY.THRY };
+          break;
+        }
+        case 'palette': new Uint32Array(wasm.memory.buffer, PAL, 129).set(d.palette); break;
+        case 'fill':
+          fillPattern(m8, GRID + D * S, W, H, y0, rows, d.pattern, d.seed, wasm);
+          Object.assign(reply, Band.edges(st)); reply.bits = bandBits();
+          break;
+        case 'turn': {
+          Object.assign(reply, Band.runTurn(st, d), Band.edges(st));
+          reply.bits = bandBits();
+          break;
+        }
+        case 'render': {
+          if (d.mean !== undefined) io.setMean(d.mode, d.mean);
+          wasm.render(rows * W, GRID + D * S, PIX, PAL, d.mode, LAY.PRM);
+          const px = m8.slice(PIX, PIX + 4 * rows * W);
+          reply.pixels = px.buffer; reply.sums = io.frameSums();
+          postMessage(reply, [px.buffer]);
+          return;
+        }
+        case 'inspect': {
+          const li = d.local, base = GRID + D * S, r = wasm.decode_pixel(base, li, LAY.PRM);
+          reply.bits = m8.slice(base + 16 * li, base + 16 * li + 16);
+          reply.out = m8.slice(io.OUT, io.OUT + 16); reply.flags = m8.slice(io.FLAGS, io.FLAGS + 16);
+          reply.consumed = r >> 8; reply.copied = r & 255; reply.offset = io.lastOffset(); reply.regs = m8.slice(256, 256 + 28);
+          break;
+        }
+        case 'paint':
+          m8.fill(d.ones ? 255 : 0, GRID + D * S + 16 * d.local, GRID + D * S + 16 * d.local + 16);
+          Object.assign(reply, Band.edges(st)); reply.bits = bandBits();
+          break;
+        case 'cells': {   // this band's own rows, without halos
+          const c = m8.slice(GRID + D * S, GRID + D * S + rows * S);
+          reply.cells = c.buffer; postMessage(reply, [c.buffer]);
+          return;
+        }
+        case 'setCells':
+          m8.set(new Uint8Array(d.cells), GRID + D * S);
+          Object.assign(reply, Band.edges(st)); reply.bits = bandBits();
+          break;
+      }
+    } catch (err) { reply.error = String(err); }
+    postMessage(reply);
+  };
+}
+
 (async () => {
-  const WASM_B64 = "AGFzbQEAAAABFgNgBH9/f38AYAJ/fwF/YAR/f39/AX8DBQQAAAECBQMBAEAHMwUGbWVtb3J5AgAEc3RlcAAABnJlbmRlcgABCnBvcHVsYXRpb24AAglyYW5kb21pemUAAwr9AwSvAgEKfyADIQ1BACEFAkADQCAFIAFPDQEgAiAFIABsaiEGIAIgAUEBayAAbGogBiAAayAFRRshByACIAYgAGogBSABQQFrRhshCEEAIQQCQANAIAQgAE8NASAAQQFrIARBAWsgBEUbIQlBACAEQQFqIAQgAEEBa0YbIQogByAJai0AAEEARyAHIARqLQAAQQBHaiAHIApqLQAAQQBHIAYgCWotAABBAEdqaiAGIApqLQAAQQBHIAggCWotAABBAEdqIAggBGotAABBAEcgCCAKai0AAEEAR2pqaiELIAYgBGotAAAhDCANQf8BIAxBAWogDEH/AUYbQQEgDBtBACALQQNGIAxBAEcgC0ECRnFyGzoAACANQQFqIQ0gBEEBaiEEDAALCyAFQQFqIQUMAAsLCzoBAX9BACEEAkADQCAEIABPDQEgAiAEQQJ0aiADIAEgBGotAABBAnRqKAIANgIAIARBAWohBAwACwsLMAECf0EAIQICQANAIAIgAE8NASADIAEgAmotAABBAEdqIQMgAkEBaiECDAALCyADC14BAX8gAkUEQEG5893xeSECC0EAIQQCQANAIAQgAE8NASACIAJBDXRzIQIgAiACQRF2cyECIAIgAkEFdHMhAiABIARqIAJB//8DcSADSToAACAEQQFqIQQMAAsLIAIL";
-  const bytes = Uint8Array.from(atob(WASM_B64), c => c.charCodeAt(0));
-  const { instance } = await WebAssembly.instantiate(bytes);
+  const WASM_B64 = "AGFzbQEAAAABjgIjYAN+fn8BfmABfgF+YAV/f39+fgF/YAx/f39/f39/f39/f34Bf2AGf39/f39+AX9gB39/f39/f34Bf2AJf39/f39/f39/AX5gC39/f39/f39/f35+AX9gDH9/f39/f39/f39+fwF/YAd/f39/f35/AX9gAn9/AX9gA39/fwF/YAR+fn9/AX9gAn5+AX9gBn9/f39/fwBgB39/f39/f38BfmAEf39/fwBgAX8Bf2ACf38AYAABf2ABfwBgAX8BfmACf34AYAJ/fwF+YAN/f34AYAN/f38AYAAAYAR/f39/AX9gBX9/f39/AGAFf39/f38Bf2ACfn4BfmACfn8BfmABfgBgA39/fgF+YAF+AX8DiwKJAgABAgMEBQYHCAkKCwwKCwsLCwsKDQsLCw4PEBESERIREhESERMTFBMTERIRERISChESFRYVFxgLERQUExEREwoZERIRERIKERkaChQaCgsSGhQUEwsUFBIKGhoaERIUGhsSChEaERESEREREhMUEhQREhQTFBoRERIREwoKGRISERkREhoREgsbGwoZGgoZERIaGhoREhMUExERCgoZEBMRFBkUGhESERIREhESExMUExQTEREKEQsKGRwTERsdEhkSGhESHh4VFRUBAR8KGhESEwoZCgoREQoZERMZGRsbGQsLFBMUEQsRGRASFBQKGRoVFhESERIVFhEKCh4RERUfHyAhAAAeIhoFAwEAQAYaBX8BQQALfwFBAAt/AUEAC38BQQALfgFCAAsHgwENBm1lbW9yeQIACG1peF96b25lAAMDbWl4AAQIbWl4X2Zyb20ABQtzbW9vdGhfem9uZQAIBnNtb290aAAJBGJpdHMACglyYW5kb21pemUACwZjaGFuZ2UADgxkZWNvZGVfcGl4ZWwADwZyZW5kZXIAGAVibGVuZAAZB3NoYXJwZW4AGgr/2QKJAlwCAX8EfiACQfAAakH/AHEhAyAAIAEgA0HAAEkbIQQgASAAIANBwABJGyEFIANBP3GtIQYgBCAGiCAFQj8gBn2GQgGGhCEHIAdC//8DgyAHQhGIQv//A4NCEIaEC0YAIABClfip+pe33puef3whACAAIABCHoiFQrnLk+fR7ZGsv39+IQAgACAAQhuIhULro8SZsbeS6JR/fiEAIAAgAEIfiIUL0AIFBX4BfwF+AX8C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CRC9ARoMAwsgAEEFEL8BDAILIABBBBC/AQwBCyABQQ5GBEAgAkEDRgRAIAMgBEEBELcBIQUgBUEBIApBA3EgAEGAAnFBASAFQQEQuAFBARC+ARC5AQwCCyAKEKUBQT9xQQggCiAKRRsgAEEgcRshDUGAgAQgBGogAiAAQQN2QQNxIABBgAJxIA0gBBClASACEL4BELkBDAELCwsPACAAQQVwQRhsQRgQNacLEQAgAEEFcEEYbEEYIAGtEDYLTQEBfiAAIAF8IQIgAkL///////8/gyACQjCIfCECIAJC////////P1EEQCAAQv///////z9RIAFC////////P1FxRQRAQgAhAgsLIAILEgAgACABQv///////z+FEMUBCxQAIABBCHRBCHWsQv///////z+DCx0AIABBgICABHEEQCAAQX9zQf///wdxrQ8LIACtCyAAIABBgICABHEEQEIAIABBf3NB////B3GtfQ8LIACtCycAIABCgICAgICAIINCAFIEQEIAIABCf4VC////////P4N9DwsgAAsnACAAQgBTBEBCACAAfUJ/hUL///////8/gw8LIABC////////P4MLIgAgAUEwcCEBIAAgAa2GIABBMCABa62IhEL///////8/gwsdACABQRhwIQEgACABdCAAQRggAWt2ckH///8HcQuIBwQFfwF+A38DfkEWEB0hACAAEMMBIQEgAUESdiECIAFB//8AcSEDIABBAWogAUEOdkEPcWpBBXAhB0EAEDIhBUEIEDBB////B3EhBiADEMMBIQRBDCAEEDECQCACQQlGBEAgBBDHASEFDAELIAJBCkYEQCAFIAQQxwEQxQEhBQwBCyACQQtGBEBCACAEEMcBEMYBIQUMAQsgAkEMRgRAIAUgBBDHARDGASEFDAELIAJBDUYEQCAFQoCAgPj//z+DIQUMAQsgAkEORgRAIAQhBgwBCyACQQ9GBEAgAyAEIAZBf3NxIAWnIAZxchDEAQwBCyACQRFGBEAgBBDIASEFDAELIAJBEkYEQCAFIAQQyAEQxQEhBQwBCyACQRNGBEBCACAEEMgBEMYBIQUMAQsgAkEURgRAIAUgBBDIARDGASEFDAELIAJBFUYEQCAFIAMQzAEhBQwBCyACQRZGBEAgBiADEM0BIQYMAQsgAkEXRgRAIAMgBEGAgP8HcSAFp0H/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EAAgAEEBcUE8bEE8IAEQNgsiACAAQQdxIQAgAEECdkE8bEEtIABBA3FBD2xrakEPEDWnC1EBAX8gAEH//w9xIAFB//8PcWohAiACQf//D3EgAkESdmohAiACQf//D0YEQCAAQf//D3FB//8PRiABQf//D3FB//8PRnFFBEBBACECCwsgAgsOACAAIAFB//8PcxD6AQtVAQF+IAAgAXwhAiACQv//////////D4MgAkI8iHwhAiACQv//////////D1EEQCAAQv//////////D1EgAUL//////////w9RcUUEQEIAIQILCyACCyEAIABBgIAIcQRAQQAgAEF/c0H//w9xaw8LIABB//8PcQsfACAAQQBIBEBBACAAa0F/c0H//w9xDwsgAEH//w9xCygAIABBgIAIcQRAIABB//8Pca1CgIDw//////8PhA8LIABB//8Pca0LJAAgAUE8cCEBIAAgAa2GIABBPCABa62IhEL//////////w+DCysBAX4gAEIEhiECIAFBPE8EQEE/IQELIAIgAUEEaq2HQv//////////D4MLSAAgAEKAgICAgICAgAiDQgBSJAIjAgRAIABCf4VC//////////8PgyEACyAAQjCIp0H/D3FBgAhrJAMgAEL///////8/gyQEC18BAX4gAlAEQEIADwsgAUGACGohASABQf8PSgRAQf8PIQFCACECCyABQQBIBEBCAA8LIAGtQjCGIAJC////////P4OEIQMgAARAIANCf4VC//////////8PgyEDCyADC8ABBgJ/AX4CfwF+AX8BfiAAEIICIwIhAyMDIQQjBCEFIAEQggIjAiACcyEGIwMhByMEIQggBCAHTgRAIAQhCUIAIAggBCAHa62IIAQgB2tBP0sbIQgFIAchCUIAIAUgByAEa62IIAcgBGtBP0sbIQULQgAgBX0gBSADG0IAIAh9IAggBht8IQogCkIAUyEDIAMEQEIAIAp9IQoLIApCgICAgICAwABaBEAgCkIBiCEKIAlBAWohCQsgAyAJIAoQgwIL8wEEAn8BfgF/CX4gABCCAiMCIQMjAyEEIwQhBSABEIICIAMjAnMhAyMDIQYjBCEHIAVCGIghCCAFQv///weDIQkgB0IYiCEKIAdC////B4MhCyAIIAt+IAkgCn58IQwgCSALfiAMQv///weDQhiGfCEN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";
+  const wasmBytes = Uint8Array.from(atob(WASM_B64), c => c.charCodeAt(0));
+  const { instance } = await WebAssembly.instantiate(wasmBytes);
   const wasm = instance.exports;
+  const blender = (await WebAssembly.instantiate(wasmBytes)).instance.exports;   // second instance: its memory holds the render buffer
 
   const $ = id => document.getElementById(id);
-  const canvas = $('view');
+  const canvas = $('view-canvas');
   const ctx = canvas.getContext('2d');
-  const back = document.createElement('canvas');     // 1 pixel per cell
+  const back = document.createElement('canvas');
   const bctx = back.getContext('2d');
 
-  const SPEEDS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 1000];
+  const SPEEDS = [1, 2, 5, 10, 30, 60, 120, 300, 1000];
+  // wasm phase ids: 0 = LR even, 1 = UD even, 2 = LR odd, 3 = UD odd; a turn runs the four in order Band.order(turn), see src/lattice/band.js.
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const LAYOUT = Codec.LAYOUT, PRM = LAYOUT.PRM;
+  const declText = $('decl').textContent.trim();
+  const codecSrc = $('codec-src').textContent, bandSrc = $('band-src').textContent;
 
   let W = 0, H = 0, N = 0;
-  let cur = 0, nxt = 0, PIX = 0, PAL = 0;   // offsets into wasm memory
-  let cells, image;                          // views over wasm memory
-  let gen = 0, running = !reduceMotion;
-  let seed = (Date.now() ^ 0x5bd1e995) >>> 0;
-  let acc = 0, lastT = 0, stepMs = 0, stepsTimed = 0, timeSum = 0;
+  let turn = 0, running = !reduceMotion, moved = 0, smoothed = 0, rewritten = 0, totalBits = 0, sel = -1;
+  let seed = (Date.now() ^ 0x2545f491) >>> 0;
+  let acc = 0, lastT = 0, timeSum = 0, timed = 0;
+  let built = Codec.build(declText, 3);
+  const TEXT_LEN = built.bytes.length, HB = built.headerBits;   // cursor header: ceil(log2 TEXT_LEN) bits, every byte of the dictionary a start position
+  $('coff').max = TEXT_LEN;   // the cursor offset runs over the whole dictionary and wraps
+  let engine = null;
+  const LUT = Codec.byteLut(built.bytes);
+  { const lc = $('lutLegend').getContext('2d'), img = lc.createImageData(256, 1);
+    for (let v = 0; v < 256; v++) { const e = LUT[v]; img.data.set([(e & 15) * 17, ((e >> 8) & 15) * 17, ((e >> 16) & 15) * 17, 255], 4 * v); }
+    lc.putImageData(img, 0, 0);
+    const seen = new Set(built.bytes), frag = document.createDocumentFragment();
+    for (let v = 0; v < 256; v++) {
+      if (!seen.has(v)) continue;
+      const e = LUT[v], r = (e & 15) * 17, g = ((e >> 8) & 15) * 17, b = ((e >> 16) & 15) * 17, s = document.createElement('span');
+      s.style.background = `rgb(${r},${g},${b})`; s.style.color = (0.299 * r + 0.587 * g + 0.114 * b) > 140 ? '#000' : '#fff';
+      s.textContent = v === 32 ? '␠' : v === 10 ? '⏎' : String.fromCharCode(v); s.title = 'byte ' + v;
+      frag.appendChild(s);
+    }
+    $('lutAlpha').replaceChildren(frag); }
 
-  // ---- memory layout -------------------------------------------------------
-  function layout(w, h) {
-    W = w; H = h; N = w * h;
-    cur = 0; nxt = N;
-    PIX = (2 * N + 3) & ~3;
-    PAL = PIX + 4 * N;
-    const need = PAL + 256 * 4;
-    const have = wasm.memory.buffer.byteLength;
-    if (need > have) wasm.memory.grow(Math.ceil((need - have) / 65536));
-    refreshViews();
-    new Uint8Array(wasm.memory.buffer, 0, 2 * N).fill(0);
-    back.width = W; back.height = H;
-    fillPalette();
-    fitCanvas();
-  }
-  function refreshViews() {
-    cells = new Uint8Array(wasm.memory.buffer);
-    image = new ImageData(new Uint8ClampedArray(wasm.memory.buffer, PIX, 4 * N), W, H);
-  }
-
-  // ---- palette: derived from the page's theme tokens -----------------------
+  // ---- palette from the theme tokens (129 entries, by count) ----
   function cssColor(name) {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    const n = parseInt(v.slice(1), 16);
+    const n = parseInt(getComputedStyle(document.documentElement).getPropertyValue(name).trim().slice(1), 16);
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
-  function fillPalette() {
-    const dead = cssColor('--cell-dead'), young = cssColor('--cell-new');
-    const mid = cssColor('--cell-mid'), old = cssColor('--cell-old');
-    const pal = new Uint32Array(wasm.memory.buffer, PAL, 256);
-    const pack = ([r, g, b]) => ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
-    const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
-    pal[0] = pack(dead);
-    for (let age = 1; age < 256; age++) {
-      const c = age <= 6 ? mix(young, mid, (age - 1) / 5)
-                         : mix(mid, old, Math.min(1, (age - 6) / 40));
-      pal[age] = pack(c);
+  function palette() {
+    const lo = cssColor('--dens-lo'), hi = cssColor('--dens-hi'), pal = new Uint32Array(129);
+    for (let i = 0; i <= 128; i++) {
+      const t = i / 128, c = lo.map((v, k) => Math.round(v + (hi[k] - v) * t));
+      pal[i] = ((255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0]) >>> 0;
     }
+    return pal;
   }
 
-  // ---- drawing -------------------------------------------------------------
+  // byte changer: 'none' keeps the LZ decompressor for the views but skips the rewrite phase
+  // The byte changer is chosen in two steps: a mode (none / LZ / transform / CPU) and, for the last two,
+  // the processor in its own box. changerId() is the wasm processor number (0 LZ, 1..21 as listed in the boxes).
+  const CPU_IDS = [1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24], XF_IDS = [3, 4, 5, 16, 17, 18];
+  const changerId = () => { const m = $('changer').value; return m === 'cpu' ? Number($('cpu').value) : m === 'xf' ? Number($('xf').value) : 0; };
+  const changerActive = () => $('changer').value !== 'none';
+  const showChangerBoxes = () => { const m = $('changer').value; $('cpuGroup').hidden = m !== 'cpu'; $('stepsGroup').hidden = m !== 'cpu' || changerId() < 6; $('xfGroup').hidden = m !== 'xf'; };
+  // a processor number from an older saved state (the single 0..21 menu) -> mode and box
+  const setChangerId = id => { id = Number(id); if (CPU_IDS.includes(id)) { $('changer').value = 'cpu'; $('cpu').value = id; } else if (XF_IDS.includes(id)) { $('changer').value = 'xf'; $('xf').value = id; } else $('changer').value = 'lz'; };
+
+  // packed 8-bit mean colour from frame sums (the LUT views stretch the next frame around it)
+  const packMean = s => Math.round(s.r / s.n) | (Math.round(s.g / s.n) << 8) | (Math.round(s.b / s.n) << 16);
+
+  // ---- engines: same async interface, one in-page instance or a pool of band workers ----
+  function makeLocalEngine() {
+    const GRID = LAYOUT.GRID;
+    let PIX = 0, PAL = 0, GRID2 = 0, m8, image, io;
+    const views = () => { m8 = new Uint8Array(wasm.memory.buffer); image = new ImageData(new Uint8ClampedArray(wasm.memory.buffer, PIX, 4 * N), W, H); };
+    const settings = () => { io.setChanger(changerId()); io.setSteps(Number($('steps').value)); io.setHeaderBits(HB); io.setCursorOffset(Number($('coff').value)); };
+    return {
+      threads: 1,
+      async init(Nmax) { io = Codec.install(wasm.memory, Codec.build(declText, Nmax), LUT); settings(); },
+      async setN(Nmax) { io = Codec.install(wasm.memory, Codec.build(declText, Nmax), LUT); settings(); },
+      async setChanger(m) { io.setChanger(m); },
+      async setSteps(n) { io.setSteps(n); },
+      async setHeaderBits(n) { io.setHeaderBits(n); },
+      async setCursorOffset(n) { io.setCursorOffset(n); },
+      async resize(pal) {
+        PIX = GRID + 16 * N; PAL = PIX + 4 * N; GRID2 = PAL + 129 * 4 + 12;
+        const need = GRID2 + 16 * N, have = wasm.memory.buffer.byteLength;
+        if (need > have) wasm.memory.grow(Math.ceil((need - have) / 65536));
+        views(); m8.fill(0, GRID, GRID + 16 * N);
+        new Uint32Array(wasm.memory.buffer, PAL, 129).set(pal);
+      },
+      async palette(pal) { new Uint32Array(wasm.memory.buffer, PAL, 129).set(pal); },
+      async fill(pattern, s) { fillPattern(m8, GRID, W, H, 0, H, pattern, s, wasm); return wasm.bits(N, GRID); },
+      // one whole turn on the full grid: the band pipeline reproduces this bit for bit
+      async turn(t) {
+        new BigUint64Array(wasm.memory.buffer, LAYOUT.THR, W).set(t.thrSwap);
+        new BigUint64Array(wasm.memory.buffer, LAYOUT.THRY, H).set(t.thrSmooth);
+        let moved = 0, smoothed = 0, k = 0;
+        m8.copyWithin(GRID2, GRID, GRID + 16 * N);   // snapshot: all swap decisions of the turn come from the map before the first phase
+        for (const ph of t.order) moved += wasm.mix_from(W, H, GRID, GRID2, ph, LAYOUT.THR, t.salts[k++]);
+        for (let i = 0; i < t.passes; i++) { smoothed += wasm.smooth(W, H, GRID, GRID2, LAYOUT.THRY, t.salts[k++], t.nbr); m8.copyWithin(GRID, GRID2, GRID2 + 16 * N); }
+        const rewritten = t.changer ? wasm.change(N, GRID, PRM) : 0;
+        return { moved, smoothed, rewritten, bits: wasm.bits(N, GRID) };
+      },
+      async render(mode) {
+        wasm.render(N, GRID, PIX, PAL, mode, PRM);
+        if (mode >= 4) { const s = io.frameSums(); if (s.n) io.setMean(mode, packMean(s)); }   // next frame stretches around this frame's mean
+        return image;
+      },
+      async inspect(i) {
+        const r = wasm.decode_pixel(GRID, i, PRM);
+        return { bits: m8.slice(GRID + 16 * i, GRID + 16 * i + 16), out: m8.slice(io.OUT, io.OUT + 16), flags: m8.slice(io.FLAGS, io.FLAGS + 16),
+                 consumed: r >> 8, copied: r & 255, offset: io.lastOffset(), regs: m8.slice(256, 256 + 28) };
+      },
+      async paint(i, ones) { m8.fill(ones ? 255 : 0, GRID + 16 * i, GRID + 16 * i + 16); },
+      async cells() { return m8.slice(GRID, GRID + 16 * N); },
+      cellsSync() { return m8.slice(GRID, GRID + 16 * N); },
+      async setCells(c) { m8.set(c, GRID); return wasm.bits(N, GRID); },
+      dispose() {},
+    };
+  }
+
+  function makeWorkerEngine(K, D) {
+    const src = codecSrc + '\n' + bandSrc + '\n' + fillPattern.toString() + '\n(' + workerMain.toString() + ')();';
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+    const bands = Band.split(H, K, D);
+    const workers = bands.map(() => new Worker(url));
+    K = workers.length;
+    const pending = new Map(); let seq = 0;
+    for (const w of workers) w.onmessage = e => { const cb = pending.get(e.data.id); pending.delete(e.data.id); if (e.data.error) console.error('worker:', e.data.error); cb(e.data); };
+    const call = (w, msg, transfer) => new Promise(res => { const id = ++seq; pending.set(id, res); w.postMessage({ ...msg, id }, transfer || []); });
+    const all = (msgFor) => Promise.all(workers.map((w, k) => call(w, msgFor(k))));
+    let image = null, bandBits = [], frameMean = {};
+    const owner = i => { const y = Math.floor(i / W); const k = bands.findIndex(b => y >= b.y0 && y < b.y0 + b.rows); return [k, (y - bands[k].y0) * W + (i % W)]; };
+    const edgesFrom = (r, k) => { bands[k].top = r.top; bands[k].bottom = r.bottom; bandBits[k] = r.bits; };
+    return {
+      threads: K,
+      async init(Nmax) { await all(() => ({ type: 'init', wasm: wasmBytes.slice(), text: declText, N: Nmax, lut: LUT, changer: changerId(), steps: Number($('steps').value), hbits: HB, coff: Number($('coff').value) })); },
+      async setN(Nmax) { await all(() => ({ type: 'setN', N: Nmax, changer: changerId(), steps: Number($('steps').value), hbits: HB, coff: Number($('coff').value) })); },
+      async setChanger(m) { await all(() => ({ type: 'changer', changer: m })); },
+      async setSteps(n) { await all(() => ({ type: 'steps', steps: n })); },
+      async setHeaderBits(n) { await all(() => ({ type: 'hbits', hbits: n })); },
+      async setCursorOffset(n) { await all(() => ({ type: 'coff', coff: n })); },
+      async resize(pal) {
+        image = new ImageData(W, H); bandBits = new Array(K).fill(0);
+        await all(k => ({ type: 'resize', W, H, y0: bands[k].y0, rows: bands[k].rows, D, palette: pal }));
+      },
+      async palette(pal) { await all(() => ({ type: 'palette', palette: pal })); },
+      async fill(pattern, s) {
+        const rs = await all(k => ({ type: 'fill', pattern, seed: (s + 7919 * k) >>> 0 }));
+        rs.forEach(edgesFrom);
+        return bandBits.reduce((a, b) => a + b, 0);
+      },
+      // one whole turn: a single round trip; halos are the neighbours' edge rows from the end of the last turn
+      async turn(t) {
+        const rs = await all(k => ({ type: 'turn', ...t,
+          haloTop: k > 0 ? bands[k - 1].bottom : null, haloBottom: k + 1 < K ? bands[k + 1].top : null }));
+        let moved = 0, smoothed = 0, rewritten = 0;
+        rs.forEach((r, k) => { moved += r.moved; smoothed += r.smoothed; rewritten += r.rewritten; edgesFrom(r, k); });
+        return { moved, smoothed, rewritten, bits: bandBits.reduce((a, b) => a + b, 0) };
+      },
+      async render(mode) {
+        const rs = await all(() => ({ type: 'render', mode, mean: frameMean[mode] }));
+        rs.forEach((r, k) => image.data.set(new Uint8ClampedArray(r.pixels), 4 * W * bands[k].y0));
+        if (mode >= 4) { const tot = rs.reduce((a, r) => ({ r: a.r + r.sums.r, g: a.g + r.sums.g, b: a.b + r.sums.b, n: a.n + r.sums.n }), { r: 0, g: 0, b: 0, n: 0 }); if (tot.n) frameMean[mode] = packMean(tot); }
+        return image;
+      },
+      async inspect(i) { const [k, local] = owner(i); return call(workers[k], { type: 'inspect', local }); },
+      async paint(i, ones) { const [k, local] = owner(i); const r = await call(workers[k], { type: 'paint', local, ones }); edgesFrom(r, k); },
+      cellsSync() { return null; },
+      async cells() {   // the whole grid, band by band
+        const rs = await all(() => ({ type: 'cells' })), out = new Uint8Array(16 * N);
+        rs.forEach((r, k) => out.set(new Uint8Array(r.cells), 16 * W * bands[k].y0));
+        return out;
+      },
+      async setCells(c) {
+        const rs = await Promise.all(workers.map((w, k) => { const part = c.slice(16 * W * bands[k].y0, 16 * W * (bands[k].y0 + bands[k].rows)); return call(w, { type: 'setCells', cells: part.buffer }, [part.buffer]); }));
+        rs.forEach(edgesFrom);
+        return bandBits.reduce((a, b) => a + b, 0);
+      },
+      dispose() { for (const w of workers) w.terminate(); URL.revokeObjectURL(url); },
+    };
+  }
+
+  // ---- serialised operations: everything that touches the engine goes through run() ----
+  let chain = Promise.resolve(), pendingOps = 0;
+  const run = fn => { pendingOps++; const p = chain.then(fn).catch(err => console.error(err)).finally(() => { pendingOps--; }); chain = p; return p; };
+
+  async function switchEngine() {
+    const K = Number($('threads').value);
+    if (engine) engine.dispose();
+    const D = Band.depthFor(Number($('iters').value), Number($('nbr').value));
+    engine = (K <= 1 || typeof Worker === 'undefined') ? makeLocalEngine() : makeWorkerEngine(K, D);
+    await engine.init(Number($('maxlen').value));
+    await engine.resize(palette());
+  }
+
+  // ---- decoder note ----
+  function codeNote() {
+    const Nmax = Number($('maxlen').value), hb = HB;
+    built = Codec.build(declText, Nmax);
+    $('maxlenVal').textContent = 'N = ' + Nmax;
+    $('coffVal').textContent = '+' + $('coff').value;
+    if (changerId() === 7) {
+      $('codeNote').textContent = 'MOS 6502: each pixel\'s 16 bytes are the whole address space (addresses wrap mod 16; the stack at $0100+S wraps into the same bytes); ' +
+        'registers start at zero, 256 instructions run from PC = 0 and the memory afterwards is the pixel\'s new content. All 151 documented opcodes with decimal mode; ' +
+        'undocumented opcodes, the JAM/KIL halts included, are NOPs; BRK vectors through bytes 14-15.';
+      return;
+    }
+    if (changerId() === 8) {
+      $('codeNote').textContent = 'Intel 8080: each pixel\'s 16 bytes are the whole address space (addresses wrap mod 16, stack included); registers start at zero, ' +
+        '256 instructions run from PC = 0 and the memory afterwards is the pixel\'s new content. Full instruction set with 8080 flags (S Z AC P CY); HLT, DI, EI, IN and OUT are NOPs.';
+      return;
+    }
+    if (changerId() >= 9) {
+      $('codeNote').textContent = {
+        9: 'Subleq: one instruction, three byte operands a b c; mem[b] -= mem[a] and PC jumps to c when the result is <= 0, else advances by 3. Every instruction rewrites memory.',
+        10: 'CHIP-8: 2-byte big-endian instructions, 16 V registers, I, a 16-level stack and timers in the register file; the 16 bytes are the whole memory. V0..VF are loaded from the 16 bytes at the start and written back over them at the end, so the registers live in the pixel. No display or keypad: DXYN only clears VF, EX9E never skips, EXA1 always skips, FX0A is a NOP.',
+        11: 'Intel 4004: 4-bit accumulator and carry, 16 index nibbles, 3-level stack; the 16 bytes are both the ROM (8-bit instructions) and 32 nibbles of RAM selected by SRC. The 16 nibbles ACC, R0..R14 are loaded from bytes 0..7 at the start and packed back into them at the end; bytes 8..15 stay as memory. Output and status-character instructions are NOPs, TEST reads 0.',
+        12: 'Game Boy SM83: the 8080/Z80 relative with Z N H C flags, LD (HL+)/(HL-), LDH, SWAP and Game Boy DAA; no IX/IY, no I/O ports. HALT, STOP, DI, EI and the invalid opcodes are NOPs.',
+        13: 'Intel 8051: the pixel is the internal RAM, so the register banks (R0..R7 = bytes 0..7), the stack and the bit-addressable area all live in it; program memory, MOVX and MOVC read the same bytes. ACC, B, PSW, SP and DPTR are SFRs in the register file. Full instruction set.',
+        14: 'Motorola 6809: A, B, DP, CC, X, Y, U, S and PC with every addressing mode including the indexed postbyte forms and indirection, both prefix pages, PSH/PUL, EXG/TFR, MUL, DAA. SYNC, CWAI and the SWIs are NOPs.',
+        15: 'RISC-V RV32EC: 16 registers, the full RV32I base and the integer C extension; words are little-endian and wrap byte by byte in the 16-byte memory. FENCE, ECALL and EBREAK are NOPs. x1..x15 are loaded from bytes 1..15 at the start and written back (low bytes) at the end, so the registers live in the pixel.',
+        19: 'DEC PDP-8: the pixel is 8 words of 12 bits (word k = bits 12k..12k+11); AC, L, PC and MQ live in bits 96..123 and are loaded at the start and written back at the end. Addresses are taken mod 8, indirect through a word also mod 8, no auto-index; the OPR groups are complete, IOT, OSR and HLT are NOPs.',
+        20: 'DEC PDP-11: 8 little-endian words, byte addressed, with all eight addressing modes including the PC forms; the basic set plus EIS (MUL DIV ASH ASHC), XOR, SOB, SXT, MFPS/MTPS, JSR/RTS, RTI/RTT. HALT, WAIT, RESET, BPT, IOT, EMT, TRAP and the MMU and floating-point groups are NOPs.',
+        21: 'Motorola 68000: D0..D7, A0..A7 (A7 = SP) and SR; 16 big-endian bytes with every 68000 addressing mode. MOVE, the ADD/SUB/CMP/AND/OR/EOR families with their immediate, quick, address and extended forms, shifts and rotates, bit instructions, MULU/MULS/DIVU/DIVS, Bcc/DBcc/Scc, JSR/RTS, LEA/PEA, LINK/UNLK, MOVEM, EXG, MOVE to/from SR/CCR. ABCD/SBCD/NBCD, CHK, TRAP, STOP, RESET and lines A/F are NOPs.',
+        22: 'ERA / UNIVAC 1101: the pixel is 5 words of 24 bits (word k = bits 24k..24k+23); A (48 bits), Q and X start at zero. The 38 operations of the January 1950 ERA list by their octal codes: clear/hold add and subtract, the absolute, split (multiple precision) and Q forms, fill Q, substitute digits and execution address, circular shifts of A and Q, store A and Q, the four jumps, logical multiply, multiply, multiply-add and divide; print and the three stops are NOPs. Operands and jumps take y mod 5 and the skip field chooses the next word.',
+        23: 'DEC VAX-11/780: R0..R14 (AP, FP, SP), PC and the PSL condition codes; 16 little-endian bytes with every operand specifier (literal, register, deferred, autoincrement/decrement, displacement, indexed, PC relative, immediate, absolute). The integer and address instruction set: MOV/MOVZ/CVT/MNEG/MCOM/CLR/TST/INC/DEC, ADD/SUB/MUL/DIV/BIS/BIC/XOR in the 2- and 3-operand forms, CMP/BIT, ASHL/ROTL, ADWC/SBWC, MOVA/PUSHA/PUSHL/PUSHR/POPR, MOVQ/CLRQ, branches, JMP/JSB/RSB/BSB, SOB/AOB/ACB/CASE, the bit-field group (EXTV/EXTZV/INSV/CMPV/FFS/FFC, BBS/BBC and relatives, BLBS/BLBC), BISPSW/BICPSW/MOVPSL. CALLS/CALLG push the argument and the PC without a frame, RET pops; HALT, floating point, EMUL/EDIV, packed decimal, strings, queues and the privileged instructions are NOPs.',
+        24: 'CDC 6600: the pixel is 2 words of 60 bits (word w = bits 60w..60w+59), each four 15-bit parcels executed from the high end; X0..X7 (60 bits), A0..A7 and B0..B7 (18 bits) start at zero. The whole central processor set: PS, RJ, JP, the Xj and Bi Bj branches, the boolean BX forms, LX/AX shifts, NX/ZX/UX/PX, FX/DX/RX add, subtract, multiply and divide in the 6600 floating format (RX is not rounded), IX add and subtract, MX and CX, and the SA/SB/SX address arithmetic with the A1..A5 loads and A6/A7 stores. Memory addresses are taken mod 2.',
+      }[changerId()] + ' Registers start at zero, the selected number of instructions run from PC = 0, and the memory afterwards (for CHIP-8, the 4004, RISC-V and the PDP-8: the registers too) is the pixel\'s new content.';
+      return;
+    }
+    if (changerId() === 6) {
+      $('codeNote').textContent = 'Z80: each pixel\'s 16 bytes are the whole address space of a Zilog Z80 (addresses wrap mod 16, stack included); ' +
+        'registers start at zero, 256 instructions run from PC = 0 and the memory afterwards is the pixel\'s new content. HALT, DI, EI, IM and all port I/O are NOPs. ' +
+        'Implemented: every unprefixed and CB opcode, IX/IY addressing, and the ED subset (16-bit ADC/SBC and loads, NEG, RRD/RLD, LDI/LDD/CPI/CPD families, I/R loads).';
+      return;
+    }
+    if (changerId() >= 3) {
+      $('codeNote').textContent = { 3: 'do nothing: each pixel is rewritten with itself', 4: 'invert: each pixel is rewritten with all 128 bits flipped',
+                                    5: 'reverse: each pixel is rewritten with its 16 bytes in reverse order',
+                                    16: 'add 17: the smallest of the 16 bytes (the first one on ties) gains 1, the byte after it gains 17 and the byte before it gains 5, each wrapping at 256 and the index wrapping around the 16 bytes; the other 13 bytes are kept',
+                                    17: 'DCT: the 16 bytes are taken as signed samples (byte - 128) and replaced by their 16-point DCT-II coefficients at half the orthonormal scale, offset by 128 and clamped to 0..255. Byte 0 becomes the mean, the rest the frequencies in rising order.',
+                                    18: 'inverse DCT: the 16 bytes are taken as DCT coefficients (byte - 128, doubled) and replaced by the 16 samples they describe, offset by 128 and clamped to 0..255. DCT followed by inverse DCT returns the pixel to within rounding unless coefficients clipped.' }[changerId()];
+      return;
+    }
+    if (changerId() !== 0) {
+      $('codeNote').textContent = `Brainfuck: each pixel's 16 bytes are a program run on a 16-cell circular tape` +
+        (changerId() === 2 ? ' that starts as a copy of the pixel' : ' that starts empty') +
+        `; byte values 0–7 are > < + - . , [ ] and other values are comments; "," reads the program's own bytes, "." does nothing, ` +
+        `unmatched brackets are ignored, execution stops after 1024 steps; the tape afterwards is the pixel's new content`;
+      return;
+    }
+    $('codeNote').textContent =
+      `copies of 2 to ${Nmax} bytes from the ${built.bytes.length.toLocaleString()}-byte Declaration; a command is a ${Math.min(...built.lenLengths)}–${Math.max(...built.lenLengths)}-bit ` +
+      `length code plus a 3-bit skip (${built.meanCommandBits.toFixed(2)} bits on average for ${built.meanCopyBytes.toFixed(2)} bytes); ` +
+      `expected rate 1 : ${built.rate.toFixed(2)} including the ${hb}-bit cursor header (ceil log2 of the dictionary size: every byte is a start position, values past the end wrap, plus the cursor offset), about ${built.expectedConsumed.toFixed(0)} of a pixel's 128 bits are read`;
+  }
+
+  // ---- thresholds as a per-bit probability p (linear sliders 0..1), thr = p * 2^64.
+  const probability = id => Number($(id).value);
+  // linear gradients sampled at pixel centres (Band.gradient): the edge values are reached at the image edges, not at the first and last pixel
+  const swapTable = () => Band.gradient(probability('thrL'), probability('thrR'), W);        // per column, left to right
+  const smoothTable = () => Band.gradient(probability('smoothT'), probability('smoothB'), H); // per row, top to bottom
+  function showThreshold() {
+    for (const id of ['thrL', 'thrR', 'smoothT', 'smoothB']) $(id + 'Val').textContent = 'p = ' + probability(id).toFixed(2);
+  }
+
+  // ---- drawing ----
+  const oneToOne = () => $('scale').value === 'one';
   function fitCanvas() {
     const dpr = devicePixelRatio || 1;
-    const cssW = canvas.parentElement.clientWidth - 16;
-    const cell = Math.max(1, Math.floor(cssW * dpr / W));
+    const stage = canvas.parentElement, wide = matchMedia('(min-width: 1000px)').matches;
+    // on landscape screens the square also fits the height, and leaves a column of at least 220 px for the stats beside it
+    const availH = wide ? innerHeight - stage.getBoundingClientRect().top - scrollY - 40 : Infinity;
+    const availW = wide ? stage.parentElement.clientWidth - 16 - 240 : stage.clientWidth - 16;
+    const cssW = Math.max(64, Math.min(availW, availH * W / H));
+    const cell = oneToOne() ? 1 : Math.max(1, Math.floor(cssW * dpr / W));
     canvas.width = W * cell; canvas.height = H * cell;
     canvas.style.width = (W * cell / dpr) + 'px';
-    draw();
+    canvas.style.height = oneToOne() ? (H / dpr) + 'px' : 'auto';
+    back.width = W; back.height = H;
   }
-  function draw() {
-    wasm.render(N, cur, PIX, PAL);
-    bctx.putImageData(image, 0, 0);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(back, 0, 0, canvas.width, canvas.height);
-    $('gen').textContent = gen.toLocaleString();
-    $('pop').textContent = wasm.population(N, cur).toLocaleString();
+  function viewMode() {
+    const mode = Number($('view').value);
+    return mode === 5 && changerActive() ? 4 : mode;   // the bytes already are the latest decoded output: no second decode
+  }
+  // ---- render buffer: an exponential average of the frames, slower where a frame is locally flat (wasm blend) ----
+  const BPIX = LAYOUT.GRID;   // in the blender's memory: the frame at BPIX (4 bytes a pixel), the 16.16 accumulators after it (12 bytes a pixel)
+  const FLAT_TIERS = { 1: [1, 1], 2: [1, 2], 4: [1, 4], 24: [2, 4] };   // half-time factors for 4-connected / 8-connected flat pixels
+  let blendReset = true, blendMode = -1, blendN = 0, blendTurn = 0, blendMs = 0, flatCount = null, halfTurns = 0;
+  // post-processing of a rendered frame, in place: the render buffer, then the spatial sharpening (2 x pixel - mean of the 4-connected neighbours)
+  function postFrame(image, mode) {
+    const stages = Number($('avg').value) || 0, sharp = $('sharp').value === '1';
+    if (!stages) { blendReset = true; flatCount = null; }
+    if (!stages && !sharp) return;
+    const need = BPIX + 32 * N, have = blender.memory.buffer.byteLength;   // frame, two sets of 12-byte accumulators and a 4-byte scratch copy per pixel
+    if (need > have) blender.memory.grow(Math.ceil((need - have) / 65536));
+    const mem = new Uint8Array(blender.memory.buffer);
+    mem.set(image.data, BPIX);
+    if (stages) blendFrame(mem, mode, stages);
+    if (sharp) { mem.copyWithin(BPIX + 28 * N, BPIX, BPIX + 4 * N); blender.sharpen(W, H, BPIX + 28 * N, BPIX); }
+    image.data.set(mem.subarray(BPIX, BPIX + 4 * N));
+  }
+  // stages = 1: the frame pulls the first accumulator; stages = 2: the rounded output of the first stage then pulls a second
+  // accumulator in the same way (leaky integration of the already integrated image), which damps flicker more for the same half-time
+  function blendFrame(mem, mode, stages) {
+    const [f4, f8] = FLAT_TIERS[$('flat').value] || [1, 2];
+    const now = performance.now(), reset = blendReset || mode !== blendMode || N !== blendN;
+    const dt = turn - blendTurn, ms = now - blendMs;   // turns and wall time since the last blended frame
+    // the half-time is 200 ms or 4 turns, whichever is longer: keep the larger remaining fraction of the two
+    const rem = Math.max(2 ** (-ms / 200), 2 ** (-dt / 4));
+    halfTurns = dt > 0 ? Math.max(4, 200 * dt / Math.max(ms, 1e-6)) : halfTurns;
+    const kOf = f => reset ? 65536 : Math.round(65536 * (1 - rem ** (1 / f)));
+    const r = blender.blend(W, H, BPIX, BPIX + 4 * N, kOf(1), kOf(f4), kOf(f8));
+    if (stages > 1) blender.blend(W, H, BPIX, BPIX + 16 * N, kOf(1), kOf(f4), kOf(f8));   // second stage reads the first stage's output
+    flatCount = { n4: Number(r >> 32n), n8: Number(r & 0xffffffffn) };
+    blendReset = false; blendMode = mode; blendN = N; blendTurn = turn; blendMs = now;
+  }
+  async function draw() {
+    const mode = viewMode();
+    const image = await engine.render(mode);
+    postFrame(image, mode);
+    if (oneToOne()) ctx.putImageData(image, 0, 0);
+    else { bctx.putImageData(image, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(back, 0, 0, canvas.width, canvas.height); }
+    if (sel >= 0) {
+      const cell = canvas.width / W;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+      ctx.strokeRect((sel % W) * cell + 1, Math.floor(sel / W) * cell + 1, cell - 2, cell - 2);
+      ctx.strokeStyle = '#000000'; ctx.lineWidth = 1;
+      ctx.strokeRect((sel % W) * cell + 2.5, Math.floor(sel / W) * cell + 2.5, cell - 5, cell - 5);
+    }
+    $('turn').textContent = turn.toLocaleString();
+    $('phase').textContent = `${Band.orderName(turn)} (${turn % 8 + 1} of 8)`;
+    $('flatN').textContent = flatCount ? `${flatCount.n4.toLocaleString()} 4-connected, ${flatCount.n8.toLocaleString()} 8-connected of ${N.toLocaleString()}` : 'off';
+    $('halfT').textContent = flatCount ? `${halfTurns.toFixed(1)} turns${$('avg').value === '2' ? ' × 2 stages' : ''}` : 'off';
+    $('moved').textContent = moved.toLocaleString();
+    $('smoothed').textContent = smoothed.toLocaleString();
+    $('rewritten').textContent = rewritten.toLocaleString();
+    $('total').textContent = totalBits.toLocaleString();
+    await inspect();
+  }
+  async function inspect() {
+    if (sel < 0) return;
+    const r = await engine.inspect(sel), textLen = built.bytes.length, hb = HB, unit = Math.ceil(textLen / 2 ** hb);
+    const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18), z80 = (ch >= 6 && ch <= 15) || ch >= 19;
+    $('selPos').textContent = `x ${sel % W}, y ${Math.floor(sel / W)}`;
+    $('selHex').textContent = Array.from(r.bits, b => b.toString(16).padStart(2, '0')).join(' ');
+    if (z80) {
+      const frag = document.createDocumentFragment();
+      r.out.forEach((b, i) => { const s = document.createElement('span'); s.className = r.flags[i] ? 'c' : ''; s.textContent = b.toString(16).padStart(2, '0') + ' '; frag.appendChild(s); });
+      $('selText').replaceChildren(frag);
+      const g = r.regs, h2 = v => v.toString(16).padStart(2, '0'), h4 = (lo, hi) => h2(g[hi]) + h2(g[lo]);
+      const steps = Number($('steps').value), hx = (lo, n) => Array.from(g.slice(lo, lo + n), h2).join(' ');
+      const x32 = n => { const d = g[64 + 4 * n] | (g[65 + 4 * n] << 8) | (g[66 + 4 * n] << 16) | (g[67 + 4 * n] << 24); return (d >>> 0).toString(16).padStart(8, '0'); };
+      const dumps = {
+        6: () => `A=${h2(g[7])} F=${h2(g[6])} BC=${h4(0, 1)} DE=${h4(2, 3)} HL=${h4(4, 5)} IX=${h4(16, 17)} IY=${h4(18, 19)} SP=${h4(20, 21)} PC=${h4(22, 23)}`,
+        7: () => `A=${h2(g[0])} X=${h2(g[1])} Y=${h2(g[2])} S=${h2(g[3])} P=${h2(g[4])} (${['N','V','-','B','D','I','Z','C'].filter((_, k) => g[4] & (0x80 >> k)).join('')}) PC=${h4(22, 23)}`,
+        8: () => `A=${h2(g[7])} F=${h2(g[6])} BC=${h4(0, 1)} DE=${h4(2, 3)} HL=${h4(4, 5)} SP=${h4(20, 21)} PC=${h4(22, 23)}`,
+        9: () => `PC=${h4(22, 23)} (a b c operands at PC: ${hx(0, 0)}mem[${r.offset}..])`,
+        10: () => `V0..VF=${hx(0, 16)} I=${h4(16, 17)} PC=${h4(22, 23)} SP=${h2(g[24])} DT=${h2(g[26])}`,
+        11: () => `ACC=${g[0].toString(16)} CY=${g[1]} R0..R15=${Array.from(g.slice(2, 18), v => v.toString(16)).join('')} SRC=${h2(g[18])} PC=${(g[22] | (g[23] << 8)).toString(16).padStart(3, '0')}`,
+        12: () => `A=${h2(g[7])} F=${h2(g[6])} (${['Z','N','H','C'].filter((_, k) => g[6] & (0x80 >> k)).join('')}) BC=${h4(0, 1)} DE=${h4(2, 3)} HL=${h4(4, 5)} SP=${h4(20, 21)} PC=${h4(22, 23)}`,
+        13: () => `ACC=${h2(g[0])} B=${h2(g[1])} PSW=${h2(g[2])} SP=${h2(g[3])} DPTR=${h4(4, 5)} PC=${h4(22, 23)} (R0..R7 are bytes 0..7 of the pixel)`,
+        14: () => `A=${h2(g[0])} B=${h2(g[1])} DP=${h2(g[2])} CC=${h2(g[3])} (${['E','F','H','I','N','Z','V','C'].filter((_, k) => g[3] & (0x80 >> k)).join('')}) X=${h4(4, 5)} Y=${h4(6, 7)} U=${h4(8, 9)} S=${h4(10, 11)} PC=${h4(22, 23)}`,
+        15: () => `x1..x15=${Array.from({ length: 15 }, (_, k) => x32(k + 1)).join(' ')} PC=${h4(22, 23)}`,
+        19: () => { const o = v => v.toString(8).padStart(4, '0'); return `AC=${o(g[0] | (g[1] << 8))} L=${g[2]} MQ=${o(g[4] | (g[5] << 8))} PC=${g[22]} (octal; words 0..7 are pixel bits 0..95, AC L PC MQ bits 96..123)`; },
+        20: () => { const o = v => v.toString(8).padStart(6, '0'); return `R0..R5=${Array.from({ length: 6 }, (_, k) => o(g[2 * k] | (g[2 * k + 1] << 8))).join(' ')} SP=${o(g[12] | (g[13] << 8))} PC=${o(g[22] | (g[23] << 8))} PSW=${['N','Z','V','C'].filter((_, k) => g[20] & (8 >> k)).join('') || '-'} (octal)`; },
+        22: () => { const o = (lo, n, w) => { let v = 0n; for (let k = n - 1; k >= 0; k--) v = (v << 8n) | BigInt(g[lo + k]); return v.toString(8).padStart(w, '0'); }; return `A=${o(0, 6, 16)} Q=${o(8, 3, 8)} X=${o(12, 3, 8)} PC=${g[22]} (octal; words 0..4 are pixel bits 0..119)`; },
+        23: () => `R0..R11=${Array.from({ length: 12 }, (_, k) => x32(k)).join(' ')} AP=${x32(12)} FP=${x32(13)} SP=${x32(14)} PC=${h4(22, 23)} PSL=${['N','Z','V','C'].filter((_, k) => g[20] & (8 >> k)).join('') || '-'}`,
+        24: () => { const o = (lo, n, w) => { let v = 0n; for (let k = n - 1; k >= 0; k--) v = (v << 8n) | BigInt(g[lo + k]); return v.toString(8).padStart(w, '0'); }; return `X0..X7=${Array.from({ length: 8 }, (_, k) => o(64 + 8 * k, 8, 20)).join(' ')} A0..A7=${Array.from({ length: 8 }, (_, k) => o(24 + 4 * k, 4, 6)).join(' ')} B1..B7=${Array.from({ length: 7 }, (_, k) => o(3 * k, 3, 6)).join(' ')} P=${g[22] >> 2}.${g[22] & 3} (octal; words 0..1 are pixel bits 0..119)`; },
+        21: () => `D0..D7=${Array.from({ length: 8 }, (_, k) => x32(k)).join(' ')} A0..A7=${Array.from({ length: 8 }, (_, k) => x32(8 + k)).join(' ')} SR=${['X','N','Z','V','C'].filter((_, k) => g[20] & (16 >> k)).join('') || '-'} PC=${h4(22, 23)}`,
+      };
+      $('selWindow').textContent = `after ${steps} instructions: ` + dumps[ch]();
+      const notes = { 6: 'HALT, DI, EI, IM and I/O are NOPs', 7: 'undocumented opcodes (JAM/KIL included) are NOPs', 8: 'HLT, DI, EI, IN and OUT are NOPs',
+        9: 'mem[b] -= mem[a]; branch to c when the result is <= 0', 10: 'no display or keypad: DXYN clears VF, EX9E never skips, EXA1 always skips, FX0A is a NOP',
+        11: 'the 16 bytes are the ROM and 32 RAM nibbles; output and status instructions are NOPs', 12: 'HALT, STOP, DI, EI and invalid opcodes are NOPs',
+        13: 'internal RAM is the pixel: register banks and the stack live in it; reserved A5h is a NOP', 14: 'SYNC, CWAI and the SWIs are NOPs',
+        15: 'RV32I plus the C extension; FENCE, ECALL and EBREAK are NOPs; registers 16..31 alias 0..15',
+        19: 'addresses mod 8, no auto-index; IOT, OSR and HLT are NOPs; AC, L, PC and MQ are loaded from and stored to pixel bits 96..123',
+        20: 'little-endian words, all eight addressing modes, EIS included; HALT, WAIT, RESET, traps and the MMU/FPP groups are NOPs',
+        21: 'big-endian, all addressing modes; the BCD instructions, CHK, TRAP, STOP, RESET and lines A/F are NOPs',
+        22: '5 words of 24 bits, addresses mod 5, the 1950 octal operation codes; print and the stops are NOPs',
+        23: 'little-endian, every operand specifier; HALT, floating point, decimal, strings, queues and privileged instructions are NOPs',
+        24: '2 words of 60 bits in 15-bit parcels; the full central processor set with 6600 floating point, addresses mod 2' };
+      $('selNote').textContent = `memory after the run (the 16 bytes are the whole address space, wrapping mod 16); ${r.copied} of 16 bytes changed; ` + notes[ch];
+      return;
+    }
+    if (simple) {
+      const frag = document.createDocumentFragment();
+      r.out.forEach((b, i) => { const s = document.createElement('span'); s.className = r.flags[i] ? 'c' : ''; s.textContent = b.toString(16).padStart(2, '0') + ' '; frag.appendChild(s); });
+      $('selWindow').textContent = { 3: 'do nothing: output = input', 4: 'invert: every bit flipped', 5: 'reverse: the 16 bytes in reverse order', 16: 'add 17: smallest byte (first on ties) +1, the next byte +17, the previous byte +5, mod 256, index wrapping', 17: 'DCT coefficients of the 16 samples (byte 0 = mean), 128 = zero', 18: 'samples reconstructed from the 16 DCT coefficients, 128 = zero' }[ch];
+      $('selText').replaceChildren(frag);
+      $('selNote').textContent = `${r.copied} of 16 bytes differ from the input (highlighted)`;
+      return;
+    }
+    if (bf) {
+      const prog = Array.from(r.bits, b => b < 8 ? '><+-.,[]'[b] : '·').join('');
+      $('selWindow').textContent = `program ${prog}  (bytes 0–7 are > < + - . , [ ], others are comments)`;
+      const frag = document.createDocumentFragment();
+      r.out.forEach((b, i) => { const s = document.createElement('span'); s.className = r.flags[i] ? 'c' : ''; s.textContent = b.toString(16).padStart(2, '0') + ' '; frag.appendChild(s); });
+      $('selText').replaceChildren(frag);
+      $('selNote').textContent = `tape after ${r.consumed} steps${r.consumed >= 1024 ? ' (step limit reached)' : ''}: ${r.copied} of 16 cells changed, pointer at cell ${r.offset}`;
+      return;
+    }
+    const before = Array.from({ length: 36 }, (_, k) => built.bytes[(r.offset - 36 + k + textLen) % textLen]).map(b => b === 10 ? ' ' : String.fromCharCode(b)).join('');
+    $('selWindow').textContent = `cursor starts at ${r.offset.toLocaleString()} of ${textLen.toLocaleString()} (header value ${r.offset / unit}), after …${before}`;
+    const frag = document.createDocumentFragment();
+    let i = 0;
+    while (i < r.out.length) {
+      const f = r.flags[i]; let s = '';
+      while (i < r.out.length && r.flags[i] === f) { const b = r.out[i++]; s += (b >= 32 && b < 127) ? String.fromCharCode(b) : (b === 10 ? '⏎' : '·'); }
+      const span = document.createElement('span');
+      span.className = f ? 'c' : 'c2';
+      span.textContent = s;
+      frag.appendChild(span);
+    }
+    $('selText').replaceChildren(frag);
+    $('selNote').textContent = `${r.consumed} of 128 input bits consumed (${hb} header + ${r.consumed - hb} command bits) for 128 output bits (1 : ${(128 / r.consumed).toFixed(2)}); ` +
+      `${r.copied} copy commands, shown as alternating fragments` +
+      (r.consumed >= 1024 ? '; input consumption hit the cap, so the rest continued the dictionary from the cursor' : '');
   }
 
-  // ---- simulation ----------------------------------------------------------
-  function stepOnce() {
+  // ---- a turn: the four swap phases in this turn's order, the smoothing passes, then the byte changer rewrites every pixel ----
+  async function doTurn() {
     const t0 = performance.now();
-    wasm.step(W, H, cur, nxt);
-    const dt = performance.now() - t0;
-    [cur, nxt] = [nxt, cur];
-    gen++;
-    timeSum += dt; stepsTimed++;
-    if (stepsTimed >= 20) { stepMs = timeSum / stepsTimed; timeSum = 0; stepsTimed = 0; showTiming(); }
-  }
-  function showTiming() {
-    $('stepTime').textContent = stepMs >= 1 ? stepMs.toFixed(2) + ' ms' : (stepMs * 1000).toFixed(0) + ' µs';
-    const cps = N / (stepMs / 1000);
-    $('throughput').textContent = cps >= 1e9 ? (cps / 1e9).toFixed(2) + ' G' : (cps / 1e6).toFixed(1) + ' M';
+    const seeded = $('seedmode').value === '1', passes = Number($('iters').value);
+    const salts = Array.from({ length: 4 + passes }, (_, k) => seeded ? BigInt(turn * 64 + k + 1) : 0n);   // a distinct salt per phase and pass
+    const r = await engine.turn({ order: Band.order(turn), passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, changer: changerActive() });
+    moved = r.moved; smoothed = r.smoothed; rewritten = r.rewritten; totalBits = r.bits;
+    turn++;
+    timeSum += performance.now() - t0; timed++;
+    if (timed >= 5) {
+      const ms = timeSum / timed;
+      $('turnTime').textContent = (ms >= 1 ? ms.toFixed(1) + ' ms' : (ms * 1000).toFixed(0) + ' µs') + ` · ${engine.threads} thr`;
+      timeSum = 0; timed = 0;
+    }
   }
   function frame(t) {
-    if (running) {
-      const sps = SPEEDS[$('speed').value];
-      acc += Math.min(0.1, (t - lastT) / 1000) * sps;
-      let n = Math.min(Math.floor(acc), 40);
+    if (running && pendingOps === 0) {
+      acc += Math.min(0.1, (t - lastT) / 1000) * SPEEDS[$('speed').value];
+      let n = Math.min(Math.floor(acc), 4);
       acc -= n;
-      while (n-- > 0) stepOnce();
-      draw();
-    }
+      if (n > 0) run(async () => { while (n-- > 0) await doTurn(); await draw(); });
+    } else if (pendingOps > 0) acc = 0;
     lastT = t;
     requestAnimationFrame(frame);
   }
 
-  // ---- patterns ------------------------------------------------------------
-  // Run-length encoded in the standard RLE pattern format.
-  const RLE = {
-    glider: 'bo$2bo$3o!',
-    lwss: 'bo2bo$o4b$o3bo$4o!',
-    rpentomino: 'b2o$2ob$bo!',
-    acorn: 'bo5b$3bo3b$2o2b3o!',
-    diehard: '6bob$2o6b$bo3b3o!',
-    pulsar: '2b3o3b3o2b$o4bobo4bo$o4bobo4bo$o4bobo4bo$2b3o3b3o2b2$2b3o3b3o2b$o4bobo4bo$o4bobo4bo$o4bobo4bo$2b3o3b3o!',
-    gun: '24bo$22bobo$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o$2o8bo3bob2o4bobo$10bo5bo7bo$11bo3bo$12b2o!',
-  };
-  function decodeRLE(s) {
-    const pts = []; let x = 0, y = 0, run = '';
-    for (const ch of s) {
-      if (ch >= '0' && ch <= '9') { run += ch; continue; }
-      const n = run ? parseInt(run, 10) : 1; run = '';
-      if (ch === 'b') x += n;
-      else if (ch === 'o') { for (let i = 0; i < n; i++) pts.push([x++, y]); }
-      else if (ch === '$') { y += n; x = 0; }
-      else if (ch === '!') break;
-    }
-    return pts;
+  async function reset(pattern) {
+    totalBits = await engine.fill(pattern, (seed = (seed * 1664525 + 1013904223) >>> 0));
+    turn = 0; moved = 0; smoothed = 0; rewritten = 0; acc = 0; blendReset = true;
+    await draw();
   }
-  function place(name) {
-    cells.fill(0, cur, cur + N);
-    const pts = decodeRLE(RLE[name]);
-    const pw = Math.max(...pts.map(p => p[0])) + 1, ph = Math.max(...pts.map(p => p[1])) + 1;
-    const ox = name === 'gun' ? 4 : (W - pw) >> 1;
-    const oy = name === 'gun' ? 4 : (H - ph) >> 1;
-    for (const [x, y] of pts) cells[cur + ((y + oy) % H) * W + ((x + ox) % W)] = 1;
+  async function rebuild(pattern, keep) {   // new grid size or thread count; keep = carry the current grid over
+    const [w, h] = $('size').value.split('x').map(Number);
+    const cells = keep && engine && w === W && h === H ? await engine.cells() : null;
+    W = w; H = h; N = W * H;
+    sel = Math.min(sel < 0 ? (H >> 1) * W + (W >> 1) - 1 : sel, N - 1);
+    await switchEngine();
+    fitCanvas();
+    $('turnTime').textContent = '–';
+    blendReset = true;
+    if (cells) { totalBits = await engine.setCells(cells); await engine.render(viewMode()); await draw(); }   // same lattice, new engine: the turn counter keeps running; the first render only seeds the palette stretch mean
+    else await reset(pattern);
   }
-  function soup() {
-    seed = wasm.randomize(N, cur, seed, Math.floor(65536 * 0.28)) >>> 0;
-  }
-  function reset(fn) { fn(); gen = 0; acc = 0; draw(); }
 
-  // ---- interaction ---------------------------------------------------------
-  let painting = false, paintValue = 1;
-  function cellAt(ev) {
+  // ---- interaction: click inspects, shift-drag paints ones, ctrl-shift-drag paints zeros ----
+  let painting = false, paintOnes = true;
+  function pixelAt(ev) {
     const r = canvas.getBoundingClientRect();
-    const x = Math.floor((ev.clientX - r.left) / r.width * W);
-    const y = Math.floor((ev.clientY - r.top) / r.height * H);
-    return (x >= 0 && y >= 0 && x < W && y < H) ? cur + y * W + x : -1;
+    const x = Math.floor((ev.clientX - r.left) / r.width * W), y = Math.floor((ev.clientY - r.top) / r.height * H);
+    return (x >= 0 && y >= 0 && x < W && y < H) ? y * W + x : -1;
   }
   canvas.addEventListener('pointerdown', ev => {
-    const i = cellAt(ev); if (i < 0) return;
-    canvas.setPointerCapture(ev.pointerId);
-    painting = true;
-    paintValue = cells[i] ? 0 : 1;
-    cells[i] = paintValue; draw();
+    const i = pixelAt(ev); if (i < 0) return;
+    if (ev.shiftKey) {
+      canvas.setPointerCapture(ev.pointerId);
+      painting = true; paintOnes = !ev.ctrlKey;
+      run(async () => { await engine.paint(i, paintOnes); blendReset = true; await draw(); });
+    } else { sel = i; run(draw); }
   });
   canvas.addEventListener('pointermove', ev => {
     if (!painting) return;
-    const i = cellAt(ev); if (i < 0) return;
-    if (cells[i] !== paintValue) { cells[i] = paintValue; draw(); }
+    const i = pixelAt(ev); if (i < 0) return;
+    if (pendingOps < 3) run(async () => { await engine.paint(i, paintOnes); blendReset = true; await draw(); });
   });
   const stopPaint = () => { painting = false; };
   canvas.addEventListener('pointerup', stopPaint);
@@ -338,60 +1285,70 @@
     $('play').setAttribute('aria-pressed', String(on));
   }
   $('play').addEventListener('click', () => setRunning(!running));
-  $('step').addEventListener('click', () => { setRunning(false); stepOnce(); draw(); });
-  $('clear').addEventListener('click', () => { setRunning(false); reset(() => cells.fill(0, cur, cur + N)); });
-  $('random').addEventListener('click', () => reset(soup));
-  $('pattern').addEventListener('change', ev => {
-    const v = ev.target.value;
-    reset(v === 'soup' ? soup : () => place(v));
-  });
-  $('size').addEventListener('change', ev => {
-    const [w, h] = ev.target.value.split('x').map(Number);
-    layout(w, h);
-    const v = $('pattern').value;
-    reset(v === 'soup' ? soup : () => place(v));
-    stepMs = 0; $('stepTime').textContent = '–'; $('throughput').textContent = '–';
-  });
-  const showSpeed = () => { $('speedVal').textContent = SPEEDS[$('speed').value] + ' gen/s'; };
+  $('step').addEventListener('click', () => { setRunning(false); run(async () => { await doTurn(); await draw(); }); });
+  $('random').addEventListener('click', () => run(() => reset('random')));
+  $('pattern').addEventListener('change', ev => run(() => reset(ev.target.value)));
+  $('view').addEventListener('change', () => run(draw));
+  for (const id of ['avg', 'flat', 'sharp']) $(id).addEventListener('change', () => { blendReset = true; run(draw); });
+  for (const id of ['iters', 'nbr']) $(id).addEventListener('change', () => { if (engine && engine.threads > 1) run(() => rebuild($('pattern').value, true)); });   // the halo depth depends on the pass count and the neighbourhood
+  $('steps').addEventListener('change', () => run(async () => { await engine.setSteps(Number($('steps').value)); await draw(); }));
+  $('coff').addEventListener('input', () => { $('coffVal').textContent = '+' + $('coff').value; run(async () => { await engine.setCursorOffset(Number($('coff').value)); await draw(); }); });
+  $('scale').addEventListener('change', () => run(async () => { fitCanvas(); await draw(); }));
+  $('size').addEventListener('change', () => { sel = -1; run(() => rebuild($('pattern').value)); });
+  $('threads').addEventListener('change', () => run(() => rebuild($('pattern').value, true)));
+  $('thrL').addEventListener('input', showThreshold);
+  $('thrR').addEventListener('input', showThreshold);
+  $('smoothT').addEventListener('input', showThreshold);
+  $('smoothB').addEventListener('input', showThreshold);
+  $('maxlen').addEventListener('input', () => { codeNote(); run(async () => { await engine.setN(Number($('maxlen').value)); await draw(); }); });
+  for (const id of ['changer', 'cpu', 'xf']) $(id).addEventListener('change', () => { showChangerBoxes(); codeNote(); run(async () => { await engine.setChanger(changerId()); await draw(); }); });
+  const showSpeed = () => { $('speedVal').textContent = SPEEDS[$('speed').value] + ' turns/s'; };
   $('speed').addEventListener('input', showSpeed);
   document.addEventListener('keydown', ev => {
     if (ev.target.tagName === 'SELECT' || ev.target.tagName === 'INPUT') return;
     if (ev.key === ' ') { ev.preventDefault(); setRunning(!running); }
-    else if (ev.key === 'n') { setRunning(false); stepOnce(); draw(); }
-    else if (ev.key === 'r') reset(soup);
-    else if (ev.key === 'c') { setRunning(false); reset(() => cells.fill(0, cur, cur + N)); }
+    else if (ev.key === 'n') { setRunning(false); run(async () => { await doTurn(); await draw(); }); }
+    else if (ev.key === 'r') run(() => reset('random'));
   });
-  addEventListener('resize', fitCanvas);
-  const themeChanged = () => { fillPalette(); draw(); };
+  addEventListener('resize', () => run(async () => { fitCanvas(); await draw(); }));
+  const themeChanged = () => run(async () => { await engine.palette(palette()); await draw(); });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeChanged);
   new MutationObserver(themeChanged).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-  // ---- boot ----------------------------------------------------------------
-  function start(saved) {
-    if (saved && saved.w && saved.cells) {
-      layout(saved.w, saved.h);
-      cells.set(saved.cells, cur);
-      gen = saved.gen || 0;
-      $('size').value = saved.w + 'x' + saved.h;
-      $('pattern').value = saved.pattern || 'soup';
-      $('speed').value = saved.speed ?? 4;
+  // ---- boot ----
+  const defaultThreads = () => {
+    const c = (navigator.hardwareConcurrency || 2) - 1;
+    return [16, 8, 4, 2, 1].find(v => v <= c) || 1;
+  };
+  async function start(saved) {
+    const selftest = location.hash === '#selftest' || location.hash === '#selftest-workers';
+    if (saved && saved.w) {
+      for (const [id, key, dflt] of [['size', 'size', '128x128'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['flat', 'flat', '2'], ['sharp', 'sharp', '1'], ['seedmode', 'seedmode', '0'],
+            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '0'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 3], ['threads', 'threads', 1], ['changer', 'changer', 'lz'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['steps', 'steps', '256'], ['coff', 'coff', '600']])
+        $(id).value = saved[key] ?? dflt;
+      if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
+      if (!$('size').value) { const w = parseInt(saved.size) || 128; $('size').value = [...$('size').options].some(o => o.value === `${w}x${w}`) ? `${w}x${w}` : '128x128'; }
+      sel = saved.sel ?? -1; turn = saved.turn || 0;
       setRunning(saved.running ?? running);
-      draw();
     } else {
-      layout(128, 96);
-      reset(soup);
+      $('threads').value = selftest ? (location.hash === '#selftest-workers' ? 4 : 1) : defaultThreads();
       setRunning(running);
     }
-    showSpeed();
-    // #selftest: run 50 generations synchronously so a headless browser can check the page works
-    if (location.hash === '#selftest') { for (let i = 0; i < 50; i++) stepOnce(); draw(); }
+    showChangerBoxes(); codeNote(); showThreshold(); showSpeed();
+    await rebuild($('pattern').value);
+    if (saved && saved.cells && engine.cells()) { await engine.setCells(saved.cells); totalBits = await engine.bits(); turn = saved.turn || 0; blendReset = true; await draw(); }
+    // #selftest: run 50 turns up front so a headless browser can check the page works
+    if (selftest) { for (let i = 0; i < 50; i++) await doTurn(); await draw(); }
+    document.documentElement.dataset.ready = '1';   // boot finished (used by the browser tests)
     requestAnimationFrame(t => { lastT = t; frame(t); });
   }
   window.claude?.hot?.snapshot?.(() => ({
-    w: W, h: H, gen, running, speed: $('speed').value, pattern: $('pattern').value,
-    cells: Array.from(cells.subarray(cur, cur + N)),
+    w: W, h: H, turn, running, sel,
+    size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, flat: $('flat').value, sharp: $('sharp').value, seedmode: $('seedmode').value, thrL: $('thrL').value, thrR: $('thrR').value,
+    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, steps: $('steps').value, coff: $('coff').value,
+    cells: engine && engine.cellsSync() ? Array.from(engine.cellsSync()) : null,   // the worker pool keeps no copy on the main thread
   }));
-  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? null);
+  window.claude?.hot?.ready ? window.claude.hot.ready(d => run(() => start(d))) : run(() => start(window.claude?.hot?.data ?? null));
 })();
 </script>
 </body>

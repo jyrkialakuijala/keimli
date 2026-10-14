@@ -26,19 +26,19 @@ sys.exit(0 if ok else 1)
 PY
   rm -f "$domfile"
 }
-probe index.html gen pop
-probe mix.html turn moved
-probe mix.html turn rewritten
+probe life.html gen pop
+probe index.html turn moved
+probe index.html turn rewritten
 # Worker mode: --dump-dom cannot wait for Web Workers (virtual time idles the main thread), so poll
 # the live page over the DevTools protocol until 50 turns have run.
-if out=$(timeout 120 node test/cdp-poll.mjs "file://$PWD/mix.html#selftest-workers" \
+if out=$(timeout 120 node test/cdp-poll.mjs "file://$PWD/index.html#selftest-workers" \
     "(() => { const t = +document.getElementById('turn').textContent.replace(/,/g, ''); return t >= 50 ? { turn: t, moved: document.getElementById('moved').textContent, time: document.getElementById('turnTime').textContent } : null; })()" 60000); then
-  echo "ok   mix.html#selftest-workers (4 workers): $out"
+  echo "ok   index.html#selftest-workers (4 workers): $out"
 else
-  echo "FAIL mix.html#selftest-workers: workers did not complete 50 turns"; status=1
+  echo "FAIL index.html#selftest-workers: workers did not complete 50 turns"; status=1
 fi
 # Thread switch: pause, go 1 -> 4 -> 1 workers; the turn counter and the (unstretched) image must not change.
-if out=$(timeout 120 node test/cdp-poll.mjs "file://$PWD/mix.html#selftest" "$(cat test/switch-expr.js)" 60000) &&
+if out=$(timeout 120 node test/cdp-poll.mjs "file://$PWD/index.html#selftest" "$(cat test/switch-expr.js)" 60000) &&
    node -e 'const s = JSON.parse(JSON.parse(process.argv[1])); process.exit(s.turnBefore === s.turnAfter && s.turnAfter === s.turnBack && s.sumBefore === s.sumAfter && s.sumAfter === s.sumBack ? 0 : 1)' "$out"; then
   echo "ok   thread switch 1 -> 4 -> 1 keeps the lattice: $out"
 else

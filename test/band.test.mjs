@@ -1,13 +1,13 @@
 // The band pipeline used by the worker pool (one wasm instance per horizontal band, deep halos
-// exchanged once per turn, see mix-band.js) must reproduce the full-grid turn bit for bit.
+// exchanged once per turn, see src/lattice/band.js) must reproduce the full-grid turn bit for bit.
 // Run: node test/band.test.mjs [project dir]
 import fs from 'node:fs';
 import vm from 'node:vm';
 const dir = process.argv[2] || new URL('..', import.meta.url).pathname.replace(/\/$/, '');
-const Codec = vm.runInThisContext(fs.readFileSync(dir + '/mix-codec.js', 'utf8') + '; Codec');
-const Band = vm.runInThisContext(fs.readFileSync(dir + '/mix-band.js', 'utf8') + '; Band');
-const text = fs.readFileSync(dir + '/declaration.txt', 'utf8').trim();
-const bytes = fs.readFileSync(dir + '/mix.wasm');
+const Codec = vm.runInThisContext(fs.readFileSync(dir + '/src/changers/codec.js', 'utf8') + '; Codec');
+const Band = vm.runInThisContext(fs.readFileSync(dir + '/src/lattice/band.js', 'utf8') + '; Band');
+const text = fs.readFileSync(dir + '/src/changers/declaration.txt', 'utf8').trim();
+const bytes = fs.readFileSync(dir + '/build/keimli.wasm');
 const mk = async () => { const ex = (await WebAssembly.instantiate(bytes)).instance.exports; const io = Codec.install(ex.memory, Codec.build(text, 4)); return { ex, io }; };
 let fails = 0; const check = (n, ok) => { console.log((ok ? 'ok  ' : 'FAIL') + ' ' + n); if (!ok) fails++; };
 const L = Codec.LAYOUT;

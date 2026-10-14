@@ -1,4 +1,3 @@
-  ;; ========================================================================
   ;; Motorola 68000 (kind 21). Register file: D0..D7 as i32 at offset 64 + 4n,
   ;; A0..A7 at 96 + 4n (A7 = SP), SR at 20 (X 16, N 8, Z 4, V 2, C 1), PC at
   ;; 22. Memory is the pixel: 16 bytes, big-endian, every access wrapping mod 16

@@ -1,4 +1,3 @@
-  ;; ========================================================================
   ;; DEC PDP-8 (kind 19). The pixel is 8 words of 12 bits: word k is pixel bits
   ;; 12k..12k+11 (bit j of the word = pixel bit 12k+j), i.e. bits 0..95. The
   ;; registers live in the remaining bits and are loaded at the start and

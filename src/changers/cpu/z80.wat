@@ -1,4 +1,3 @@
-  ;; ========================================================================
   ;; Zilog Z80 byte processor. The pixel's 16 bytes are the whole address
   ;; space (addresses wrap mod 16, stack included). Registers start at zero,
   ;; PC = 0, and 256 instructions are executed; the memory afterwards is the
@@ -11,37 +10,7 @@
   ;; Register file at byte 256 of linear memory (low byte first in each pair):
   ;;   0 C  1 B  2 E  3 D  4 L  5 H  6 F  7 A   8..15 the alternate set
   ;;   16 IX  18 IY  20 SP  22 PC  24 I  25 R  27 prefix (0 none, 1 DD, 2 FD)
-  (global $zp (mut i32) (i32.const 0))   ;; base address of the current pixel's 16 bytes
 
-  (func $zr (param $o i32) (result i32) (i32.load8_u offset=256 (local.get $o)))
-  (func $zw (param $o i32) (param $v i32) (i32.store8 offset=256 (local.get $o) (local.get $v)))
-  (func $zr16 (param $o i32) (result i32) (i32.load16_u offset=256 (local.get $o)))
-  (func $zw16 (param $o i32) (param $v i32) (i32.store16 offset=256 (local.get $o) (local.get $v)))
-  (func $mrd (param $a i32) (result i32) (i32.load8_u (i32.add (global.get $zp) (i32.and (local.get $a) (i32.const 15)))))
-  (func $mwr (param $a i32) (param $v i32) (i32.store8 (i32.add (global.get $zp) (i32.and (local.get $a) (i32.const 15))) (local.get $v)))
-  (func $mrd16 (param $a i32) (result i32)
-    (i32.or (call $mrd (local.get $a)) (i32.shl (call $mrd (i32.add (local.get $a) (i32.const 1))) (i32.const 8))))
-  (func $mwr16 (param $a i32) (param $v i32)
-    (call $mwr (local.get $a) (i32.and (local.get $v) (i32.const 255)))
-    (call $mwr (i32.add (local.get $a) (i32.const 1)) (i32.shr_u (local.get $v) (i32.const 8))))
-  (func $sext8 (param $v i32) (result i32) (i32.shr_s (i32.shl (local.get $v) (i32.const 24)) (i32.const 24)))
-  (func $fetch (result i32)
-    (local $pc i32) (local $v i32)
-    (local.set $pc (call $zr16 (i32.const 22)))
-    (local.set $v (call $mrd (local.get $pc)))
-    (call $zw16 (i32.const 22) (i32.and (i32.add (local.get $pc) (i32.const 1)) (i32.const 0xffff)))
-    (call $zw (i32.const 25) (i32.or (i32.and (local.get $v) (i32.const 0)) (i32.or (i32.and (call $zr (i32.const 25)) (i32.const 0x80)) (i32.and (i32.add (call $zr (i32.const 25)) (i32.const 1)) (i32.const 0x7f)))))
-    (local.get $v))
-  (func $fetch16 (result i32) (local $lo i32) (local.set $lo (call $fetch)) (i32.or (local.get $lo) (i32.shl (call $fetch) (i32.const 8))))
-  (func $push (param $v i32) (local $sp i32)
-    (local.set $sp (i32.and (i32.sub (call $zr16 (i32.const 20)) (i32.const 2)) (i32.const 0xffff)))
-    (call $zw16 (i32.const 20) (local.get $sp))
-    (call $mwr16 (local.get $sp) (local.get $v)))
-  (func $pop (result i32) (local $sp i32) (local $v i32)
-    (local.set $sp (call $zr16 (i32.const 20)))
-    (local.set $v (call $mrd16 (local.get $sp)))
-    (call $zw16 (i32.const 20) (i32.and (i32.add (local.get $sp) (i32.const 2)) (i32.const 0xffff)))
-    (local.get $v))
   ;; offset of HL, or of IX/IY under a DD/FD prefix
   (func $hloff (result i32) (local $p i32)
     (local.set $p (call $zr (i32.const 27)))
@@ -378,7 +347,7 @@
     (global.set $zp (local.get $out))
     (block $re (loop $rl (br_if $re (i32.ge_u (local.get $i) (i32.const 28))) (call $zw (local.get $i) (i32.const 0)) (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $rl)))
     (local.set $i (i32.const 0))
-    (block $se (loop $sl (br_if $se (i32.ge_u (local.get $i) (i32.const 256))) (call $zstep) (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $sl)))
+    (block $se (loop $sl (br_if $se (i32.ge_u (local.get $i) (i32.load offset=92 (local.get $prm)))) (call $zstep) (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $sl)))
     (local.set $i (i32.const 0))
     (block $ce (loop $cl
       (br_if $ce (i32.ge_u (local.get $i) (i32.const 16)))
@@ -388,4 +357,4 @@
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $cl)))
     (i32.store offset=48 (local.get $prm) (call $zr16 (i32.const 22)))
-    (i32.or (i32.shl (i32.const 256) (i32.const 8)) (local.get $changed)))
+    (i32.or (i32.shl (i32.load offset=92 (local.get $prm)) (i32.const 8)) (local.get $changed)))
