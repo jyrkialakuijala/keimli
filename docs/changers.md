@@ -34,7 +34,7 @@ static dictionary, the Declaration of Independence, which is not part of
 the image. The first ⌈log₂ N⌉ leading bits, 13 for the Declaration's
 N = 8,122 bytes, are read as the start cursor, so every byte of the
 dictionary is a start position (values past the end wrap to its start), and
-the "LZ cursor offset" slider (0 to N, default 600) is added to that cursor,
+the "LZ cursor offset" slider (0 to N, default 610) is added to that cursor,
 again wrapping at the end of the text, so the start positions can be
 shifted away from the dictionary's opening.
 

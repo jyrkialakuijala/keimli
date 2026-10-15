@@ -601,7 +601,7 @@ check('leftover row, offset 0: 4 pairs, the bits stay in the last row (' + sw + 
 // LZ cursor offset is a parameter (default 600), added to the header cursor and wrapped
 {
   io.setCursorOffset(0);
-  check(`default cursor offset is ${Codec.CURSOR_OFFSET}`, Codec.CURSOR_OFFSET === 600);
+  check(`default cursor offset is ${Codec.CURSOR_OFFSET}`, Codec.CURSOR_OFFSET === 610);
   io.setCursorOffset(600); words[0] = 0n; words[1] = 0n; decode_pixel(GRID, 0, PRM);
   check('offset 600, header 0: cursor 600 and the output is the text from 600 on', io.lastOffset() === 600 && out().every((b, k) => b === txt(600 + k)));
   words[0] = 3n; decode_pixel(GRID, 0, PRM);

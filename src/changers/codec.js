@@ -9,7 +9,7 @@ const Codec = (() => {
   const LIT_BITS = 12;                       // lookup table width for the length code
   const OUT_BYTES = 16;                      // decoded output is always 128 bits
   const cursorBits = textLen => Math.max(1, Math.ceil(Math.log2(textLen)));   // start-cursor header width: ceil(log2 of the dictionary size), every byte a start position
-  const CURSOR_OFFSET = 600;   // bytes added to the LZ start cursor (the dictionary's opening is a dull start)
+  const CURSOR_OFFSET = 610;   // bytes added to the LZ start cursor (the dictionary's opening is a dull start)
   const pixelRate = (rSym, hb) => 8 * OUT_BYTES / (hb + 8 * OUT_BYTES / rSym);  // command-level rate -> whole-pixel rate
 
   // Fixed memory map (bytes). The grid starts after the static region.

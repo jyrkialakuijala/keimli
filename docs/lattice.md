@@ -59,8 +59,8 @@ entirely at p = 0 and p = 1.
 
 The last step of a turn flips bits at random (`mutate`). The control is a
 percentage of all bits per turn, 0.001 % by default: with 128 bits a cell
-that is an expected 0.00128 flips per cell, about 21 flipped bits a turn on
-a 128 × 128 grid, one every 50 turns in a given cell. The kernel takes the
+that is an expected 0.00128 flips per cell, about 335 flipped bits a turn on
+a 512 × 512 grid, one every 50 turns in a given cell. The kernel takes the
 expected flips per cell λ in 32.32 fixed point and gives every cell
 floor(λ) flips plus one more with probability frac(λ), each at a bit
 position drawn from the hash of the turn's salt and the cell's global
@@ -106,8 +106,8 @@ threshold, the bit takes the majority value. At p = 1 every disagreeing bit
 is replaced each pass.
 
 The neighbourhood is selectable: the pixel and its four 4-connected
-neighbours (5 votes, majority at 3), the 3 × 3 block (9 votes, 5) or the
-5 × 5 block (25 votes, 13). Coordinates are clamped to the grid, so at an
+neighbours (5 votes, majority at 3), the 3 × 3 block (9 votes, 5; the
+default) or the 5 × 5 block (25 votes, 13). Coordinates are clamped to the grid, so at an
 edge the missing neighbours count as the nearest pixel. The kernel counts
 votes bit-sliced (`$majority`) and visits only the bits that disagree with
 the majority (`$smooth_px`).

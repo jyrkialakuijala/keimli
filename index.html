@@ -154,17 +154,17 @@
       <label for="size">Grid</label>
       <select id="size">
         <option value="64x64">64 × 64</option>
-        <option value="128x128" selected>128 × 128</option>
+        <option value="128x128">128 × 128</option>
         <option value="256x256">256 × 256</option>
-        <option value="512x512">512 × 512</option>
+        <option value="512x512" selected>512 × 512</option>
         <option value="1024x1024">1024 × 1024</option>
         <option value="2048x2048">2048 × 2048</option>
       </select>
     </div>
     <div class="group">
       <label for="speed">Speed</label>
-      <input id="speed" type="range" min="0" max="8" value="3" step="1">
-      <span id="speedVal" class="mono val">10 turns/s</span>
+      <input id="speed" type="range" min="0" max="8" value="5" step="1">
+      <span id="speedVal" class="mono val">60 turns/s</span>
     </div>
     <div class="group">
       <label for="threads">Threads</label>
@@ -216,8 +216,8 @@
     <div class="group">
       <label for="nbr">Neighbourhood</label>
       <select id="nbr">
-        <option value="0" selected>4-connected (5 votes)</option>
-        <option value="1">8-connected (9 votes)</option>
+        <option value="0">4-connected (5 votes)</option>
+        <option value="1" selected>8-connected (9 votes)</option>
         <option value="2">5 × 5 (25 votes)</option>
       </select>
     </div>
@@ -321,8 +321,8 @@
     </div>
     <div class="group">
       <label for="coff">LZ cursor offset</label>
-      <input id="coff" type="range" min="0" max="8122" value="600" step="1">
-      <span id="coffVal" class="mono val">+600</span>
+      <input id="coff" type="range" min="0" max="8122" value="610" step="1">
+      <span id="coffVal" class="mono val">+610</span>
     </div>
     <div class="group">
       <label for="maxlen">Decompression</label>
@@ -415,15 +415,15 @@
   runs one instruction per phase on the two pixels as its 32-byte memory; a turn makes 128 such rounds of the four
   phases (the Link rounds box) before the lattice is drawn, and the machines start each turn fresh, PC 0 and registers 0,
   unless the Link reset box lets them keep their registers for several turns or for good.
-  Last, mutation flips a random share of all bits (0.001 % by default, about 21 bits a turn on a
-  128 × 128 grid).
+  Last, mutation flips a random share of all bits (0.001 % by default, about 335 bits a turn on a
+  512 × 512 grid).
   A swap phase pairs every pixel with one neighbour, left–right (LR) or up–down (UD), at an even (0) or odd (1)
   offset, so within one turn every pixel exchanges once with each of its four neighbours. For each pair the two
   strings are compared position by position; where the bits differ, the 32 bits around that position in each pixel are
   hashed separately and the two 64-bit hashes added, so the decision does not depend on which pixel is which. The first
   position whose sum falls below the swap threshold is swapped; swaps conserve the total number of set bits. The swap
   probability is a linear gradient along the x axis from the left-edge value to the right-edge value, each 0 to 1. A median filtering pass
-  works on each of the 128 bit planes separately: it looks at every bit that disagrees with the majority of its neighbourhood (itself and its four 4-connected neighbours, the 3 × 3 block, or the 5 × 5 block, selectable), hashes the
+  works on each of the 128 bit planes separately: it looks at every bit that disagrees with the majority of its neighbourhood (the 3 × 3 block by default, or itself and its four 4-connected neighbours, or the 5 × 5 block), hashes the
   pixel's 32 bits around that position, and if the hash is below the smoothing threshold the bit takes the majority
   value. The median filtering probability is a linear gradient along the y axis from the top-edge value to the bottom-edge value.
   The image is drawn through a render buffer: each pixel's colour is an exponential average of the rendered frames
@@ -507,7 +507,7 @@ const Codec = (() => {
   const LIT_BITS = 12;                       // lookup table width for the length code
   const OUT_BYTES = 16;                      // decoded output is always 128 bits
   const cursorBits = textLen => Math.max(1, Math.ceil(Math.log2(textLen)));   // start-cursor header width: ceil(log2 of the dictionary size), every byte a start position
-  const CURSOR_OFFSET = 600;   // bytes added to the LZ start cursor (the dictionary's opening is a dull start)
+  const CURSOR_OFFSET = 610;   // bytes added to the LZ start cursor (the dictionary's opening is a dull start)
   const pixelRate = (rSym, hb) => 8 * OUT_BYTES / (hb + 8 * OUT_BYTES / rSym);  // command-level rate -> whole-pixel rate
 
   // Fixed memory map (bytes). The grid starts after the static region.
@@ -1440,11 +1440,11 @@ function workerMain() {
   async function start(saved) {
     const selftest = location.hash === '#selftest' || location.hash === '#selftest-workers';
     if (saved && saved.w) {
-      for (const [id, key, dflt] of [['size', 'size', '128x128'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['flat', 'flat', '2'], ['sharp', 'sharp', '1'], ['seedmode', 'seedmode', '0'],
-            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['mut', 'mut', '0.001'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '0'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 3], ['threads', 'threads', 1], ['changer', 'changer', 'lz'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['steps', 'steps', '256'], ['rounds', 'rounds', '128'], ['lreset', 'lreset', '1'], ['coff', 'coff', '600'], ['pair', 'pair', '0']])
+      for (const [id, key, dflt] of [['size', 'size', '512x512'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['flat', 'flat', '2'], ['sharp', 'sharp', '1'], ['seedmode', 'seedmode', '0'],
+            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['mut', 'mut', '0.001'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['changer', 'changer', 'lz'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['steps', 'steps', '256'], ['rounds', 'rounds', '128'], ['lreset', 'lreset', '1'], ['coff', 'coff', '610'], ['pair', 'pair', '0']])
         $(id).value = saved[key] ?? dflt;
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
-      if (!$('size').value) { const w = parseInt(saved.size) || 128; $('size').value = [...$('size').options].some(o => o.value === `${w}x${w}`) ? `${w}x${w}` : '128x128'; }
+      if (!$('size').value) { const w = parseInt(saved.size) || 512; $('size').value = [...$('size').options].some(o => o.value === `${w}x${w}`) ? `${w}x${w}` : '512x512'; }
       sel = saved.sel ?? -1; turn = saved.turn || 0;
       setRunning(saved.running ?? running);
     } else {
