@@ -170,10 +170,21 @@ keep them in the link state here instead, and the three 128-bit machines
 (PDP-8, UNIVAC 1101, CDC 6600) see only the first pixel of their link, so
 the forward machine works on one pixel of the pair and the backward machine
 on the other.
-Because a vertical link joins two rows, the mode runs on the single-instance
-engine; the page switches engines when Links is chosen with workers
-configured. With a non-CPU changer the Links setting has no effect and the
-changer runs cell by cell.
+The mode runs on the worker pool too (`Band.linkBand`, `links_zone`).
+Within a phase the pairs are disjoint and every machine touches only its own
+two pixels, so a phase splits over the bands exactly; only the up-down pairs
+across a band edge need care. A band owns the left-right pairs of its rows
+and the up-down pairs whose first row is y0 − 1 to y1 − 2, so the pair
+across its top edge is its own (an odd first row, a UD1 pair) and the pair
+across its bottom edge belongs to the band below. Each round a band runs
+UD0 and LR0 on its rows, sends its bottom row to the band below, receives
+the row above from the band above into its halo and runs UD1 including the
+top-edge pair, hands that row back changed, puts the returned bottom row in
+place and runs LR1. The rows travel over direct channels between
+neighbouring workers, two short messages per band edge per round, and the
+result is bit-identical to the single-instance run (`test/band.test.mjs`).
+With a non-CPU changer the Links setting has no effect and the changer runs
+cell by cell.
 
 ## How much each changer changes
 

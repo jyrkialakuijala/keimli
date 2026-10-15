@@ -81,42 +81,62 @@
       (local.set $changed (i32.add (local.get $changed) (i32.const 1)))))
     (local.get $changed))
 
-  ;; links(w, h, grid, prm, phase, states): every pair of one phase (0 left-right from even x, 1 up-down from even y,
-  ;; 2 left-right from odd x, 3 up-down from odd y, the swap phases' numbering) carries two directed links, each with
-  ;; a CPU (kind prm.changer) of its own: the forward link sees the first pixel (left or top) at addresses 0..15 and
-  ;; the second at 16..31, the backward link the other way round. Each runs one instruction, forward first, and the
-  ;; backward machine sees what the forward one wrote. Pair index p: y * w + x for the pair (x, y)-(x+1, y),
-  ;; w * h + y * w + x for (x, y)-(x, y+1); the forward link's state is at states + 128 * 2p, the backward link's at
-  ;; states + 128 * (2p + 1). Returns the number of pixel writes.
-  (func (export "links") (param $w i32) (param $h i32) (param $grid i32) (param $prm i32) (param $phase i32) (param $states i32) (result i32)
-    (local $kind i32) (local $out i32) (local $x i32) (local $y i32) (local $a i32) (local $b i32) (local $st i32) (local $changed i32)
-    (local $vert i32) (local $step i32)
+  ;; links_zone(w, grid, gy0, prm, phase, hst, r0h, vst, r0v, a, b) -> pixel writes. The pairs of one phase (0 left-right
+  ;; from even x, 1 up-down from even y, 2 left-right from odd x, 3 up-down from odd y, the swap phases' numbering)
+  ;; whose first row is a local row in [a, b); grid points at local row 0, which is global row gy0 (the parity of an
+  ;; up-down pair's first row is global), and an up-down pair also needs its second row inside [a, b). Every pair
+  ;; carries two directed links, each with a CPU (kind prm.changer) of its own: the forward link sees the first pixel
+  ;; (left or top) at addresses 0..15 and the second at 16..31, the backward link the other way round. Each runs one
+  ;; instruction, forward first, and the backward machine sees what the forward one wrote. The states (128 bytes a
+  ;; machine, forward then backward) of the left-right pair (x, r) are at hst + 256 ((r - r0h) w + x), those of the
+  ;; up-down pair (x, r)-(x, r+1) at vst + 256 ((r - r0v) w + x).
+  (func $links_zone (export "links_zone") (param $w i32) (param $grid i32) (param $gy0 i32) (param $prm i32) (param $phase i32) (param $hst i32) (param $r0h i32) (param $vst i32) (param $r0v i32) (param $a i32) (param $b i32) (result i32)
+    (local $kind i32) (local $out i32) (local $x i32) (local $r i32) (local $p i32) (local $q i32) (local $st i32) (local $changed i32)
+    (local $vert i32) (local $off i32) (local $row i32) (local $stride i32)
     (local.set $kind (i32.load offset=72 (local.get $prm)))
     (if (i32.or (i32.lt_u (local.get $kind) (i32.const 6)) (i32.or (i32.gt_u (local.get $kind) (i32.const 24))
         (i32.and (i32.ge_u (local.get $kind) (i32.const 16)) (i32.le_u (local.get $kind) (i32.const 18))))) (then (return (i32.const 0))))
     (local.set $out (i32.load (local.get $prm)))
     (local.set $vert (i32.and (local.get $phase) (i32.const 1)))
-    (local.set $step (i32.shr_u (local.get $phase) (i32.const 1)))   ;; the parity of the first pixel's x (or y)
+    (local.set $off (i32.shr_u (local.get $phase) (i32.const 1)))
+    (local.set $stride (i32.shl (local.get $w) (i32.const 4)))
     (global.set $zp (local.get $out))
     (global.set $cw (i32.const 32))
-    (local.set $y (select (local.get $step) (i32.const 0) (local.get $vert)))
-    (block $ye (loop $yl (br_if $ye (i32.ge_u (local.get $y) (local.get $h)))
-      (local.set $x (select (i32.const 0) (local.get $step) (local.get $vert)))
-      (block $xe (loop $xl (br_if $xe (i32.ge_u (local.get $x) (local.get $w)))
-        (if (local.get $vert)
-          (then (br_if $xe (i32.ge_u (i32.add (local.get $y) (i32.const 1)) (local.get $h)))
-                (local.set $b (i32.add (local.get $grid) (i32.shl (i32.add (i32.mul (i32.add (local.get $y) (i32.const 1)) (local.get $w)) (local.get $x)) (i32.const 4))))
-                (local.set $st (i32.add (local.get $states) (i32.shl (i32.add (i32.mul (local.get $w) (local.get $h)) (i32.add (i32.mul (local.get $y) (local.get $w)) (local.get $x))) (i32.const 8)))))
-          (else (br_if $xe (i32.ge_u (i32.add (local.get $x) (i32.const 1)) (local.get $w)))
-                (local.set $b (i32.add (local.get $grid) (i32.shl (i32.add (i32.mul (local.get $y) (local.get $w)) (i32.add (local.get $x) (i32.const 1))) (i32.const 4))))
-                (local.set $st (i32.add (local.get $states) (i32.shl (i32.add (i32.mul (local.get $y) (local.get $w)) (local.get $x)) (i32.const 8))))))
-        (local.set $a (i32.add (local.get $grid) (i32.shl (i32.add (i32.mul (local.get $y) (local.get $w)) (local.get $x)) (i32.const 4))))
-        (local.set $changed (i32.add (local.get $changed) (call $link_run (local.get $a) (local.get $b) (local.get $st) (local.get $out) (local.get $kind))))
-        (local.set $changed (i32.add (local.get $changed) (call $link_run (local.get $b) (local.get $a) (i32.add (local.get $st) (i32.const 128)) (local.get $out) (local.get $kind))))
-        (local.set $x (i32.add (local.get $x) (select (i32.const 1) (i32.const 2) (local.get $vert)))) (br $xl)))
-      (local.set $y (i32.add (local.get $y) (select (i32.const 2) (i32.const 1) (local.get $vert)))) (br $yl)))
+    (local.set $r (local.get $a))
+    (block $re (loop $rl (br_if $re (i32.ge_s (local.get $r) (local.get $b)))
+      (local.set $row (i32.add (local.get $grid) (i32.mul (local.get $r) (local.get $stride))))
+      (if (local.get $vert)
+        (then
+          (if (i32.and (i32.eq (i32.and (i32.add (local.get $gy0) (local.get $r)) (i32.const 1)) (local.get $off))
+                       (i32.lt_s (i32.add (local.get $r) (i32.const 1)) (local.get $b))) (then
+            (local.set $x (i32.const 0))
+            (block $xe (loop $xl (br_if $xe (i32.ge_u (local.get $x) (local.get $w)))
+              (local.set $p (i32.add (local.get $row) (i32.shl (local.get $x) (i32.const 4))))
+              (local.set $q (i32.add (local.get $p) (local.get $stride)))
+              (local.set $st (i32.add (local.get $vst) (i32.shl (i32.add (i32.mul (i32.sub (local.get $r) (local.get $r0v)) (local.get $w)) (local.get $x)) (i32.const 8))))
+              (local.set $changed (i32.add (local.get $changed) (call $link_run (local.get $p) (local.get $q) (local.get $st) (local.get $out) (local.get $kind))))
+              (local.set $changed (i32.add (local.get $changed) (call $link_run (local.get $q) (local.get $p) (i32.add (local.get $st) (i32.const 128)) (local.get $out) (local.get $kind))))
+              (local.set $x (i32.add (local.get $x) (i32.const 1))) (br $xl))))))
+        (else
+          (local.set $x (local.get $off))
+          (block $xe2 (loop $xl2 (br_if $xe2 (i32.ge_u (i32.add (local.get $x) (i32.const 1)) (local.get $w)))
+            (local.set $p (i32.add (local.get $row) (i32.shl (local.get $x) (i32.const 4))))
+            (local.set $q (i32.add (local.get $p) (i32.const 16)))
+            (local.set $st (i32.add (local.get $hst) (i32.shl (i32.add (i32.mul (i32.sub (local.get $r) (local.get $r0h)) (local.get $w)) (local.get $x)) (i32.const 8))))
+            (local.set $changed (i32.add (local.get $changed) (call $link_run (local.get $p) (local.get $q) (local.get $st) (local.get $out) (local.get $kind))))
+            (local.set $changed (i32.add (local.get $changed) (call $link_run (local.get $q) (local.get $p) (i32.add (local.get $st) (i32.const 128)) (local.get $out) (local.get $kind))))
+            (local.set $x (i32.add (local.get $x) (i32.const 2))) (br $xl2)))))
+      (local.set $r (i32.add (local.get $r) (i32.const 1))) (br $rl)))
     (global.set $cw (i32.const 16))
     (local.get $changed))
+
+  ;; links(w, h, grid, prm, phase, states): the whole grid as one zone. Pair index p: y * w + x for the pair
+  ;; (x, y)-(x+1, y), w * h + y * w + x for (x, y)-(x, y+1); the forward link's state is at states + 128 * 2p, the
+  ;; backward link's at states + 128 * (2p + 1).
+  (func (export "links") (param $w i32) (param $h i32) (param $grid i32) (param $prm i32) (param $phase i32) (param $states i32) (result i32)
+    (call $links_zone (local.get $w) (local.get $grid) (i32.const 0) (local.get $prm) (local.get $phase)
+      (local.get $states) (i32.const 0) (i32.add (local.get $states) (i32.shl (i32.mul (local.get $w) (local.get $h)) (i32.const 8))) (i32.const 0)
+      (i32.const 0) (local.get $h)))
 
   ;; load(kind) / spill(kind): register machines whose code rarely stores to
   ;; memory keep their registers in the pixel. $load reads them from the 16

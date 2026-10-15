@@ -6,7 +6,7 @@ const dir = process.argv[2] || new URL('..', import.meta.url).pathname.replace(/
 const Codec = vm.runInThisContext(fs.readFileSync(dir + '/src/changers/codec.js', 'utf8') + '; Codec');
 const text = fs.readFileSync(dir + '/src/changers/declaration.txt', 'utf8').trim();
 const { instance } = await WebAssembly.instantiate(fs.readFileSync(dir + '/build/keimli.wasm'));
-const { memory, mix, mix_from, render, bits, randomize, decode_pixel, blend, sharpen, mutate, links, links_reset } = instance.exports;
+const { memory, mix, mix_from, render, bits, randomize, decode_pixel, blend, sharpen, mutate, links, links_reset, hist } = instance.exports;
 let fails = 0; const check = (n, ok) => { console.log((ok ? 'ok  ' : 'FAIL') + ' ' + n); if (!ok) fails++; };
 const L = Codec.LAYOUT, PRM = L.PRM, GRID = L.GRID;
 // per-column swap threshold table (uniform value), returns its address
@@ -934,6 +934,18 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   zero(); const tiny = mutate(n, GRID, 0, fx(0.00128), 5n);
   check('mutate: the page default, 0.001 % of bits, is a handful of flips on 4096 cells (' + tiny + ', expected 5)', tiny >= 0 && tiny <= 15);
 }
+// ---- hist: byte counts over a grid
+{
+  const n = 64, OUTH = GRID + 16 * n + 4096;
+  randomize(4 * n, GRID, 31337); m8[GRID] = 0; m8[GRID + 1] = 255;
+  hist(n, GRID, OUTH);
+  const ref = new Uint32Array(256); for (let i = 0; i < 16 * n; i++) ref[m8[GRID + i]]++;
+  const got = new Uint32Array(memory.buffer, OUTH, 256);
+  check('hist counts every byte of the grid (' + got.reduce((a, b) => a + b, 0) + ' = ' + 16 * n + ', ' + got.filter(v => v).length + ' distinct values)', got.every((v, k) => v === ref[k]) && got.reduce((a, b) => a + b, 0) === 16 * n);
+  hist(1, GRID, OUTH);
+  check('hist zeroes its output first: a one-pixel count sums to 16', got.reduce((a, b) => a + b, 0) === 16 && got[0] >= 1 && got[255] >= 1);
+}
+
 // ---- links: two persistent CPUs per pair of neighbours (one per direction), one instruction per link per phase
 {
   const w = 4, h = 2, n = w * h, ST = GRID + (1 << 16), px = i => m8.slice(GRID + 16 * i, GRID + 16 * i + 16);

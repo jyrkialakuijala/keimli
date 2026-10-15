@@ -97,6 +97,9 @@
   .stats div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .stats dt { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
   .stats dd { margin: 0; font: 500 18px var(--font-mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+  .stats .chart { grid-column: 1 / -1; }
+  .stats .chart canvas { display: block; width: 100%; height: 72px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); }
+  .stats dt .sub { text-transform: none; letter-spacing: 0; margin-left: 6px; font-variant-numeric: tabular-nums; }
 
   .inspect {
     background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
@@ -185,13 +188,6 @@
     <div class="group">
       <label for="mut">Mutation, % of bits flipped per turn</label>
       <input id="mut" type="number" min="0" max="100" step="any" value="0.001" class="mono">
-    </div>
-    <div class="group">
-      <label for="seedmode">Hash seed</label>
-      <select id="seedmode">
-        <option value="0" selected>Neighbouring bits only</option>
-        <option value="1">Neighbouring bits and turn number</option>
-      </select>
     </div>
   </div>
   <div class="section" role="group" aria-labelledby="sec-smooth">
@@ -387,6 +383,8 @@
   <div><dt>Link CPUs</dt><dd id="linkN">off</dd></div>
   <div><dt>Total set bits</dt><dd id="total">0</dd></div>
   <div><dt>Turn time</dt><dd id="turnTime">–</dd></div>
+  <div class="chart"><dt>Byte histogram <span id="histInfo" class="sub"></span></dt><dd><canvas id="histChart" aria-label="Histogram of the 256 byte values over the lattice, log scale, coloured as in the byte view"></canvas></dd></div>
+  <div class="chart"><dt>Entropy of the byte distribution</dt><dd id="entropy">–</dd><dd><canvas id="entChart" aria-label="Entropy in bits per byte, turn by turn"></canvas></dd></div>
 </dl>
 
 <div class="inspect" aria-live="polite">
@@ -478,8 +476,33 @@ function fillPattern(m8, grid, W, H, y0, rows, pattern, seed, wasm) {
 // Worker body: one horizontal band of rows with D halo rows above and below (see Band.runTurn).
 function workerMain() {
   const LAY = Codec.LAYOUT;
-  let wasm, text, built, io, lut, W, H, y0, rows, D, S, GRID, GRID2, PIX, HALO, PAL, m8, st;
+  let wasm, text, built, io, lut, W, H, y0, rows, D, S, GRID, GRID2, PIX, HALO, PAL, HIST, LINKS, linkKey = null, m8, st;
+  // links: direct channels to the bands above and below, each a queue of edge rows (see Band.linkBand)
+  let up = null, down = null; const upQ = [], downQ = [], upW = [], downW = [];
+  const recv = (q, w) => q.length ? Promise.resolve(q.shift()) : new Promise(res => w.push(res));
+  const onRow = (q, w) => ev => { const row = new Uint8Array(ev.data); if (w.length) w.shift()(row); else q.push(row); };
+  const send = (port, row) => port.postMessage(row.buffer, [row.buffer]);
+  const ensureLinks = kind => {   // the band's link states, allocated on first use, fresh when the mode starts, the band changes or the kind changes
+    const need = LINKS + Band.linkStateBytes(st), have = wasm.memory.buffer.byteLength;
+    if (need > have) { wasm.memory.grow(Math.ceil((need - have) / 65536)); m8 = new Uint8Array(wasm.memory.buffer); }
+    const key = W + 'x' + rows + '@' + y0 + ':' + kind;
+    if (linkKey !== key) { wasm.links_reset(LINKS, 4 * rows * W, kind); linkKey = key; }
+  };
+  async function linkRounds(l) {   // l = { kind, rounds, reset }: rounds of one instruction per link, exchanging edge rows with the neighbours
+    ensureLinks(l.kind); if (l.reset) wasm.links_reset(LINKS, 4 * rows * W, l.kind);
+    const lb = Band.linkBand(st, LINKS);
+    for (let r = 0; r < l.rounds; r++) {
+      lb.early();
+      if (down) send(down, lb.bottomRow());
+      const back = lb.middle(up ? await recv(upQ, upW) : null);
+      if (up) send(up, back);
+      if (down) lb.setBottom(await recv(downQ, downW));
+      lb.late();
+    }
+    return lb.changed;
+  }
   const bandBits = () => wasm.bits(rows * W, GRID + D * S);
+  const bandHist = () => { wasm.hist(rows * W, GRID + D * S, HIST); return new Uint32Array(wasm.memory.buffer, HIST, 256).slice(); };   // byte counts of the band's own rows
   onmessage = async e => {
     const d = e.data, reply = { id: d.id };
     try {
@@ -501,7 +524,9 @@ function workerMain() {
           GRID = LAY.GRID; GRID2 = GRID + L * S + 64; PIX = GRID2 + L * S + 64;
           HALO = PIX + Band.POST_BYTES * (rows + 2 * Band.POST_HALO) * W + 64;   // PIX: the band's frame with POST_HALO neighbour rows each side, then its accumulators
           PAL = HALO + 2 * Band.POST_HALO * S + 64;                                // HALO: staging for the neighbours' edge rows at render time
-          const need = PAL + 129 * 4, have = wasm.memory.buffer.byteLength;
+          HIST = PAL + 129 * 4 + 64;                                               // HIST: 256 byte counts
+          LINKS = HIST + 1024 + 64; linkKey = null;                                 // LINKS: the link states, allocated when links run
+          const need = HIST + 1024, have = wasm.memory.buffer.byteLength;
           if (need > have) wasm.memory.grow(Math.ceil((need - have) / 65536));
           m8 = new Uint8Array(wasm.memory.buffer);
           m8.fill(0, GRID, PIX);
@@ -510,13 +535,17 @@ function workerMain() {
           break;
         }
         case 'palette': new Uint32Array(wasm.memory.buffer, PAL, 129).set(d.palette); break;
+        case 'hist': reply.hist = bandHist(); break;
+        case 'ports': if (d.up) { up = d.up; up.onmessage = onRow(upQ, upW); } if (d.down) { down = d.down; down.onmessage = onRow(downQ, downW); } break;
         case 'fill':
           fillPattern(m8, GRID + D * S, W, H, y0, rows, d.pattern, d.seed, wasm);
           Object.assign(reply, Band.edges(st)); reply.bits = bandBits();
           break;
         case 'turn': {
-          Object.assign(reply, Band.runTurn(st, d), Band.edges(st));
-          reply.bits = bandBits();
+          const head = Band.runHead(st, d);
+          const writes = d.links ? await linkRounds(d.links) : 0;
+          Object.assign(reply, head, Band.runTail(st, d, writes), Band.edges(st));
+          reply.bits = bandBits(); reply.hist = bandHist();
           break;
         }
         case 'render': {
@@ -637,7 +666,7 @@ function workerMain() {
   // ---- engines: same async interface, one in-page instance or a pool of band workers ----
   function makeLocalEngine() {
     const GRID = LAYOUT.GRID;
-    let PIX = 0, PAL = 0, GRID2 = 0, LINKS = 0, linkKey = null, m8, image, io;   // LINKS: 4N directed-link states of 128 bytes (two a pair), allocated on first use
+    let PIX = 0, PAL = 0, GRID2 = 0, HIST = 0, LINKS = 0, linkKey = null, m8, image, io;   // LINKS: 4N directed-link states of 128 bytes (two a pair), allocated on first use
     const ensureLinks = kind => {
       const need = LINKS + 512 * N, have = wasm.memory.buffer.byteLength;
       if (need > have) { wasm.memory.grow(Math.ceil((need - have) / 65536)); views(); }
@@ -645,6 +674,7 @@ function workerMain() {
       if (linkKey !== key) { wasm.links_reset(LINKS, 4 * N, kind); linkKey = key; }   // fresh CPUs when the mode starts, the grid changes size or the kind changes
     };
     const views = () => { m8 = new Uint8Array(wasm.memory.buffer); image = new ImageData(new Uint8ClampedArray(wasm.memory.buffer, PIX, 4 * N), W, H); };
+    const histLocal = () => { wasm.hist(N, GRID, HIST); return new Uint32Array(wasm.memory.buffer, HIST, 256).slice(); };
     const settings = () => { io.setChanger(changerId()); io.setSteps(Number($('steps').value)); io.setHeaderBits(HB); io.setCursorOffset(Number($('coff').value)); };
     return {
       threads: 1,
@@ -655,14 +685,15 @@ function workerMain() {
       async setHeaderBits(n) { io.setHeaderBits(n); },
       async setCursorOffset(n) { io.setCursorOffset(n); },
       async resize(pal) {
-        PIX = GRID + 16 * N; PAL = PIX + 4 * N; GRID2 = PAL + 129 * 4 + 12; LINKS = GRID2 + 16 * N; linkKey = null;
-        const need = GRID2 + 16 * N, have = wasm.memory.buffer.byteLength;
+        PIX = GRID + 16 * N; PAL = PIX + 4 * N; GRID2 = PAL + 129 * 4 + 12; HIST = GRID2 + 16 * N; LINKS = HIST + 1024; linkKey = null;   // HIST: 256 byte counts
+        const need = HIST + 1024, have = wasm.memory.buffer.byteLength;
         if (need > have) wasm.memory.grow(Math.ceil((need - have) / 65536));
         views(); m8.fill(0, GRID, GRID + 16 * N);
         new Uint32Array(wasm.memory.buffer, PAL, 129).set(pal);
       },
       async palette(pal) { new Uint32Array(wasm.memory.buffer, PAL, 129).set(pal); },
       async fill(pattern, s) { fillPattern(m8, GRID, W, H, 0, H, pattern, s, wasm); return wasm.bits(N, GRID); },
+      async hist() { return histLocal(); },
       // one whole turn on the full grid: the band pipeline reproduces this bit for bit
       async turn(t) {
         new BigUint64Array(wasm.memory.buffer, LAYOUT.THR, W).set(t.thrSwap);
@@ -676,7 +707,7 @@ function workerMain() {
         if (t.links) { ensureLinks(t.links.kind); if (t.links.reset) wasm.links_reset(LINKS, 4 * N, t.links.kind); for (let r = 0; r < t.links.rounds; r++) for (const ph of t.order) rewritten += wasm.links(W, H, GRID, PRM, ph, LINKS); }   // rounds of one instruction per link, phase by phase
         else if (t.changer) rewritten = wasm.change(N, GRID, PRM);
         const mutated = t.mut && t.mut.lam ? wasm.mutate(N, GRID, 0, t.mut.lam, t.mut.salt) : 0;
-        return { moved, smoothed, rewritten, mutated, bits: wasm.bits(N, GRID) };
+        return { moved, smoothed, rewritten, mutated, bits: wasm.bits(N, GRID), hist: histLocal() };
       },
       async render(mode) {
         wasm.render(N, GRID, PIX, PAL, mode, PRM);
@@ -706,12 +737,16 @@ function workerMain() {
     for (const w of workers) w.onmessage = e => { const cb = pending.get(e.data.id); pending.delete(e.data.id); if (e.data.error) console.error('worker:', e.data.error); cb(e.data); };
     const call = (w, msg, transfer) => new Promise(res => { const id = ++seq; pending.set(id, res); w.postMessage({ ...msg, id }, transfer || []); });
     const all = (msgFor) => Promise.all(workers.map((w, k) => call(w, msgFor(k))));
+    const linked = (async () => {   // a channel between each pair of neighbouring bands, for the link rounds' edge rows
+      for (let k = 0; k + 1 < workers.length; k++) { const ch = new MessageChannel(); await call(workers[k], { type: 'ports', down: ch.port1 }, [ch.port1]); await call(workers[k + 1], { type: 'ports', up: ch.port2 }, [ch.port2]); }
+    })();
     let image = null, bandBits = [], frameMean = {};
+    const sumHist = rs => { const h = new Uint32Array(256); for (const r of rs) for (let v = 0; v < 256; v++) h[v] += r.hist[v]; return h; };
     const owner = i => { const y = Math.floor(i / W); const k = bands.findIndex(b => y >= b.y0 && y < b.y0 + b.rows); return [k, (y - bands[k].y0) * W + (i % W)]; };
     const edgesFrom = (r, k) => { bands[k].top = r.top; bands[k].bottom = r.bottom; bandBits[k] = r.bits; };
     return {
       threads: K,
-      async init(Nmax) { await all(() => ({ type: 'init', wasm: wasmBytes.slice(), text: declText, N: Nmax, lut: LUT, changer: changerId(), steps: Number($('steps').value), hbits: HB, coff: Number($('coff').value) })); },
+      async init(Nmax) { await linked; await all(() => ({ type: 'init', wasm: wasmBytes.slice(), text: declText, N: Nmax, lut: LUT, changer: changerId(), steps: Number($('steps').value), hbits: HB, coff: Number($('coff').value) })); },
       async setN(Nmax) { await all(() => ({ type: 'setN', N: Nmax, changer: changerId(), steps: Number($('steps').value), hbits: HB, coff: Number($('coff').value) })); },
       async setChanger(m) { await all(() => ({ type: 'changer', changer: m })); },
       async setSteps(n) { await all(() => ({ type: 'steps', steps: n })); },
@@ -722,6 +757,7 @@ function workerMain() {
         await all(k => ({ type: 'resize', W, H, y0: bands[k].y0, rows: bands[k].rows, D, palette: pal }));
       },
       async palette(pal) { await all(() => ({ type: 'palette', palette: pal })); },
+      async hist() { return sumHist(await all(() => ({ type: 'hist' }))); },
       async fill(pattern, s) {
         const rs = await all(k => ({ type: 'fill', pattern, seed: (s + 7919 * k) >>> 0 }));
         rs.forEach(edgesFrom);
@@ -733,7 +769,7 @@ function workerMain() {
           haloTop: k > 0 ? bands[k - 1].bottom : null, haloBottom: k + 1 < K ? bands[k + 1].top : null }));
         let moved = 0, smoothed = 0, rewritten = 0, mutated = 0;
         rs.forEach((r, k) => { moved += r.moved; smoothed += r.smoothed; rewritten += r.rewritten; mutated += r.mutated; edgesFrom(r, k); });
-        return { moved, smoothed, rewritten, mutated, bits: bandBits.reduce((a, b) => a + b, 0) };
+        return { moved, smoothed, rewritten, mutated, bits: bandBits.reduce((a, b) => a + b, 0), hist: sumHist(rs) };
       },
       async render(mode, post) {   // each band renders and post-processes its own rows, with POST_HALO neighbour rows from the edges kept here
         const R = Band.POST_HALO, S = 16 * W;
@@ -770,7 +806,7 @@ function workerMain() {
     const K = Number($('threads').value);
     if (engine) engine.dispose();
     const D = Band.depthFor(Number($('iters').value), Number($('nbr').value));
-    engine = (K <= 1 || typeof Worker === 'undefined' || linkMode()) ? makeLocalEngine() : makeWorkerEngine(K, D);   // link CPUs cross band edges: single instance
+    engine = (K <= 1 || typeof Worker === 'undefined') ? makeLocalEngine() : makeWorkerEngine(K, D);
     await engine.init(Number($('maxlen').value));
     await engine.resize(palette());
   }
@@ -917,6 +953,7 @@ function workerMain() {
     $('rewritten').textContent = rewritten.toLocaleString();
     $('linkN').textContent = linksActive() ? `${(2 * (2 * N - W - H)).toLocaleString()} × ${Number($('rounds').value)} instructions a turn, ${Number($('lreset').value) === 1 ? 'reset every turn' : Number($('lreset').value) > 1 ? `reset every ${$('lreset').value} turns` : 'never reset'}` : linkMode() ? 'off (needs a CPU changer)' : 'off';
     $('total').textContent = totalBits.toLocaleString();
+    drawCharts();
     await inspect();
   }
   async function inspect() {
@@ -1002,14 +1039,64 @@ function workerMain() {
 
   // mutation: the control is a percentage of bits per turn; the kernel takes the expected flips per pixel (128 bits) in 32.32 fixed point
   const mutationLam = () => BigInt(Math.round(1.28 * Math.min(100, Math.max(0, Number($('mut').value) || 0)) * 2 ** 32));
+  // ---- byte histogram and entropy trace: the counts come back with every turn (summed over the bands), the entropy
+  // of that distribution, in bits per byte, is logged per turn; the histogram is drawn on a log scale in the byte
+  // view's colours, the trace on a fixed 0..8 bit axis, compressed to the chart width with a min-max band ----
+  let histNow = new Uint32Array(256), entropyLog = [], histHover = -1;
+  const entropyOf = h => { let n = 0; for (let v = 0; v < 256; v++) n += h[v]; if (!n) return 0; let e = 0; for (let v = 0; v < 256; v++) if (h[v]) { const p = h[v] / n; e -= p * Math.log2(p); } return e; };
+  const noteHist = h => { histNow = h; entropyLog.push(entropyOf(h)); };
+  async function restartLog() { histNow = await engine.hist(); entropyLog = [entropyOf(histNow)]; }
+  const cssRGB = name => `rgb(${cssColor(name).join(',')})`;
+  const chartSize = c => { const dpr = devicePixelRatio || 1, w = Math.max(1, Math.round(c.clientWidth * dpr)), h = Math.max(1, Math.round(c.clientHeight * dpr)); if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } return [w, h, dpr]; };
+  const byteName = v => v === 32 ? '␠' : v === 10 ? '⏎' : v > 32 && v < 127 ? String.fromCharCode(v) : '·';
+  function drawCharts() {
+    const hc = $('histChart'), [hw, hh, dpr] = chartSize(hc), g = hc.getContext('2d');
+    g.clearRect(0, 0, hw, hh);
+    let max = 0, total = 0, top = 0;
+    for (let v = 0; v < 256; v++) { total += histNow[v]; if (histNow[v] > max) { max = histNow[v]; top = v; } }
+    const lmax = Math.log2(1 + max) || 1;
+    for (let v = 0; v < 256; v++) {
+      const c = histNow[v]; if (!c) continue;
+      const e = LUT[v]; g.fillStyle = `rgb(${(e & 15) * 17},${((e >> 8) & 15) * 17},${((e >> 16) & 15) * 17})`;
+      const bh = Math.max(1, Math.round((hh - 2) * Math.log2(1 + c) / lmax)), x0 = Math.floor(v * hw / 256), x1 = Math.max(x0 + 1, Math.floor((v + 1) * hw / 256));
+      g.fillRect(x0, hh - bh, x1 - x0, bh);
+    }
+    if (histHover >= 0) { g.fillStyle = cssRGB('--fg'); g.globalAlpha = 0.25; g.fillRect(Math.floor(histHover * hw / 256), 0, Math.max(1, Math.floor(hw / 256)), hh); g.globalAlpha = 1; }
+    const v = histHover >= 0 ? histHover : top;
+    $('histInfo').textContent = total ? `${histHover >= 0 ? '' : 'most common: '}byte ${v} (0x${v.toString(16).padStart(2, '0')} ${byteName(v)}) ${(100 * histNow[v] / total).toFixed(2)} % · log scale` : '';
+    const ec = $('entChart'), [ew, eh] = chartSize(ec), q = ec.getContext('2d'), yOf = e => (eh - 1) * (1 - e / 8) + 0.5;
+    q.clearRect(0, 0, ew, eh);
+    q.strokeStyle = cssRGB('--line'); q.lineWidth = 1; q.fillStyle = cssRGB('--muted'); q.font = `${10 * dpr}px ${getComputedStyle(document.body).fontFamily}`;
+    for (const b of [2, 4, 6]) { const y = Math.round(yOf(b)) + 0.5; q.beginPath(); q.moveTo(0, y); q.lineTo(ew, y); q.stroke(); q.fillText(b, 3 * dpr, y - 2 * dpr); }
+    const n = entropyLog.length; if (!n) { $('entropy').textContent = '–'; return; }
+    const accent = cssRGB('--accent');
+    q.strokeStyle = accent; q.fillStyle = accent; q.lineWidth = 1.5 * dpr;
+    if (n <= ew) {   // one turn per device pixel, growing from the left
+      q.beginPath(); for (let i = 0; i < n; i++) { const x = i + 0.5, y = yOf(entropyLog[i]); i ? q.lineTo(x, y) : q.moveTo(x, y); } q.stroke();
+      if (n === 1) q.fillRect(0, yOf(entropyLog[0]) - dpr, 2 * dpr, 2 * dpr);
+    } else {   // the whole history compressed to the width: a min-max band per column and the column means as a line
+      q.globalAlpha = 0.3;
+      const means = new Float64Array(ew);
+      for (let x = 0; x < ew; x++) {
+        const a = Math.floor(x * n / ew), b = Math.max(a + 1, Math.floor((x + 1) * n / ew)); let lo = 8, hi = 0, sum = 0;
+        for (let i = a; i < b; i++) { const e = entropyLog[i]; if (e < lo) lo = e; if (e > hi) hi = e; sum += e; }
+        means[x] = sum / (b - a); q.fillRect(x, yOf(hi) - 0.5, 1, Math.max(1, yOf(lo) - yOf(hi)));
+      }
+      q.globalAlpha = 1; q.beginPath(); for (let x = 0; x < ew; x++) { const y = yOf(means[x]); x ? q.lineTo(x + 0.5, y) : q.moveTo(x + 0.5, y); } q.stroke();
+    }
+    $('entropy').textContent = entropyLog[n - 1].toFixed(3) + ' bits/byte' + (n > 1 ? ` · ${n.toLocaleString()} turns logged` : '');
+  }
+  $('histChart').addEventListener('pointermove', ev => { const r = $('histChart').getBoundingClientRect(); histHover = Math.min(255, Math.max(0, Math.floor((ev.clientX - r.left) / r.width * 256))); drawCharts(); });
+  $('histChart').addEventListener('pointerleave', () => { histHover = -1; drawCharts(); });
+
   // ---- a turn: the four swap phases, the smoothing passes, the local changer rewrites every pixel, then mutation ----
   async function doTurn() {
     const t0 = performance.now();
-    const seeded = $('seedmode').value === '1', passes = Number($('iters').value);
-    const salts = Array.from({ length: 4 + passes }, (_, k) => seeded ? BigInt(turn * 64 + k + 1) : 0n);   // a distinct salt per phase and pass
+    const passes = Number($('iters').value);
+    const salts = Array.from({ length: 4 + passes }, () => 0n);   // the swap and smoothing hashes see the neighbouring bits only, no turn salt
     const mut = { lam: mutationLam(), salt: BigInt(turn * 64 + 63) };   // mutation is always salted by the turn, or the same bits would flip every turn
     const r = await engine.turn({ order: Band.order(turn), alt: turn & 1, passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, changer: changerActive(), pair: { mode: linkMode() ? 0 : Number($('pair').value), flip: turn & 1 }, mut, links: linksActive() ? { kind: changerId(), rounds: Number($('rounds').value), reset: linkResetDue() } : null });
-    moved = r.moved; smoothed = r.smoothed; rewritten = r.rewritten; mutated = r.mutated || 0; totalBits = r.bits;
+    moved = r.moved; smoothed = r.smoothed; rewritten = r.rewritten; mutated = r.mutated || 0; totalBits = r.bits; noteHist(r.hist);
     turn++;
     timeSum += performance.now() - t0; timed++;
     if (timed >= 5) {
@@ -1031,6 +1118,7 @@ function workerMain() {
 
   async function reset(pattern) {
     totalBits = await engine.fill(pattern, (seed = (seed * 1664525 + 1013904223) >>> 0));
+    await restartLog();
     turn = 0; moved = 0; smoothed = 0; rewritten = 0; mutated = 0; acc = 0; blendReset = true;
     await draw();
   }
@@ -1043,7 +1131,7 @@ function workerMain() {
     fitCanvas();
     $('turnTime').textContent = '–';
     blendReset = true;
-    if (cells) { totalBits = await engine.setCells(cells); await engine.render(viewMode()); await draw(); }   // same lattice, new engine: the turn counter keeps running; the first render only seeds the palette stretch mean
+    if (cells) { totalBits = await engine.setCells(cells); await restartLog(); await engine.render(viewMode()); await draw(); }   // same lattice, new engine: the turn counter keeps running; the first render only seeds the palette stretch mean
     else await reset(pattern);
   }
 
@@ -1089,11 +1177,7 @@ function workerMain() {
   $('scale').addEventListener('change', () => run(async () => { fitCanvas(); await draw(); }));
   $('size').addEventListener('change', () => { sel = -1; run(() => rebuild($('pattern').value)); });
   $('threads').addEventListener('change', () => run(() => rebuild($('pattern').value, true)));
-  $('pair').addEventListener('change', () => {   // link mode runs single-instance: switch engines when entering or leaving it with workers configured
-    showChangerBoxes();
-    const wantWorkers = Number($('threads').value) > 1 && !linkMode();
-    if (engine && (engine.threads > 1) !== wantWorkers) run(() => rebuild($('pattern').value, true));
-  });
+  $('pair').addEventListener('change', () => { showChangerBoxes(); run(draw); });
   $('thrL').addEventListener('input', showThreshold);
   $('thrR').addEventListener('input', showThreshold);
   $('smoothT').addEventListener('input', showThreshold);
@@ -1121,7 +1205,7 @@ function workerMain() {
   async function start(saved) {
     const selftest = location.hash === '#selftest' || location.hash === '#selftest-workers';
     if (saved && saved.w) {
-      for (const [id, key, dflt] of [['size', 'size', '512x512'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['flat', 'flat', '2'], ['sharp', 'sharp', '1'], ['seedmode', 'seedmode', '0'],
+      for (const [id, key, dflt] of [['size', 'size', '512x512'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['flat', 'flat', '2'], ['sharp', 'sharp', '1'],
             ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['mut', 'mut', '0.001'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['changer', 'changer', 'lz'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['steps', 'steps', '256'], ['rounds', 'rounds', '128'], ['lreset', 'lreset', '1'], ['coff', 'coff', '610'], ['pair', 'pair', '0']])
         $(id).value = saved[key] ?? dflt;
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
@@ -1134,7 +1218,7 @@ function workerMain() {
     }
     showChangerBoxes(); codeNote(); showThreshold(); showSpeed();
     await rebuild($('pattern').value);
-    if (saved && saved.cells && engine.cells()) { await engine.setCells(saved.cells); totalBits = await engine.bits(); turn = saved.turn || 0; blendReset = true; await draw(); }
+    if (saved && saved.cells && engine.cells()) { await engine.setCells(saved.cells); totalBits = await engine.bits(); await restartLog(); turn = saved.turn || 0; blendReset = true; await draw(); }
     // #selftest: run 50 turns up front so a headless browser can check the page works
     if (selftest) { for (let i = 0; i < 50; i++) await doTurn(); await draw(); }
     document.documentElement.dataset.ready = '1';   // boot finished (used by the browser tests)
@@ -1142,7 +1226,7 @@ function workerMain() {
   }
   window.claude?.hot?.snapshot?.(() => ({
     w: W, h: H, turn, running, sel,
-    size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, flat: $('flat').value, sharp: $('sharp').value, seedmode: $('seedmode').value, thrL: $('thrL').value, thrR: $('thrR').value, mut: $('mut').value,
+    size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, flat: $('flat').value, sharp: $('sharp').value, thrL: $('thrL').value, thrR: $('thrR').value, mut: $('mut').value,
     smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, steps: $('steps').value, rounds: $('rounds').value, lreset: $('lreset').value, coff: $('coff').value, pair: $('pair').value,
     cells: engine && engine.cellsSync() ? Array.from(engine.cellsSync()) : null,   // the worker pool keeps no copy on the main thread
   }));

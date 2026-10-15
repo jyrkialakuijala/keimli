@@ -90,3 +90,25 @@ limited by the window height so it stays fully visible; "1:1 device pixels"
 sizes the visible canvas W × H in device pixels and blits the buffer
 directly with one `putImageData`, which is the cheapest path and the one to
 use for the 1024 × 1024 and 2048 × 2048 grids.
+
+## Byte histogram and entropy
+
+Beside the square the statistics column shows the distribution of the
+lattice's bytes and how its entropy develops. Every turn's reply carries the
+counts of the 256 byte values over the grid (`hist`, run by each band on its
+own rows and summed on the main thread, so the worker pool pays no extra
+round trip), and the page logs the Shannon entropy of that distribution,
+H = −Σ p(b) log₂ p(b) in bits per byte, turn by turn. A random start sits
+near 8 bits; the LZ decompressor pulls the lattice towards the dictionary's
+letter frequencies, around 4.5 bits; a frozen floor of identical cells
+drives it down further.
+
+The histogram is drawn on a log scale (bar height ∝ log₂(1 + count)) in the
+byte view's colours, so the letters, digits and punctuation of the
+dictionary can be told apart from machine-code bytes, with the most common
+byte and its share named above it; pointing at a bar names that byte. The
+entropy trace uses a fixed 0 to 8 bit axis with gridlines at 2, 4 and 6,
+one turn per device pixel while the log is shorter than the chart and,
+after that, the whole history compressed to the width as a min–max band per
+column with the column means as a line. The log restarts with every new
+start pattern or grid size.

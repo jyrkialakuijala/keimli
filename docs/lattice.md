@@ -42,9 +42,10 @@ separately for each pixel with a splitmix64 finaliser and the two 64-bit
 hashes are added with overflow, so the decision is independent of pixel
 order. The first position whose sum is below the threshold has that single
 bit exchanged. Swaps conserve the total number of set bits. Because
-identical contexts hash identically, a uniform boundary is all-or-nothing;
-the optional turn-number salt (distinct for every phase and pass) breaks the
-tie.
+identical contexts hash identically, a uniform boundary is all-or-nothing.
+The page passes salt 0 to the swap and smoothing kernels, so the hashes
+see the neighbouring bits only; the salt argument stays for the tests and
+the band pipeline.
 
 The swap probability is a per-column table: a linear gradient from the
 left-edge value to the right-edge value, each 0 to 1 (defaults 0 and 1),
@@ -65,9 +66,8 @@ expected flips per cell λ in 32.32 fixed point and gives every cell
 floor(λ) flips plus one more with probability frac(λ), each at a bit
 position drawn from the hash of the turn's salt and the cell's global
 index, so a band of rows in a worker produces exactly the flips the whole
-grid would. Two flips on the same bit cancel. Mutation is always salted by
-the turn number, whatever the hash-seed setting says, or the same bits
-would flip every turn. The statistics panel counts the flips.
+grid would. Two flips on the same bit cancel. Mutation is salted by the
+turn number, or the same bits would flip every turn. The statistics panel counts the flips.
 
 ## The swap order
 
@@ -159,4 +159,4 @@ not have.
 ## Exports
 
 `mix`, `mix_from`, `mix_zone`, `smooth`, `smooth_zone`, `mutate`, `bits`,
-`randomize`, and `memory`.
+`hist`, `randomize`, and `memory`.

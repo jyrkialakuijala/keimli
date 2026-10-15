@@ -296,6 +296,17 @@
   (func (export "smooth") (param $w i32) (param $h i32) (param $src i32) (param $dst i32) (param $thrTab i32) (param $salt i64) (param $nbr i32) (result i32)
     (call $smooth_zone (local.get $w) (local.get $src) (local.get $dst) (local.get $thrTab) (i32.const 0) (local.get $h) (i32.const 0) (local.get $h) (i32.const 0) (local.get $h) (local.get $salt) (local.get $nbr)))
 
+  ;; hist(n, grid, out): the counts of the 256 byte values over n pixels, as 256 i32 at out
+  (func (export "hist") (param $n i32) (param $grid i32) (param $out i32)
+    (local $p i32) (local $e i32) (local $a i32)
+    (memory.fill (local.get $out) (i32.const 0) (i32.const 1024))
+    (local.set $p (local.get $grid))
+    (local.set $e (i32.add (local.get $grid) (i32.shl (local.get $n) (i32.const 4))))
+    (block $x (loop $l (br_if $x (i32.ge_u (local.get $p) (local.get $e)))
+      (local.set $a (i32.add (local.get $out) (i32.shl (i32.load8_u (local.get $p)) (i32.const 2))))
+      (i32.store (local.get $a) (i32.add (i32.load (local.get $a)) (i32.const 1)))
+      (local.set $p (i32.add (local.get $p) (i32.const 1))) (br $l))))
+
   (func (export "bits") (param $n i32) (param $grid i32) (result i32)
     (local $i i32) (local $p i32) (local $sum i64)
     (block $exit (loop $loop

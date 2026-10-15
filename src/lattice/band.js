@@ -37,7 +37,10 @@ const Band = (() => {
   //         thrSwap (BigUint64Array W), thrSmooth (BigUint64Array H), salts (BigInt per step), changer (bool), pair ({ mode, flip }),
   //         nbr (smoothing neighbourhood 0 cross / 1 3x3 / 2 5x5), mut ({ lam, salt }: expected flips per pixel as 32.32
   //         fixed-point BigInt, and this turn's salt; absent or lam 0 for no mutation) }
-  function runTurn(st, msg) {
+  // runTurn = runHead (the swap phases and the smoothing passes) + runTail (the changer and the mutation); the worker
+  // runs the link rounds in between when links are on, see linkBand.
+  function runTurn(st, msg) { return Object.assign(runHead(st, msg), runTail(st, msg)); }
+  function runHead(st, msg) {
     const { wasm, W, H, y0, rows, D, GRID, GRID2 } = st, S = 16 * W, y1 = y0 + rows, gy0 = y0 - D;
     const m8 = new Uint8Array(wasm.memory.buffer);
     if (msg.haloTop) m8.set(msg.haloTop.subarray(msg.haloTop.length - D * S), GRID);           // the D rows nearest the band
@@ -68,10 +71,44 @@ const Band = (() => {
       m8.copyWithin(GRID + a * S, GRID2 + a * S, GRID2 + b * S);
       for (let i = 0; i < R; i++) { if (topArt) useTop(); if (botArt) useBot(); }
     }
+    return { moved, smoothed };
+  }
+  // the changer (unless the link rounds took its place: then linkWrites is their pixel-write count) and the mutation
+  function runTail(st, msg, linkWrites = 0) {
+    const { wasm, W, y0, rows, D, GRID } = st, S = 16 * W;
     if (msg.pair) new Int32Array(wasm.memory.buffer, st.PRM + 104, 2).set([msg.pair.mode | 0, msg.pair.flip ? 1 : 0]);   // pairs: mode and this turn's flip
-    const rewritten = msg.changer ? wasm.change(rows * W, GRID + D * S, st.PRM) : 0;
+    const rewritten = msg.links ? linkWrites : msg.changer ? wasm.change(rows * W, GRID + D * S, st.PRM) : 0;
     const mutated = msg.mut && msg.mut.lam ? wasm.mutate(rows * W, GRID + D * S, y0 * W, msg.mut.lam, msg.mut.salt) : 0;   // own rows, global pixel indices
-    return { moved, smoothed, rewritten, mutated };
+    return { rewritten, mutated };
+  }
+  // ---- links: the persistent per-link CPUs in a band (docs/changers.md). Within a phase the pairs are disjoint and
+  // every machine touches only its own two pixels, so a phase splits over bands exactly; only the up-down pairs across
+  // a band edge need care. A band owns the left-right pairs of its rows and the up-down pairs whose first row is
+  // y0 - 1 .. y1 - 2: the pair across its top edge is its own (its first row is odd, so it belongs to UD1), the one
+  // across its bottom edge is the next band's. A round is early() = UD0, LR0 on the own rows; then middle(above): the
+  // current row y0 - 1 from the band above goes into halo row D - 1, UD1 runs, and the changed row is handed back
+  // (the band above puts it in place with setBottom); then late() = LR1. The band below needs this band's bottom row
+  // after early() (bottomRow()) and returns it before late(). states: 2 rows W pairs x 256 bytes, the left-right
+  // pairs first, then the up-down pairs from local row D - 1.
+  function linkStateBytes(st) { return 512 * st.rows * st.W; }
+  function linkBand(st, states) {
+    const { wasm, W, rows, D, GRID, PRM } = st, S = 16 * W, gy0 = st.y0 - D, top = st.y0 > 0;
+    const hst = states, vst = states + 256 * rows * W;
+    const m8 = () => new Uint8Array(wasm.memory.buffer);
+    const run = (ph, a, b) => wasm.links_zone(W, GRID, gy0, PRM, ph, hst, D, vst, D - 1, a, b);
+    let changed = 0;
+    return {
+      early() { changed += run(1, D, D + rows) + run(0, D, D + rows); },
+      bottomRow() { return m8().slice(GRID + (D + rows - 1) * S, GRID + (D + rows) * S); },
+      middle(above) {
+        if (top) m8().set(above, GRID + (D - 1) * S);
+        changed += run(3, top ? D - 1 : D, D + rows);
+        return top ? m8().slice(GRID + (D - 1) * S, GRID + D * S) : null;
+      },
+      setBottom(row) { m8().set(row, GRID + (D + rows - 1) * S); },
+      late() { changed += run(2, D, D + rows); },
+      get changed() { return changed; },
+    };
   }
   // the band's first and last E interior rows, E = max(D, POST_HALO): the neighbours' halos for the next turn
   // (D rows) and for rendering (POST_HALO rows)
@@ -112,5 +149,5 @@ const Band = (() => {
   // sampled at pixel centres: entry i is a + (b - a) * (i + 0.5) / n, so no pixel sits at exactly a or b
   // and the first and last columns (or rows) are not frozen when an edge value is 0.
   const gradient = (a, b, n) => { const tab = new BigUint64Array(n); for (let i = 0; i < n; i++) tab[i] = toThreshold(a + (b - a) * (i + 0.5) / n); return tab; };
-  return { PHASE_NAMES, ORDER, order, orderName, edgeParity, leftover, radius, depthFor, runTurn, edges, split, toThreshold, gradient, POST_HALO, POST_BYTES, postFrame };
+  return { PHASE_NAMES, ORDER, order, orderName, edgeParity, leftover, radius, depthFor, runTurn, runHead, runTail, linkBand, linkStateBytes, edges, split, toThreshold, gradient, POST_HALO, POST_BYTES, postFrame };
 })();

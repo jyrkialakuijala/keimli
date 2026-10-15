@@ -1,6 +1,6 @@
 (() => {
-  // Links mode in the live page: with 4 workers configured, choosing Cells = Links with the Z80 must switch to the
-  // single-instance engine (turn time shows 1 thr), report the persistent link CPUs with the chosen rounds, and keep rewriting pixels.
+  // Links mode in the live page: with 4 workers configured, choosing Cells = Links with the Z80 must keep running on the
+  // pool (turn time shows 4 thr), report the persistent link CPUs with the chosen rounds, and keep rewriting pixels.
   const T = () => +document.getElementById('turn').textContent.replace(/,/g, '');
   const txt = id => document.getElementById(id).textContent;
   const set = (id, v) => { const s = document.getElementById(id); s.value = v; s.dispatchEvent(new Event('change')); };
