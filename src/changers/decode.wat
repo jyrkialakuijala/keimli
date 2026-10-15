@@ -20,7 +20,8 @@
   ;;  92 steps    instructions per pixel for the CPU cores (256 by default)
   ;;  96 headerBits leading bits of a pixel that select the LZ start cursor (ceil log2 textLen, 13 for the Declaration)
   ;; 100 cursorOffset bytes 0..textLen added to the LZ start cursor before wrapping (600)
-  ;; 104 pairMode   0 = every cell on its own; 1 = pairs concatenated; 2 = pairs bit-interleaved (see change)
+  ;; 104 pairMode   0 = every cell on its own; 1 = pairs concatenated; 2 = pairs bit-interleaved; 3 = xor then add;
+  ;;              4 = add then subtract (byte-wise lifting steps); 5 = byte-interleaved (see join)
   ;; 108 pairFlip   0 or 1: which cell of a pair takes the first role this turn (the host alternates it)
   ;; 112 pairBuf    32-byte scratch for the joint cell of a pair
   ;;
@@ -71,11 +72,10 @@
     (if (result i32) (i32.eq (global.get $cw) (i32.const 16))
       (then (call $peek (local.get $w0) (local.get $w1) (local.get $off) (local.get $n)))
       (else (call $peekm (local.get $p) (local.get $off) (local.get $n)))))
-  ;; halfkind(kind): changers defined on exactly 128 bits (DCT, inverse DCT, PDP-8, UNIVAC 1101, CDC 6600); a joint
-  ;; cell is handed to them as two consecutive 16-byte cells.
+  ;; halfkind(kind): changers defined on exactly 128 bits (PDP-8, UNIVAC 1101, CDC 6600); a joint cell is handed
+  ;; to them as two consecutive 16-byte cells. (The DCT scales with the cell width: 32 points on a joint cell.)
   (func $halfkind (param $k i32) (result i32)
-    (i32.or (i32.or (i32.eq (local.get $k) (i32.const 17)) (i32.eq (local.get $k) (i32.const 18)))
-            (i32.or (i32.eq (local.get $k) (i32.const 19)) (i32.or (i32.eq (local.get $k) (i32.const 22)) (i32.eq (local.get $k) (i32.const 24))))))
+    (i32.or (i32.eq (local.get $k) (i32.const 19)) (i32.or (i32.eq (local.get $k) (i32.const 22)) (i32.eq (local.get $k) (i32.const 24)))))
 
   (func $decode (param $p i32) (param $prm i32) (result i32)
     (local $w0 i64) (local $w1 i64) (local $bp i32)
@@ -175,35 +175,77 @@
     (local.set $x (i64.and (i64.or (local.get $x) (i64.shr_u (local.get $x) (i64.const 8))) (i64.const 0x0000FFFF0000FFFF)))
     (i64.and (i64.or (local.get $x) (i64.shr_u (local.get $x) (i64.const 16))) (i64.const 0x00000000FFFFFFFF)))
   ;; join(a, b, j, mode, flip): build the 32-byte joint cell at j from the pixels at a and b. mode 1 concatenates
-  ;; (a then b), mode 2 interleaves bit by bit (pixel bit k of a at joint bit 2k, of b at 2k + 1). flip = 1 swaps
-  ;; the roles of a and b, so on alternating turns the pair is b-a or b on the even positions.
+  ;; (a then b), mode 2 interleaves bit by bit (pixel bit k of a at joint bit 2k, of b at 2k + 1). Modes 3 and 4 are
+  ;; byte-wise lifting steps, each byte k of the two cells giving byte k and byte 16 + k of the joint cell:
+  ;;   3, xor then add:       x = a ^ b,  y = b + x
+  ;;   4, add then subtract:  s = a + b,  d = a - (s >> 1)
+  ;; (bytes mod 256; >> is the unsigned shift). Both are bijections on the pair of bytes, inverted exactly by split.
+  ;; Mode 5 interleaves byte by byte: byte k of a at joint byte 2k, of b at 2k + 1.
+  ;; flip = 1 swaps the roles of a and b, so on alternating turns the pair is b-a, b on the even positions, etc.
   (func $join (param $a i32) (param $b i32) (param $j i32) (param $mode i32) (param $flip i32)
-    (local $m i32) (local $t i32)
+    (local $m i32) (local $t i32) (local $x i32) (local $y i32)
     (if (local.get $flip) (then (local.set $t (local.get $a)) (local.set $a (local.get $b)) (local.set $b (local.get $t))))
     (if (i32.eq (local.get $mode) (i32.const 1))
       (then
         (i64.store (local.get $j) (i64.load (local.get $a))) (i64.store offset=8 (local.get $j) (i64.load offset=8 (local.get $a)))
         (i64.store offset=16 (local.get $j) (i64.load (local.get $b))) (i64.store offset=24 (local.get $j) (i64.load offset=8 (local.get $b))))
-      (else   ;; joint word m: even bits from a's 32-bit chunk m, odd bits from b's
-        (block $e (loop $l (br_if $e (i32.ge_u (local.get $m) (i32.const 4)))
-          (i64.store (i32.add (local.get $j) (i32.shl (local.get $m) (i32.const 3)))
-            (i64.or (call $spread (i64.load32_u (i32.add (local.get $a) (i32.shl (local.get $m) (i32.const 2)))))
-                    (i64.shl (call $spread (i64.load32_u (i32.add (local.get $b) (i32.shl (local.get $m) (i32.const 2))))) (i64.const 1))))
-          (local.set $m (i32.add (local.get $m) (i32.const 1))) (br $l))))))
+      (else (if (i32.eq (local.get $mode) (i32.const 2))
+        (then   ;; joint word m: even bits from a's 32-bit chunk m, odd bits from b's
+          (block $e (loop $l (br_if $e (i32.ge_u (local.get $m) (i32.const 4)))
+            (i64.store (i32.add (local.get $j) (i32.shl (local.get $m) (i32.const 3)))
+              (i64.or (call $spread (i64.load32_u (i32.add (local.get $a) (i32.shl (local.get $m) (i32.const 2)))))
+                      (i64.shl (call $spread (i64.load32_u (i32.add (local.get $b) (i32.shl (local.get $m) (i32.const 2))))) (i64.const 1))))
+            (local.set $m (i32.add (local.get $m) (i32.const 1))) (br $l))))
+        (else (if (i32.eq (local.get $mode) (i32.const 5))
+        (then   ;; byte-interleaved
+          (block $e (loop $l (br_if $e (i32.ge_u (local.get $m) (i32.const 16)))
+            (i32.store8 (i32.add (local.get $j) (i32.shl (local.get $m) (i32.const 1))) (i32.load8_u (i32.add (local.get $a) (local.get $m))))
+            (i32.store8 offset=1 (i32.add (local.get $j) (i32.shl (local.get $m) (i32.const 1))) (i32.load8_u (i32.add (local.get $b) (local.get $m))))
+            (local.set $m (i32.add (local.get $m) (i32.const 1))) (br $l))))
+        (else   ;; byte-wise lifting: x (or s) to the first half, y (or d) to the second
+          (block $e (loop $l (br_if $e (i32.ge_u (local.get $m) (i32.const 16)))
+            (local.set $x (i32.load8_u (i32.add (local.get $a) (local.get $m))))
+            (local.set $y (i32.load8_u (i32.add (local.get $b) (local.get $m))))
+            (if (i32.eq (local.get $mode) (i32.const 3))
+              (then (local.set $x (i32.xor (local.get $x) (local.get $y))) (local.set $y (i32.add (local.get $y) (local.get $x))))
+              (else (local.set $t (i32.and (i32.add (local.get $x) (local.get $y)) (i32.const 255)))
+                    (local.set $y (i32.sub (local.get $x) (i32.shr_u (local.get $t) (i32.const 1)))) (local.set $x (local.get $t))))
+            (i32.store8 (i32.add (local.get $j) (local.get $m)) (local.get $x))
+            (i32.store8 offset=16 (i32.add (local.get $j) (local.get $m)) (local.get $y))
+            (local.set $m (i32.add (local.get $m) (i32.const 1))) (br $l))))))))))
   ;; split(o, a, b, mode, flip): the inverse of join, from the 32-byte joint cell at o to 16 bytes at a and at b.
+  ;; Modes 3 and 4 invert the lifting steps: b = y - x, a = x ^ b; and a = d + (s >> 1), b = s - a. Mode 5 de-interleaves bytes.
   (func $split (param $o i32) (param $a i32) (param $b i32) (param $mode i32) (param $flip i32)
-    (local $m i32) (local $t i32) (local $w i64)
+    (local $m i32) (local $t i32) (local $w i64) (local $x i32) (local $y i32)
     (if (local.get $flip) (then (local.set $t (local.get $a)) (local.set $a (local.get $b)) (local.set $b (local.get $t))))
     (if (i32.eq (local.get $mode) (i32.const 1))
       (then
         (i64.store (local.get $a) (i64.load (local.get $o))) (i64.store offset=8 (local.get $a) (i64.load offset=8 (local.get $o)))
         (i64.store (local.get $b) (i64.load offset=16 (local.get $o))) (i64.store offset=8 (local.get $b) (i64.load offset=24 (local.get $o))))
-      (else
-        (block $e (loop $l (br_if $e (i32.ge_u (local.get $m) (i32.const 4)))
-          (local.set $w (i64.load (i32.add (local.get $o) (i32.shl (local.get $m) (i32.const 3)))))
-          (i64.store32 (i32.add (local.get $a) (i32.shl (local.get $m) (i32.const 2))) (call $squeeze (local.get $w)))
-          (i64.store32 (i32.add (local.get $b) (i32.shl (local.get $m) (i32.const 2))) (call $squeeze (i64.shr_u (local.get $w) (i64.const 1))))
-          (local.set $m (i32.add (local.get $m) (i32.const 1))) (br $l))))))
+      (else (if (i32.eq (local.get $mode) (i32.const 2))
+        (then
+          (block $e (loop $l (br_if $e (i32.ge_u (local.get $m) (i32.const 4)))
+            (local.set $w (i64.load (i32.add (local.get $o) (i32.shl (local.get $m) (i32.const 3)))))
+            (i64.store32 (i32.add (local.get $a) (i32.shl (local.get $m) (i32.const 2))) (call $squeeze (local.get $w)))
+            (i64.store32 (i32.add (local.get $b) (i32.shl (local.get $m) (i32.const 2))) (call $squeeze (i64.shr_u (local.get $w) (i64.const 1))))
+            (local.set $m (i32.add (local.get $m) (i32.const 1))) (br $l))))
+        (else (if (i32.eq (local.get $mode) (i32.const 5))
+        (then
+          (block $e (loop $l (br_if $e (i32.ge_u (local.get $m) (i32.const 16)))
+            (i32.store8 (i32.add (local.get $a) (local.get $m)) (i32.load8_u (i32.add (local.get $o) (i32.shl (local.get $m) (i32.const 1)))))
+            (i32.store8 (i32.add (local.get $b) (local.get $m)) (i32.load8_u offset=1 (i32.add (local.get $o) (i32.shl (local.get $m) (i32.const 1)))))
+            (local.set $m (i32.add (local.get $m) (i32.const 1))) (br $l))))
+        (else
+          (block $e (loop $l (br_if $e (i32.ge_u (local.get $m) (i32.const 16)))
+            (local.set $x (i32.load8_u (i32.add (local.get $o) (local.get $m))))
+            (local.set $y (i32.load8_u offset=16 (i32.add (local.get $o) (local.get $m))))
+            (if (i32.eq (local.get $mode) (i32.const 3))
+              (then (local.set $y (i32.and (i32.sub (local.get $y) (local.get $x)) (i32.const 255))) (local.set $x (i32.xor (local.get $x) (local.get $y))))
+              (else (local.set $t (i32.and (i32.add (local.get $y) (i32.shr_u (local.get $x) (i32.const 1))) (i32.const 255)))
+                    (local.set $y (i32.sub (local.get $x) (local.get $t))) (local.set $x (local.get $t))))
+            (i32.store8 (i32.add (local.get $a) (local.get $m)) (local.get $x))
+            (i32.store8 (i32.add (local.get $b) (local.get $m)) (local.get $y))
+            (local.set $m (i32.add (local.get $m) (i32.const 1))) (br $l))))))))))
   ;; commit(p, s): copy the 16 bytes at s over the pixel at p if they differ; returns 1 if they did
   (func $commit (param $p i32) (param $s i32) (result i32)
     (local $o0 i64) (local $o1 i64)
@@ -214,8 +256,8 @@
 
   ;; change(n, grid, prm): run the local changer on every pixel and write its 16-byte output back over the
   ;; pixel. With prm.pairMode set, pixels 2i and 2i + 1 (a horizontal pair: the width is even, so a pair never
-  ;; crosses a row) are joined into a 32-byte cell, changed once as a whole with $cw = 32, and split back the
-  ;; same way in reverse. Returns the number of pixels whose content changed.
+  ;; crosses a row) are joined into a 32-byte cell (see join), changed once as a whole with $cw = 32, and split
+  ;; back by the inverse mapping. Returns the number of pixels whose content changed.
   (func (export "change") (param $n i32) (param $grid i32) (param $prm i32) (result i32)
     (local $i i32) (local $p i32) (local $out i32) (local $changed i32) (local $mode i32) (local $flip i32) (local $j i32)
     (local.set $out (i32.load (local.get $prm)))

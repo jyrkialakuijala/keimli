@@ -1,27 +1,39 @@
-  ;; dct(p, prm, inv): 16-point DCT-II (inv = 0) or its inverse, DCT-III (inv = 1), over the 16
-  ;; bytes taken as signed samples b - 128. Forward: out[k] = 128 + round(s(k)/2 * sum_n x[n]
-  ;; cos(pi (2n+1) k / 32)) with s(0) = 1/4 and s(k>0) = sqrt(2)/4 (the orthonormal scale); the
-  ;; extra halving keeps typical coefficients inside a byte. Inverse: x[n] = sum_k 2 s(k)
-  ;; (b[k] - 128) cos(pi (2n+1) k / 32), out = 128 + round(x). Results are clamped to 0..255.
-  ;; Cosines come from the 64-entry table cos(pi m / 32) at address 512.
+  ;; dct(p, prm, inv): N-point DCT-II (inv = 0) or its inverse, DCT-III (inv = 1), N = $cw (16 for a cell,
+  ;; 32 for a joint cell), over the N bytes taken as signed samples b - 128. Forward: out[k] = 128 +
+  ;; round(s(k)/2 * sum_n x[n] cos(pi (2n+1) k / 2N)) with s(0) = sqrt(1/N) and s(k>0) = sqrt(2/N) (the
+  ;; orthonormal scale); the extra halving keeps typical coefficients inside a byte. Inverse: x[n] =
+  ;; sum_k 2 s(k) (b[k] - 128) cos(pi (2n+1) k / 2N), out = 128 + round(x). Results are clamped to 0..255.
+  ;; Cosines come from the 33-entry table cos(pi m / 64), m = 0..32, at address 512, by symmetry ($cos64).
+  (func $cos64 (param $m i32) (result f64)   ;; cos(pi m / 64) for any m
+    (local $neg i32)
+    (local.set $m (i32.and (local.get $m) (i32.const 127)))
+    (if (i32.gt_u (local.get $m) (i32.const 64)) (then (local.set $m (i32.sub (i32.const 128) (local.get $m)))))
+    (if (i32.gt_u (local.get $m) (i32.const 32)) (then (local.set $m (i32.sub (i32.const 64) (local.get $m))) (local.set $neg (i32.const 1))))
+    (select (f64.neg (f64.load (i32.add (i32.const 512) (i32.shl (local.get $m) (i32.const 3)))))
+            (f64.load (i32.add (i32.const 512) (i32.shl (local.get $m) (i32.const 3)))) (local.get $neg)))
   (func $dct (param $p i32) (param $prm i32) (param $inv i32) (result i32)
     (local $out i32) (local $flags i32) (local $k i32) (local $n i32) (local $acc f64) (local $v i32) (local $changed i32) (local $c f64) (local $m i32) (local $t f64)
+    (local $N i32) (local $unit i32) (local $s0 f64) (local $s1 f64)
     (local.set $out (i32.load (local.get $prm)))
     (local.set $flags (i32.load offset=36 (local.get $prm)))
-    (block $ke (loop $kl (br_if $ke (i32.ge_u (local.get $k) (i32.const 16)))
+    (local.set $N (global.get $cw))
+    (local.set $unit (i32.div_u (i32.const 32) (local.get $N)))   ;; table steps per angle unit pi / 2N
+    (local.set $s0 (select (f64.const 0.17677669529663688) (f64.const 0.25) (i32.eq (local.get $N) (i32.const 32))))   ;; sqrt(1/N)
+    (local.set $s1 (select (f64.const 0.25) (f64.const 0.35355339059327376) (i32.eq (local.get $N) (i32.const 32))))   ;; sqrt(2/N)
+    (block $ke (loop $kl (br_if $ke (i32.ge_u (local.get $k) (local.get $N)))
       (local.set $acc (f64.const 0))
       (local.set $n (i32.const 0))
-      (block $ne (loop $nl (br_if $ne (i32.ge_u (local.get $n) (i32.const 16)))
+      (block $ne (loop $nl (br_if $ne (i32.ge_u (local.get $n) (local.get $N)))
         (local.set $t (f64.convert_i32_s (i32.sub (i32.load8_u (i32.add (local.get $p) (local.get $n))) (i32.const 128))))
         (if (local.get $inv)
-          (then   ;; output sample k from coefficient n: 2 s(n) cos(pi (2k+1) n / 32)
+          (then   ;; output sample k from coefficient n: 2 s(n) cos(pi (2k+1) n / 2N)
             (local.set $m (i32.mul (i32.add (i32.shl (local.get $k) (i32.const 1)) (i32.const 1)) (local.get $n)))
-            (local.set $c (select (f64.const 0.5) (f64.const 0.70710678118654752) (i32.eqz (local.get $n)))))
-          (else   ;; coefficient k from sample n: s(k)/2 cos(pi (2n+1) k / 32)
+            (local.set $c (f64.mul (f64.const 2) (select (local.get $s0) (local.get $s1) (i32.eqz (local.get $n))))))
+          (else   ;; coefficient k from sample n: s(k)/2 cos(pi (2n+1) k / 2N)
             (local.set $m (i32.mul (i32.add (i32.shl (local.get $n) (i32.const 1)) (i32.const 1)) (local.get $k)))
-            (local.set $c (select (f64.const 0.125) (f64.const 0.17677669529663688) (i32.eqz (local.get $k))))))
+            (local.set $c (f64.mul (f64.const 0.5) (select (local.get $s0) (local.get $s1) (i32.eqz (local.get $k)))))))
         (local.set $acc (f64.add (local.get $acc) (f64.mul (f64.mul (local.get $t) (local.get $c))
-          (f64.load (i32.add (i32.const 512) (i32.shl (i32.and (local.get $m) (i32.const 63)) (i32.const 3)))))))
+          (call $cos64 (i32.mul (local.get $m) (local.get $unit))))))
         (local.set $n (i32.add (local.get $n) (i32.const 1))) (br $nl)))
       (local.set $v (i32.add (i32.const 128) (i32.trunc_f64_s (f64.nearest (local.get $acc)))))
       (local.set $v (select (i32.const 0) (select (i32.const 255) (local.get $v) (i32.gt_s (local.get $v) (i32.const 255))) (i32.lt_s (local.get $v) (i32.const 0))))

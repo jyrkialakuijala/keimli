@@ -6,7 +6,7 @@ const dir = process.argv[2] || new URL('..', import.meta.url).pathname.replace(/
 const Codec = vm.runInThisContext(fs.readFileSync(dir + '/src/changers/codec.js', 'utf8') + '; Codec');
 const text = fs.readFileSync(dir + '/src/changers/declaration.txt', 'utf8').trim();
 const { instance } = await WebAssembly.instantiate(fs.readFileSync(dir + '/build/keimli.wasm'));
-const { memory, mix, mix_from, render, bits, randomize, decode_pixel, blend, sharpen } = instance.exports;
+const { memory, mix, mix_from, render, bits, randomize, decode_pixel, blend, sharpen, mutate, links, links_reset } = instance.exports;
 let fails = 0; const check = (n, ok) => { console.log((ok ? 'ok  ' : 'FAIL') + ' ' + n); if (!ok) fails++; };
 const L = Codec.LAYOUT, PRM = L.PRM, GRID = L.GRID;
 // per-column swap threshold table (uniform value), returns its address
@@ -99,6 +99,38 @@ check('random pixels consume a plausible number of bits', consumed / N > 20 && c
     check('Z80 LD HL,1234h; INC HL; LD (0Eh),HL', r.mem[14] === 0x35 && r.mem[15] === 0x12 && r16(r.regs, 4) === 0x1235);
     r = runZ(z('01 CD AB C5 18 FE'));
     check('Z80 PUSH BC writes below SP (wrapping to bytes 14,15) and SP becomes FFFEh', r.mem[14] === 0xcd && r.mem[15] === 0xab && r16(r.regs, 20) === 0xfffe);
+    r = runZ(z('01 CD AB 11 34 12 C5 D5 18 FE'));
+    check('Z80 PUSH BC; PUSH DE: the stack walks down two bytes a push, BC at 14,15 and DE at 12,13, SP = FFFCh', r.mem[14] === 0xcd && r.mem[15] === 0xab && r.mem[12] === 0x34 && r.mem[13] === 0x12 && r16(r.regs, 20) === 0xfffc);
+    r = runZ(z('01 CD AB C5 D1 18 FE'));
+    check('Z80 PUSH BC; POP DE: POP reads the pushed value back (DE = ABCDh), SP returns to 0 and the bytes stay in memory', r16(r.regs, 2) === 0xabcd && r16(r.regs, 20) === 0 && r.mem[14] === 0xcd && r.mem[15] === 0xab);
+    r = runZ(z('31 01 00 01 CD AB C5 18 FE'));
+    check('Z80 LD SP,1; PUSH BC: SP becomes FFFFh and the two bytes wrap one by one, low byte at 15, high byte at 0', r16(r.regs, 20) === 0xffff && r.mem[15] === 0xcd && r.mem[0] === 0xab);
+    r = runZ(z('CD 08 00 00 00 00 00 00 3E 2A 18 FE'));
+    check('Z80 CALL 8 pushes the return address 0003h at 14,15 (SP = FFFEh); the routine loops without a RET, so it stays there', r.mem[14] === 0x03 && r.mem[15] === 0x00 && r16(r.regs, 20) === 0xfffe && r.regs[7] === 0x2a);
+    r = runZ(z('CF 00 00 00 00 00 00 00 3E 2A 18 FE'));
+    check('Z80 RST 08h pushes the return address 0001h at 14,15 and jumps to 8', r.mem[14] === 0x01 && r.mem[15] === 0x00 && r16(r.regs, 20) === 0xfffe && r.regs[7] === 0x2a);
+    r = runZ(z('31 0C 00 21 00 00 39 E5 18 FE'));
+    check('Z80 LD SP,12; LD HL,0; ADD HL,SP; PUSH HL: the stack pointer\'s own value (000Ch) goes onto the stack at 10,11, SP = 10', r.mem[10] === 0x0c && r.mem[11] === 0x00 && r16(r.regs, 20) === 10 && r16(r.regs, 4) === 12);
+    r = runZ(z('31 0C 00 ED 73 0E 00 18 FE'));
+    check('Z80 LD (0Eh),SP stores SP (000Ch) without moving it', r.mem[14] === 0x0c && r.mem[15] === 0x00 && r16(r.regs, 20) === 12);
+    r = runZ(z('31 0E 00 21 34 12 E3 18 FE 00 00 00 00 00 CD AB'));
+    check('Z80 EX (SP),HL swaps HL with the word at the top of the stack in place: HL = ABCDh, bytes 14,15 = 34 12, SP unchanged', r16(r.regs, 4) === 0xabcd && r.mem[14] === 0x34 && r.mem[15] === 0x12 && r16(r.regs, 20) === 14);
+    r = runZ(z('31 0E 00 DD 21 34 12 DD E3 18 FE 00 00 00 CD AB'));
+    check('Z80 EX (SP),IX likewise', r16(r.regs, 16) === 0xabcd && r.mem[14] === 0x34 && r.mem[15] === 0x12 && r16(r.regs, 20) === 14);
+    r = runZ(z('31 0E 00 01 34 12 C5 E1 18 FE'));
+    check('Z80 PUSH BC; POP HL with SP = 14 round-trips through bytes 12,13: HL = 1234h, SP back at 14', r16(r.regs, 4) === 0x1234 && r.mem[12] === 0x34 && r.mem[13] === 0x12 && r16(r.regs, 20) === 14);
+    r = runZ(z('31 02 00 01 34 12 C5 18 FE'));
+    check('Z80 LD SP,2; PUSH BC writes over the code at bytes 0,1 and SP becomes 0', r.mem[0] === 0x34 && r.mem[1] === 0x12 && r16(r.regs, 20) === 0);
+    r = runZ(z('21 0E 00 3E 12 ED 67 18 FE 00 00 00 00 00 AB 00'));
+    check('Z80 RRD with A = 12h, (HL) = ABh: A = 1Bh, (HL) = 2Ah, parity even', r.regs[7] === 0x1b && r.mem[14] === 0x2a && (r.regs[6] & 0x04) !== 0 && (r.regs[6] & 0xc1) === 0);
+    r = runZ(z('21 0E 00 3E 12 ED 6F 18 FE 00 00 00 00 00 AB 00'));
+    check('Z80 RLD with A = 12h, (HL) = ABh: A = 1Ah, (HL) = B2h, parity odd', r.regs[7] === 0x1a && r.mem[14] === 0xb2 && (r.regs[6] & 0x04) === 0);
+    r = runZ(z('21 0F 00 11 0E 00 01 01 00 ED A8 18 FE 00 00 77'));
+    check('Z80 LDD copies (HL) to (DE) and decrements HL, DE and BC', r.mem[14] === 0x77 && r16(r.regs, 4) === 14 && r16(r.regs, 2) === 13 && r16(r.regs, 0) === 0);
+    r = runZ(z('21 01 00 11 0F 00 01 02 00 ED B8 18 FE 00 00 00'));
+    check('Z80 LDDR copies two bytes downward from 1 to 15: bytes 14,15 = 21 01, HL wraps to FFFFh, DE = 13, BC = 0', r.mem[14] === 0x21 && r.mem[15] === 0x01 && r16(r.regs, 4) === 0xffff && r16(r.regs, 2) === 13 && r16(r.regs, 0) === 0);
+    r = runZ(z('21 0C 00 01 04 00 3E 42 ED B1 18 FE 00 42 00 00'));
+    check('Z80 CPIR stops at the match at 13: HL = 14, BC = 2, Z set, P/V set (BC not 0), memory untouched', r16(r.regs, 4) === 14 && r16(r.regs, 0) === 2 && (r.regs[6] & 0x44) === 0x44 && r.mem[13] === 0x42 && r.mem[12] === 0);
     r = runZ(z('3E 81 CB 07 18 FE'));
     check('Z80 RLC A: 81h -> 03h with carry', r.regs[7] === 0x03 && (r.regs[6] & 1) === 1);
     r = runZ(z('06 05 3C 10 FD 18 FE'));
@@ -112,7 +144,7 @@ check('random pixels consume a plausible number of bits', consumed / N > 20 && c
     r = runZ(z('3E 0F C6 01 27 18 FE'));
     check('Z80 ADD A,1 to 0Fh then DAA -> 16h', r.regs[7] === 0x16);
     r = runZ(z('CD 08 00 18 FE 00 00 00 3E 2A C9'));
-    check('Z80 CALL 8 / RET returns to the loop with A=2Ah', r.regs[7] === 0x2a && r.pc === 3);
+    check('Z80 CALL 8 / RET returns to the loop with A=2Ah; RET popped the address, SP back at 0', r.regs[7] === 0x2a && r.pc === 3 && r16(r.regs, 20) === 0);
     r = runZ(z('3E 55 EE FF 18 FE'));
     check('Z80 XOR FFh gives AAh with S set and parity even', r.regs[7] === 0xaa && (r.regs[6] & 0x80) && (r.regs[6] & 0x04));
     r = runZ(z('01 0E 00 3E 55 02 18 FE'));
@@ -431,7 +463,7 @@ check('random pixels consume a plausible number of bits', consumed / N > 20 && c
   check(`DCT then inverse DCT reproduces a small-amplitude vector to within rounding (max error ${err})`, err <= 3);
   d = dct(new Uint8Array(16).fill(255), 0);
   check('DCT clamps: all-255 input gives a clipped DC of 255 and no trap', d.o[0] === 255 && d.o.slice(1).every(b => b === 128));
-  check('cosine table installed at LAYOUT.COS', Math.abs(new Float64Array(memory.buffer, Codec.LAYOUT.COS, 64)[16]) < 1e-12 && new Float64Array(memory.buffer, Codec.LAYOUT.COS, 64)[0] === 1);
+  check('cosine table installed at LAYOUT.COS: cos(pi m / 64), m = 0..32', Math.abs(new Float64Array(memory.buffer, Codec.LAYOUT.COS, 33)[32]) < 1e-12 && new Float64Array(memory.buffer, Codec.LAYOUT.COS, 33)[0] === 1 && Math.abs(new Float64Array(memory.buffer, Codec.LAYOUT.COS, 33)[16] - Math.SQRT1_2) < 1e-12);
   io.setChanger(0);
   words.fill(0n); decode_pixel(GRID, 0, PRM);
   check('changer 0 restores the LZ decompressor', out().every((b, k) => b === txt(k)));
@@ -508,34 +540,62 @@ check('mode 2 colours by cursor offset', (px[0] & 255) === Math.floor(c300 * 128
 // ---- mix: conservation, one swap per pair, thresholds, wrap, order independence
 const thr = (1n << 64n) / 16n;
 words.fill(0n); for (let i = 0; i < N; i += 2) { words[2 * i] = ~0n; words[2 * i + 1] = ~0n; }
-const s = mix(W, H, GRID, 0, thrTab(thr), 0n);
+const s = mix(W, H, GRID, 0, 0, thrTab(thr), 0n);
 check('identical contexts decide alike: all pairs or none (' + s + ')', s === 0 || s === 32);
-check('threshold max: one swap in every pair', mix(W, H, GRID, 0, thrTab(~0n), 0n) === 32);
+check('threshold max: one swap in every pair', mix(W, H, GRID, 0, 0, thrTab(~0n), 0n) === 32);
 check('bits conserved', bits(N, GRID) === 32 * 128);
 words.fill(0n); words[0] = 1n;
-check('threshold 0 no swaps', mix(W, H, GRID, 0, thrTab(0n), 0n) === 0 && words[0] === 1n);
-check('threshold max swaps the differing bit', mix(W, H, GRID, 0, thrTab(~0n), 0n) === 1 && words[0] === 0n && words[2] === 1n);
+check('threshold 0 no swaps', mix(W, H, GRID, 0, 0, thrTab(0n), 0n) === 0 && words[0] === 1n);
+check('threshold max swaps the differing bit', mix(W, H, GRID, 0, 0, thrTab(~0n), 0n) === 1 && words[0] === 0n && words[2] === 1n);
 words.fill(0n); words[2 * 7] = 1n;
-const sw = mix(W, H, GRID, 2, thrTab(~0n), 0n);
-check('no wrap-around: x=7 has no partner in the odd phase, bit stays (' + sw + ' swaps)', words[0] === 0n && words[2 * 7] === 1n && sw === 0);
-words.fill(0n); for (let y = 0; y < H; y++) words[2 * ((H - 1) * W + y % W)] = 1n;
-check('no wrap-around: the last row has no partner below in the odd up-down phase', mix(W, H, GRID, 3, thrTab(~0n), 0n) === 0);
+let sw = mix(W, H, GRID, 2, 1, thrTab(~0n), 0n);
+check('no wrap-around: x=7 has no left-right partner in the odd phase, and with edge offset 1 row 0 has no partner below, bit stays (' + sw + ' swaps)', words[0] === 0n && words[2 * 7] === 1n && sw === 0);
+sw = mix(W, H, GRID, 2, 0, thrTab(~0n), 0n);
+check('leftover column: with edge offset 0 pixel (7,0) pairs down with (7,1) in the odd left-right phase (' + sw + ' swaps)', words[2 * 7] === 0n && words[2 * (W + 7)] === 1n && sw === 1);
+words.fill(0n); for (let x = 0; x < W; x += 2) words[2 * ((H - 1) * W + x)] = 1n;
+sw = mix(W, H, GRID, 3, 1, thrTab(~0n), 0n);
+check('leftover row: the last row has no partner below in the odd up-down phase and pairs left-right instead, offset 1: 3 pairs (' + sw + ')', sw === 3 && words[2 * ((H - 1) * W)] === 1n && words[2 * ((H - 1) * W + 1)] === 1n && words[2 * ((H - 1) * W + 2)] === 0n);
+words.fill(0n); for (let x = 0; x < W; x += 2) words[2 * ((H - 1) * W + x)] = 1n;
+sw = mix(W, H, GRID, 3, 0, thrTab(~0n), 0n);
+check('leftover row, offset 0: 4 pairs, the bits stay in the last row (' + sw + ')', sw === 4 && bits(N, GRID) === 4 && Array.from({ length: W }, (_, x) => words[2 * ((H - 1) * W + x)]).every((v, x) => v === (x & 1 ? 1n : 0n)));
+// every pixel takes part in the same number of exchanges a turn: count, per phase from a fresh grid of distinct
+// pixels at threshold max (every pair exchanges), the pixels that changed; with the page's edge parities an
+// interior or edge pixel takes part in four exchanges a turn and a corner in three (even sizes), and over two
+// turns every pixel of an odd-sized grid has eight exchanges except the corners with six
+{
+  const ops = (w, h, alt) => {
+    const n = w * h, c = new Int32Array(n), wd = new BigUint64Array(memory.buffer, GRID, 2 * n);
+    for (const ph of [1, 0, 3, 2]) {
+      for (let i = 0; i < n; i++) { wd[2 * i] = BigInt(i + 1) * 0x9E37n; wd[2 * i + 1] = 0n; }
+      mix(w, h, GRID, ph, (ph & 1) ? alt ^ 1 : alt, thrTab(~0n, w), 0n);
+      for (let i = 0; i < n; i++) if (wd[2 * i] !== BigInt(i + 1) * 0x9E37n) c[i]++;
+    }
+    return c;
+  };
+  const corner = (w, h, i) => (i % w === 0 || i % w === w - 1) && (i < w || i >= w * (h - 1));
+  let even = true;
+  for (const alt of [0, 1]) { const c = ops(8, 8, alt); for (let i = 0; i < 64; i++) even &&= c[i] === (corner(8, 8, i) ? 3 : 4); }
+  check('edge pairs: on an 8x8 grid every pixel has four exchanges a turn, a corner three, for either turn parity', even);
+  const c0 = ops(7, 5, 0), c1 = ops(7, 5, 1); let odd = true;
+  for (let i = 0; i < 35; i++) odd &&= c0[i] + c1[i] === (corner(7, 5, i) ? 6 : 8);
+  check('edge pairs: on a 7x5 grid every pixel has eight exchanges in two turns, a corner six', odd);
+}
 // decisions from a snapshot (mix_from): the turn's phases all decide on the map before the first phase
 {
   const SNAP = GRID + 16 * N + 64, snap = new BigUint64Array(memory.buffer, SNAP, 2 * N);
   words.fill(0n); snap.fill(0n);
   snap[0] = 8n;                       // snapshot: pixels 0 and 1 differ only at bit 3
   words[0] = 9n;                      // live: they differ at bits 0 and 3
-  let r = mix_from(W, H, GRID, SNAP, 0, thrTab(~0n), 0n);
+  let r = mix_from(W, H, GRID, SNAP, 0, 0, thrTab(~0n), 0n);
   check('snapshot decides the position: bit 3 (lowest differing in the snapshot) is exchanged, bit 0 is left alone', r === 1 && words[0] === 1n && words[2] === 8n);
   words.fill(0n); words[0] = 8n; words[2] = 8n;   // live: equal at bit 3 already
-  r = mix_from(W, H, GRID, SNAP, 0, thrTab(~0n), 0n);
+  r = mix_from(W, H, GRID, SNAP, 0, 0, thrTab(~0n), 0n);
   check('a decided exchange whose bits are already equal in the live map is a no-op and not counted', r === 0 && words[0] === 8n && words[2] === 8n);
   randomize(4 * N, GRID, 4242); const start = words.slice();
   snap.set(start);
-  let k = 1n; for (const set of [[0, 1], [2, 3], [0, 3], [2, 1]]) for (const ph of set) mix_from(W, H, GRID, SNAP, ph, thrTab(thr), k++);
+  let k = 1n; for (const set of [[0, 1], [2, 3], [0, 3], [2, 1]]) for (const ph of set) mix_from(W, H, GRID, SNAP, ph, 0, thrTab(thr), k++);
   const fromSnap = words.slice(), pop = a => a.reduce((c, w) => { let v = w; while (v) { v &= v - 1n; c++; } return c; }, 0);
-  words.set(start); k = 1n; for (const set of [[0, 1], [2, 3], [0, 3], [2, 1]]) for (const ph of set) mix(W, H, GRID, ph, thrTab(thr), k++);
+  words.set(start); k = 1n; for (const set of [[0, 1], [2, 3], [0, 3], [2, 1]]) for (const ph of set) mix(W, H, GRID, ph, 0, thrTab(thr), k++);
   check('a whole turn from the snapshot conserves bits and differs from the sequential (live-decided) turn', pop(fromSnap) === pop(start) && snap.every((w, i) => w === start[i]) && fromSnap.some((w, i) => w !== words[i]));
 }
 // LZ cursor offset is a parameter (default 600), added to the header cursor and wrapped
@@ -578,25 +638,25 @@ check('no wrap-around: the last row has no partner below in the odd up-down phas
 {
   const tab = new BigUint64Array(memory.buffer, L.THR, W); for (let x = 0; x < W; x++) tab[x] = x < 4 ? ~0n : 0n;
   words.fill(0n); for (let i = 0; i < N; i++) if (i % 2) { words[2 * i] = ~0n; words[2 * i + 1] = ~0n; }
-  const s = mix(W, H, GRID, 0, L.THR, 0n);
+  const s = mix(W, H, GRID, 0, 0, L.THR, 0n);
   check('column threshold table: pairs starting in columns 0-3 swap, 4-7 do not (' + s + ' = 16)', s === 16);
 }
 randomize(4 * N, GRID, 1234);
 const snap = Array.from(words);
-mix(W, H, GRID, 0, thrTab(thr), 0n);
+mix(W, H, GRID, 0, 0, thrTab(thr), 0n);
 const resA = Array.from(words);
 for (let i = 0; i < N; i += 2) { words[2 * i] = snap[2 * (i + 1)]; words[2 * i + 1] = snap[2 * (i + 1) + 1]; words[2 * (i + 1)] = snap[2 * i]; words[2 * (i + 1) + 1] = snap[2 * i + 1]; }
-mix(W, H, GRID, 0, thrTab(thr), 0n);
+mix(W, H, GRID, 0, 0, thrTab(thr), 0n);
 let same = true;
 for (let i = 0; i < N; i += 2) { same &&= words[2 * i] === resA[2 * (i + 1)] && words[2 * i + 1] === resA[2 * (i + 1) + 1] && words[2 * (i + 1)] === resA[2 * i] && words[2 * (i + 1) + 1] === resA[2 * i + 1]; }
 check('swap decision is independent of pixel order', same);
 check('something moved in that random turn', resA.some((v, k) => v !== snap[k]));
 const halves = () => { for (let i = 0; i < N; i++) { const v = (i % W) < 4 ? ~0n : 0n; words[2 * i] = v; words[2 * i + 1] = v; } };
 const colBits = () => Array.from({ length: W }, (_, x) => { let c = 0; for (let y = 0; y < H; y++) { const i = y * W + x; for (const w of [words[2 * i], words[2 * i + 1]]) { let v = w; while (v) { v &= v - 1n; c++; } } } return c; });
-halves(); for (let t = 0; t < 300; t++) mix(W, H, GRID, t & 3, thrTab(thr), 0n);
+halves(); for (let t = 0; t < 300; t++) mix(W, H, GRID, t & 3, 0, thrTab(thr), 0n);
 console.log('   unseeded halves after 300 turns: ' + JSON.stringify(colBits()));
 check('bits conserved after halves run', bits(N, GRID) === 4 * H * 128);
-halves(); for (let t = 0; t < 300; t++) mix(W, H, GRID, t & 3, thrTab(thr), BigInt(t + 1));
+halves(); for (let t = 0; t < 300; t++) mix(W, H, GRID, t & 3, 0, thrTab(thr), BigInt(t + 1));
 console.log('   seeded halves after 300 turns:   ' + JSON.stringify(colBits()));
 check('seeded halves reach every column', colBits().every(c => c > 0));
 
@@ -701,7 +761,7 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   randomize(4 * N3, GRID, 99);
   let movedTotal = 0, worst = 1e9;
   const t2 = performance.now();
-  for (let turn = 0; turn < 200; turn++) { const mv = mix(W3, H3, GRID, turn & 3, thrTab(thr, W3), 0n); movedTotal += mv; if (mv < worst) worst = mv; }
+  for (let turn = 0; turn < 200; turn++) { const mv = mix(W3, H3, GRID, turn & 3, 0, thrTab(thr, W3), 0n); movedTotal += mv; if (mv < worst) worst = mv; }
   console.log(`   200 turns from a random start: ${(performance.now() - t2).toFixed(0)} ms, ${movedTotal} bits moved, quietest turn ${worst}`);
   check('default start keeps moving under the context-only rule', worst > 100);
 }
@@ -760,34 +820,71 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   check('sharpen: a linear ramp is unchanged inside, the edge columns extrapolate (2*0-(10+0)/3 -> 0 at the corner, 2*50-(40+50+50)/3 = 53 at the right edge)',
     org(2 * W + 2)[0] === 20 && org(2 * W + 3)[0] === 30 && org(0)[0] === 0 && org(2 * W + 5)[0] === 53);
 }
-// ---- pairs: two cells changed together (change() with pairMode 1 = concatenated, 2 = bit-interleaved; flip swaps the roles)
+// ---- pairs: two cells changed together (change() with pairMode 1 = concatenated, 2 = bit-interleaved, 3 = xor then add, 4 = add then subtract, 5 = byte-interleaved; flip swaps the roles)
 {
   const bitsOf = arr => { const o = []; for (let i = 0; i < arr.length * 8; i++) o.push((arr[i >> 3] >> (i & 7)) & 1); return o; };
   const fromBits = bits => { const a = new Uint8Array(bits.length / 8); bits.forEach((b, i) => { a[i >> 3] |= b << (i & 7); }); return a; };
   const joinRef = (A, B, mode, flip) => { const [a, b] = flip ? [B, A] : [A, B]; if (mode === 1) return Uint8Array.from([...a, ...b]);
+    if (mode === 3) return Uint8Array.from([...a.map((v, k) => v ^ b[k]), ...b.map((v, k) => (v + (a[k] ^ v)) & 255)]);
+    if (mode === 4) return Uint8Array.from([...a.map((v, k) => (v + b[k]) & 255), ...a.map((v, k) => (v - (((v + b[k]) & 255) >> 1)) & 255)]);
+    if (mode === 5) return Uint8Array.from({ length: 32 }, (_, i) => (i & 1 ? b : a)[i >> 1]);
     const ab = bitsOf(a), bb = bitsOf(b), j = []; for (let k = 0; k < 128; k++) j.push(ab[k], bb[k]); return fromBits(j); };
   const splitRef = (J, mode, flip) => { let a, b; if (mode === 1) { a = J.slice(0, 16); b = J.slice(16); }
+    else if (mode === 3) { const x = J.slice(0, 16), y = J.slice(16); b = y.map((v, k) => (v - x[k]) & 255); a = x.map((v, k) => v ^ b[k]); }
+    else if (mode === 4) { const sm = J.slice(0, 16), d = J.slice(16); a = d.map((v, k) => (v + (sm[k] >> 1)) & 255); b = sm.map((v, k) => (v - a[k]) & 255); }
+    else if (mode === 5) { a = J.filter((_, i) => i % 2 === 0); b = J.filter((_, i) => i % 2 === 1); }
     else { const jb = bitsOf(J); a = fromBits(jb.filter((_, i) => i % 2 === 0)); b = fromBits(jb.filter((_, i) => i % 2 === 1)); } return flip ? [b, a] : [a, b]; };
+  // the lifting joinings are bijections on byte pairs: every (a, b) round-trips through the reference
+  {
+    let bij = true;
+    for (const mode of [3, 4]) for (let a = 0; a < 256 && bij; a++) for (let b = 0; b < 256; b++) {
+      const J = joinRef(new Uint8Array(16).fill(a), new Uint8Array(16).fill(b), mode, 0), [a2, b2] = splitRef(J, mode, 0);
+      if (a2[0] !== a || b2[0] !== b) { bij = false; break; }
+    }
+    check('pairs: xor-then-add and add-then-subtract round-trip every pair of bytes (reference)', bij);
+  }
   const A = Uint8Array.from({ length: 16 }, (_, k) => (k * 37 + 11) & 255), B = Uint8Array.from({ length: 16 }, (_, k) => (k * 91 + 200) & 255);
   const px = i => m8.slice(GRID + 16 * i, GRID + 16 * i + 16), eq = (x, y) => x.length === y.length && x.every((v, k) => v === y[k]);
   const { change } = instance.exports;
   const run = (changer, mode, flip, a = A, b = B) => { io.setChanger(changer); io.setPair(mode, flip); m8.set(a, GRID); m8.set(b, GRID + 16); const n = change(2, GRID, PRM); io.setPair(0, 0); return n; };
   // the bijection: do nothing round-trips both representations, in both flips
   let ok = true;
-  for (const mode of [1, 2]) for (const flip of [0, 1]) { const n = run(3, mode, flip); if (n !== 0 || !eq(px(0), A) || !eq(px(1), B)) ok = false; }
-  check('pairs: "do nothing" on a joint cell leaves both cells unchanged (concatenated and interleaved, both flips)', ok);
+  for (const mode of [1, 2, 3, 4, 5]) for (const flip of [0, 1]) { const n = run(3, mode, flip); if (n !== 0 || !eq(px(0), A) || !eq(px(1), B)) ok = false; }
+  check('pairs: "do nothing" on a joint cell leaves both cells unchanged (all five joinings, both flips)', ok);
   // invert commutes with the mapping
   ok = true;
-  for (const mode of [1, 2]) for (const flip of [0, 1]) { run(4, mode, flip); if (!eq(px(0), A.map(v => v ^ 255)) || !eq(px(1), B.map(v => v ^ 255))) ok = false; }
-  check('pairs: invert on a joint cell inverts both cells', ok);
+  for (const mode of [1, 2, 5]) for (const flip of [0, 1]) { run(4, mode, flip); if (!eq(px(0), A.map(v => v ^ 255)) || !eq(px(1), B.map(v => v ^ 255))) ok = false; }
+  check('pairs: invert on a joint cell inverts both cells (the layout joinings: concatenated, bit- and byte-interleaved)', ok);
   // reverse bytes: compare with a JavaScript reference of join / reverse / split
   ok = true;
-  for (const mode of [1, 2]) for (const flip of [0, 1]) {
+  for (const mode of [1, 2, 3, 4, 5]) for (const flip of [0, 1]) {
     run(5, mode, flip);
     const J = joinRef(A, B, mode, flip), R = J.slice().reverse(), [a2, b2] = splitRef(R, mode, flip);
     if (!eq(px(0), a2) || !eq(px(1), b2)) ok = false;
   }
-  check('pairs: reverse bytes on the joint cell matches the reference join / reverse / split (both modes, both flips)', ok);
+  check('pairs: reverse bytes on the joint cell matches the reference join / reverse / split (all five joinings, both flips)', ok);
+  // the DCT on a joint cell is a 32-point transform over it: compare with a JavaScript reference of the kernel's formula
+  // (same summation order, round half to even), split back through the joining's inverse
+  const roundEven = x => { const r = Math.round(x); return Math.abs(x % 1) === 0.5 && r % 2 !== 0 ? r - 1 : r; };
+  const dctRef = (b, inv) => { const Nn = b.length, s0 = Math.sqrt(1 / Nn), s1 = Math.sqrt(2 / Nn), out = new Uint8Array(Nn);
+    for (let k = 0; k < Nn; k++) { let acc = 0;
+      for (let n = 0; n < Nn; n++) { const t = b[n] - 128, m = inv ? (2 * k + 1) * n : (2 * n + 1) * k, c = inv ? 2 * (n ? s1 : s0) : 0.5 * (k ? s1 : s0);
+        acc += (t * c) * Math.cos(Math.PI * m / (2 * Nn)); }
+      out[k] = Math.max(0, Math.min(255, 128 + roundEven(acc))); }
+    return out; };
+  for (const mode of [1, 3, 4]) {
+    const J = joinRef(A, B, mode, 0), D = dctRef(J, 0), [a2, b2] = splitRef(D, mode, 0);
+    run(17, mode, 0);
+    const name = { 1: 'concatenated', 3: 'xor-then-add', 4: 'add-then-subtract' }[mode];
+    const err = Math.max(...px(0).map((v, i) => Math.abs(v - a2[i])), ...px(1).map((v, i) => Math.abs(v - b2[i])));
+    check(`pairs: the DCT on a ${name} joint cell is the 32-point transform of the joint cell, split back by the inverse (max error ${err})`, err <= 1);
+  }
+  {
+    run(17, 1, 0); const d0 = px(0).slice(), d1 = px(1).slice();
+    run(18, 1, 0, d0, d1);
+    const err = Math.max(...px(0).map((v, i) => Math.abs(v - A[i])), ...px(1).map((v, i) => Math.abs(v - B[i])));
+    check(`pairs: 32-point DCT then inverse DCT returns the pair to within rounding (max error ${err})`, err <= 3);
+  }
   check('pairs: interleaving really mixes the cells: reversed interleaved A, B differ from reversed A and reversed B', !eq(px(0), A.slice().reverse()));
   // a Z80 program in A writes into B's half: the joint cell is the whole address space
   const prog = new Uint8Array(16); prog.set([0x3E, 0x42, 0x32, 0x14, 0x00, 0x76]);   // LD A,42h; LD (0014h),A; HALT
@@ -797,12 +894,15 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   check('pairs (concatenated, A then B): a Z80 program in A stores to address 20, which is byte 4 of B', px(1)[4] === 0x42 && px(0)[3] === 0x14 && px(0)[4] === 0);
   run(6, 1, 1, prog, zero);
   check('pairs (concatenated, B then A): the same store lands in A itself, since A now occupies addresses 16..31', px(0)[4] === 0x42 && px(1)[4] === 0);
+  const pushProg = new Uint8Array(16); pushProg.set([0x01, 0xCD, 0xAB, 0xC5, 0x76]);   // LD BC,ABCDh; PUSH BC; HALT
+  run(6, 1, 0, pushProg, zero);
+  check('pairs (concatenated, A then B): a PUSH from SP = 0 writes to FFFEh, which wraps to bytes 30,31, the last two bytes of B', px(1)[14] === 0xcd && px(1)[15] === 0xab && px(0)[14] === 0 && px(0)[15] === 0);
   io.setSteps(256);
-  // the 128-bit changers see the joint cell as two 16-byte cells: a pair DCT equals two single DCTs
-  io.setChanger(17); io.setPair(0, 0); m8.set(A, GRID); decode_pixel(GRID, 0, PRM); const dA = m8.slice(io.OUT, io.OUT + 16);
+  // the 128-bit machines see the joint cell as two 16-byte cells: a pair PDP-8 run equals two single runs
+  io.setChanger(19); io.setPair(0, 0); m8.set(A, GRID); decode_pixel(GRID, 0, PRM); const dA = m8.slice(io.OUT, io.OUT + 16);
   m8.set(B, GRID); decode_pixel(GRID, 0, PRM); const dB = m8.slice(io.OUT, io.OUT + 16);
-  run(17, 1, 1);
-  check('pairs: the DCT on a concatenated joint cell transforms each cell separately (B then A, then split back)', eq(px(0), dA) && eq(px(1), dB));
+  run(19, 1, 1);
+  check('pairs: the PDP-8 on a concatenated joint cell runs each cell separately (B then A, then split back)', eq(px(0), dA) && eq(px(1), dB));
   // the LZ decompressor on a joint cell: 32 bytes of dictionary text, cursor from the first 13 of the 256 bits
   io.setChanger(0); io.setCursorOffset(0);
   const words = new BigUint64Array(memory.buffer, GRID, 4); words.fill(0n);
@@ -813,5 +913,66 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   // single-cell decoding is untouched afterwards: the cell width is back at 16
   m8.set(A, GRID); io.setChanger(3); decode_pixel(GRID, 0, PRM);
   check('after a pair change the single-cell path is back: decode_pixel of "do nothing" copies 16 bytes', m8.slice(io.OUT, io.OUT + 16).every((b, k) => b === A[k]));
+}
+// ---- mutate(n, grid, base, lam, salt): random bit flips, lam = expected flips per cell in 32.32 fixed point
+{
+  const n = 4096, bytes = 16 * n, fx = x => BigInt(Math.round(x * 2 ** 32));
+  const zero = () => m8.fill(0, GRID, GRID + bytes);
+  zero(); check('mutate: lam 0 flips nothing', mutate(n, GRID, 0, 0n, 7n) === 0 && bits(n, GRID) === 0);
+  zero(); const f1 = mutate(n, GRID, 0, fx(1), 7n);
+  check('mutate: lam 1 flips exactly one bit in every cell (' + f1 + ' flips, ' + bits(n, GRID) + ' set bits)', f1 === n && bits(n, GRID) === n);
+  zero(); const fq = mutate(n, GRID, 0, fx(0.25), 7n);
+  check('mutate: lam 0.25 flips about a quarter of the cells (' + fq + ' of ' + n + ')', fq > 900 && fq < 1150);
+  zero(); const f25 = mutate(n, GRID, 0, fx(2.5), 7n);
+  check('mutate: lam 2.5 gives every cell 2 or 3 flips (' + f25 + ' flips, expected 10240)', f25 > 10100 && f25 < 10380);
+  zero(); mutate(n, GRID, 0, fx(0.5), 11n); const a = m8.slice(GRID, GRID + bytes);
+  zero(); mutate(n, GRID, 0, fx(0.5), 11n); const b = m8.slice(GRID, GRID + bytes);
+  zero(); mutate(n, GRID, 0, fx(0.5), 12n); const c = m8.slice(GRID, GRID + bytes);
+  check('mutate: the same salt flips the same bits, another salt different ones', a.every((v, i) => v === b[i]) && !a.every((v, i) => v === c[i]));
+  zero(); mutate(1000, GRID, 0, fx(0.5), 11n); mutate(n - 1000, GRID + 16000, 1000, fx(0.5), 11n); const d = m8.slice(GRID, GRID + bytes);
+  check('mutate: two row bands with their global base indices reproduce the whole-grid flips bit for bit', a.every((v, i) => v === d[i]));
+  zero(); const tiny = mutate(n, GRID, 0, fx(0.00128), 5n);
+  check('mutate: the page default, 0.001 % of bits, is a handful of flips on 4096 cells (' + tiny + ', expected 5)', tiny >= 0 && tiny <= 15);
+}
+// ---- links: two persistent CPUs per pair of neighbours (one per direction), one instruction per link per phase
+{
+  const w = 4, h = 2, n = w * h, ST = GRID + (1 << 16), px = i => m8.slice(GRID + 16 * i, GRID + 16 * i + 16);
+  const order = [1, 0, 3, 2], turnLinks = () => order.reduce((c, ph) => c + links(w, h, GRID, PRM, ph, ST), 0);
+  const prog = [0x21, 0x14, 0x00, 0x34, 0x18, 0xFD];   // LD HL,0014h; INC (HL); JR -3: increments byte 4 of the other pixel every second instruction
+  m8.fill(0, GRID, GRID + 16 * n);
+  m8.set(prog, GRID);   // pixel (0,0): its forward machines (to (1,0) and (0,1)) run it; the backward machines of those pairs start in the partner (zeros = NOPs)
+  io.setChanger(6); io.setPair(0, 0); links_reset(ST, 4 * n, 6);
+  const c1 = turnLinks(), c2 = turnLinks();
+  check('links: turn 1 loads HL (nothing changes), turn 2 increments in both forward links of (0,0): right and down partners (' + c1 + ', ' + c2 + ' pixel writes)', c1 === 0 && c2 === 2 && px(1)[4] === 1 && px(4)[4] === 1);
+  for (let t = 3; t <= 10; t++) turnLinks();
+  check('links: after 10 turns each forward machine has run 10 instructions, 5 of them INC: partners at 5, the program and the rest untouched',
+    px(1)[4] === 5 && px(4)[4] === 5 && px(0).slice(0, 6).join() === '33,20,0,52,24,253' && [2, 3, 5, 6, 7].every(i => px(i).every(v => v === 0)));
+  const st = m8.slice(ST, ST + 128), bk = m8.slice(ST + 128, ST + 256);
+  check('links: the forward state of pair 0 persists: PC (register-file offset 22) points into the loop, HL = 0x14', (st[22] === 3 || st[22] === 4) && st[4] === 0x14 && st[5] === 0);
+  check('links: the backward machine of pair 0 is separate: it has fetched 10 NOPs from (1,0), PC = 10, HL = 0', bk[22] === 10 && bk[4] === 0 && bk[5] === 0);
+  links_reset(ST, 4 * n, 6); m8.fill(0, GRID + 16, GRID + 16 * n);
+  for (let t = 1; t <= 10; t++) turnLinks();
+  check('links: after a reset the run repeats exactly', px(1)[4] === 5 && px(4)[4] === 5);
+  // the backward direction: the same program in pixel (1,0) is run by that pixel's forward link to (2,0) and by the
+  // backward link of the pair (0,0)-(1,0), whose memory is (1,0) then (0,0), so it increments byte 4 of (0,0)
+  links_reset(ST, 4 * n, 6); m8.fill(0, GRID, GRID + 16 * n); m8.set(prog, GRID + 16);
+  for (let t = 1; t <= 10; t++) turnLinks();
+  check('links: a program in (1,0) reaches (0,0) through the backward link and (2,0), (1,1) through its forward links: all at 5',
+    px(0)[4] === 5 && px(2)[4] === 5 && px(5)[4] === 5 && px(1).slice(0, 6).join() === '33,20,0,52,24,253');
+  // write-back is immediate: a machine's write to its partner is seen by the machines that run after it in the same
+  // round. (0,0) runs LD A,3Ch; LD (0011h),A, storing an INC A opcode into byte 1 of (1,0) in round 2 (phase LR0).
+  // The backward machine of the same pair, which executes (1,0)'s bytes and runs right after, fetches that byte in
+  // round 2 and so does the forward machine of the pair (1,0)-(2,0) in phase LR1 later in the round: both have A = 1
+  // at the end of round 2, which deferred write-back would delay to round 3.
+  links_reset(ST, 4 * n, 6); m8.fill(0, GRID, GRID + 16 * n); m8.set([0x3E, 0x3C, 0x32, 0x11, 0x00, 0x18, 0xFE], GRID);
+  turnLinks();
+  const Aat = i => m8[ST + 128 * i + 7], a1 = [Aat(1), Aat(2)];
+  turnLinks();
+  check('links: a byte written into (1,0) in round 2 is executed in the same round by the backward machine of its pair and by the next phase\'s machine (A: ' + a1 + ' after round 1, ' + [Aat(1), Aat(2)] + ' after round 2)',
+    px(1)[1] === 0x3C && a1[0] === 0 && a1[1] === 0 && Aat(1) === 1 && Aat(2) === 1);
+  links_reset(ST, 4 * n, 7);
+  check('links: a 6502 reset gives every link P = 0x24 and S = 0xFF', m8[ST + 4] === 0x24 && m8[ST + 3] === 0xFF && m8[ST + 128 * (4 * n - 1) + 4] === 0x24);
+  io.setChanger(0); io.setPair(0, 0); links_reset(ST, 4 * n, 0);
+  check('links: a non-CPU changer does nothing (' + turnLinks() + ' changes)', true);
 }
 console.log(fails ? fails + ' failures' : 'all passed'); process.exit(fails ? 1 : 0);

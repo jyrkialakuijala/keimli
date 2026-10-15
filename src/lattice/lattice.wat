@@ -82,7 +82,45 @@
       (br $l1)))
     (i32.const 0))
 
-  ;; mix_zone(w, grid, snap, phase, thrTab, gy0, h, a, b, ca, cb, salt) -> bits exchanged in rows [ca, cb)
+  ;; row_pairs(row, w, x0, thrTab, d, salt) -> bits exchanged: the horizontal pairs (x, x+1), x = x0, x0+2, ...
+  ;; of the row at address row, each under the column threshold thrTab[x]
+  (func $row_pairs (param $row i32) (param $w i32) (param $x i32) (param $thrTab i32) (param $d i32) (param $salt i64) (result i32)
+    (local $swaps i32)
+    (block $xe (loop $xl (br_if $xe (i32.ge_u (i32.add (local.get $x) (i32.const 1)) (local.get $w)))
+      (local.set $swaps (i32.add (local.get $swaps) (call $pair
+        (i32.add (local.get $row) (i32.shl (local.get $x) (i32.const 4)))
+        (i32.add (local.get $row) (i32.shl (i32.add (local.get $x) (i32.const 1)) (i32.const 4)))
+        (local.get $d)
+        (i64.load (i32.add (local.get $thrTab) (i32.shl (local.get $x) (i32.const 3)))) (local.get $salt))))
+      (local.set $x (i32.add (local.get $x) (i32.const 2))) (br $xl)))
+    (local.get $swaps))
+
+  ;; col_pairs(grid, stride, x, gy0, h, a, b, ca, cb, par, thrTab, d, salt) -> bits exchanged in rows [ca, cb):
+  ;; the vertical pairs (r, r+1) of column x whose first row has global parity par, with both rows inside
+  ;; [a, b) and the grid, under the column threshold thrTab[x]
+  (func $col_pairs (param $grid i32) (param $stride i32) (param $x i32) (param $gy0 i32) (param $h i32) (param $a i32) (param $b i32) (param $ca i32) (param $cb i32) (param $par i32) (param $thrTab i32) (param $d i32) (param $salt i64) (result i32)
+    (local $r i32) (local $swaps i32) (local $p i32) (local $thr i64)
+    (local.set $thr (i64.load (i32.add (local.get $thrTab) (i32.shl (local.get $x) (i32.const 3)))))
+    (local.set $r (local.get $a))
+    (if (i32.ne (i32.and (i32.add (local.get $gy0) (local.get $r)) (i32.const 1)) (local.get $par))
+      (then (local.set $r (i32.add (local.get $r) (i32.const 1)))))
+    (block $ye (loop $yl (br_if $ye (i32.ge_s (i32.add (local.get $r) (i32.const 1)) (local.get $b)))
+      (br_if $ye (i32.ge_s (i32.add (i32.add (local.get $gy0) (local.get $r)) (i32.const 1)) (local.get $h)))
+      (local.set $p (i32.add (i32.add (local.get $grid) (i32.mul (local.get $r) (local.get $stride))) (i32.shl (local.get $x) (i32.const 4))))
+      (local.set $swaps (i32.add (local.get $swaps) (i32.mul
+        (i32.and (i32.ge_s (local.get $r) (local.get $ca)) (i32.lt_s (local.get $r) (local.get $cb)))
+        (call $pair (local.get $p) (i32.add (local.get $p) (local.get $stride)) (local.get $d) (local.get $thr) (local.get $salt)))))
+      (local.set $r (i32.add (local.get $r) (i32.const 2))) (br $yl)))
+    (local.get $swaps))
+
+  ;; leftover(n, off): does the brick pattern of pairs (off, off+1), (off+2, off+3), ... over n pixels leave the
+  ;; first pixel (off = 1) or the last pixel (n - 1 - off even) without a partner? Returns bit 0 for the first
+  ;; pixel, bit 1 for the last.
+  (func $leftover (param $n i32) (param $off i32) (result i32)
+    (i32.or (local.get $off)
+      (i32.shl (i32.eqz (i32.and (i32.sub (i32.sub (local.get $n) (i32.const 1)) (local.get $off)) (i32.const 1))) (i32.const 1))))
+
+  ;; mix_zone(w, grid, snap, phase, alt, thrTab, gy0, h, a, b, ca, cb, salt) -> bits exchanged in rows [ca, cb)
   ;; snap is a copy of the grid buffer (same layout) taken before the turn's first phase: every
   ;; decision of the turn is read from it, and the exchanges are applied to grid (snap = grid
   ;; decides on the live pixels).
@@ -92,8 +130,13 @@
   ;; Pairs whose first row lies in [a, b) are processed; the grid is a plane with
   ;; edges: left-right pairs never cross a row end, and up-down pairs need both rows
   ;; inside [a, b) and inside the grid. phase: 0 LR even, 1 UD even, 2 LR odd, 3 UD odd.
-  (func $mix_zone (export "mix_zone") (param $w i32) (param $grid i32) (param $snap i32) (param $phase i32) (param $thrTab i32) (param $gy0 i32) (param $h i32) (param $a i32) (param $b i32) (param $ca i32) (param $cb i32) (param $salt i64) (result i32)
-    (local $x i32) (local $r i32) (local $row i32) (local $swaps i32) (local $off i32) (local $stride i32) (local $inc i32) (local $d i32)
+  ;; The brick pattern of a phase leaves an edge column (left-right phases) or an edge row (up-down
+  ;; phases) without partners: the left column when the offset is 1, the right column when w - 1 - off
+  ;; is even, and likewise the top and bottom rows. Those pixels pair along their edge instead, up and
+  ;; down in a left-right phase and left and right in an up-down phase, with the brick offset alt (0 or 1,
+  ;; the host alternates it by turn), so that every pixel takes part in the same number of exchanges.
+  (func $mix_zone (export "mix_zone") (param $w i32) (param $grid i32) (param $snap i32) (param $phase i32) (param $alt i32) (param $thrTab i32) (param $gy0 i32) (param $h i32) (param $a i32) (param $b i32) (param $ca i32) (param $cb i32) (param $salt i64) (result i32)
+    (local $x i32) (local $r i32) (local $row i32) (local $swaps i32) (local $off i32) (local $stride i32) (local $inc i32) (local $d i32) (local $left i32)
     (local.set $d (i32.sub (local.get $snap) (local.get $grid)))
     (local.set $salt (i64.mul (local.get $salt) (i64.const 0x9E3779B97F4A7C15)))
     (local.set $off (i32.and (i32.shr_u (local.get $phase) (i32.const 1)) (i32.const 1)))
@@ -104,15 +147,17 @@
         (block $ye (loop $yl (br_if $ye (i32.ge_s (local.get $r) (local.get $b)))
           (local.set $row (i32.add (local.get $grid) (i32.mul (local.get $r) (local.get $stride))))
           (local.set $inc (i32.and (i32.ge_s (local.get $r) (local.get $ca)) (i32.lt_s (local.get $r) (local.get $cb))))
-          (local.set $x (local.get $off))
-          (block $xe (loop $xl (br_if $xe (i32.ge_u (i32.add (local.get $x) (i32.const 1)) (local.get $w)))
-            (local.set $swaps (i32.add (local.get $swaps) (i32.mul (local.get $inc) (call $pair
-              (i32.add (local.get $row) (i32.shl (local.get $x) (i32.const 4)))
-              (i32.add (local.get $row) (i32.shl (i32.add (local.get $x) (i32.const 1)) (i32.const 4)))
-              (local.get $d)
-              (i64.load (i32.add (local.get $thrTab) (i32.shl (local.get $x) (i32.const 3)))) (local.get $salt)))))
-            (local.set $x (i32.add (local.get $x) (i32.const 2))) (br $xl)))
-          (local.set $r (i32.add (local.get $r) (i32.const 1))) (br $yl))))
+          (local.set $swaps (i32.add (local.get $swaps) (i32.mul (local.get $inc)
+            (call $row_pairs (local.get $row) (local.get $w) (local.get $off) (local.get $thrTab) (local.get $d) (local.get $salt)))))
+          (local.set $r (i32.add (local.get $r) (i32.const 1))) (br $yl)))
+        ;; the leftover columns pair up and down with offset alt
+        (local.set $left (call $leftover (local.get $w) (local.get $off)))
+        (if (i32.and (local.get $left) (i32.const 1)) (then
+          (local.set $swaps (i32.add (local.get $swaps) (call $col_pairs (local.get $grid) (local.get $stride) (i32.const 0) (local.get $gy0) (local.get $h)
+            (local.get $a) (local.get $b) (local.get $ca) (local.get $cb) (local.get $alt) (local.get $thrTab) (local.get $d) (local.get $salt))))))
+        (if (i32.and (local.get $left) (i32.const 2)) (then
+          (local.set $swaps (i32.add (local.get $swaps) (call $col_pairs (local.get $grid) (local.get $stride) (i32.sub (local.get $w) (i32.const 1)) (local.get $gy0) (local.get $h)
+            (local.get $a) (local.get $b) (local.get $ca) (local.get $cb) (local.get $alt) (local.get $thrTab) (local.get $d) (local.get $salt)))))))
       (else
         ;; first rows of pairs have global parity == off; the partner row r+1 must be inside [a, b) and the grid
         (block $ye2 (loop $yl2 (br_if $ye2 (i32.ge_s (i32.add (local.get $r) (i32.const 1)) (local.get $b)))
@@ -128,15 +173,27 @@
                 (local.get $d)
                 (i64.load (i32.add (local.get $thrTab) (i32.shl (local.get $x) (i32.const 3)))) (local.get $salt)))))
               (local.set $x (i32.add (local.get $x) (i32.const 1))) (br $xl2)))))
-          (local.set $r (i32.add (local.get $r) (i32.const 1))) (br $yl2)))))
+          (local.set $r (i32.add (local.get $r) (i32.const 1))) (br $yl2)))
+        ;; the leftover rows (global 0 and h-1, when inside the zone) pair left and right with offset alt
+        (local.set $left (call $leftover (local.get $h) (local.get $off)))
+        (local.set $r (i32.sub (i32.const 0) (local.get $gy0)))
+        (if (i32.and (i32.and (local.get $left) (i32.const 1)) (i32.and (i32.ge_s (local.get $r) (local.get $a)) (i32.lt_s (local.get $r) (local.get $b)))) (then
+          (local.set $swaps (i32.add (local.get $swaps) (i32.mul
+            (i32.and (i32.ge_s (local.get $r) (local.get $ca)) (i32.lt_s (local.get $r) (local.get $cb)))
+            (call $row_pairs (i32.add (local.get $grid) (i32.mul (local.get $r) (local.get $stride))) (local.get $w) (local.get $alt) (local.get $thrTab) (local.get $d) (local.get $salt)))))))
+        (local.set $r (i32.sub (i32.sub (local.get $h) (i32.const 1)) (local.get $gy0)))
+        (if (i32.and (i32.shr_u (local.get $left) (i32.const 1)) (i32.and (i32.ge_s (local.get $r) (local.get $a)) (i32.lt_s (local.get $r) (local.get $b)))) (then
+          (local.set $swaps (i32.add (local.get $swaps) (i32.mul
+            (i32.and (i32.ge_s (local.get $r) (local.get $ca)) (i32.lt_s (local.get $r) (local.get $cb)))
+            (call $row_pairs (i32.add (local.get $grid) (i32.mul (local.get $r) (local.get $stride))) (local.get $w) (local.get $alt) (local.get $thrTab) (local.get $d) (local.get $salt)))))))))
     (local.get $swaps))
 
-  ;; mix(w, h, grid, phase, thrTab, salt): the whole grid as one zone, deciding on the live pixels
-  (func (export "mix") (param $w i32) (param $h i32) (param $grid i32) (param $phase i32) (param $thrTab i32) (param $salt i64) (result i32)
-    (call $mix_zone (local.get $w) (local.get $grid) (local.get $grid) (local.get $phase) (local.get $thrTab) (i32.const 0) (local.get $h) (i32.const 0) (local.get $h) (i32.const 0) (local.get $h) (local.get $salt)))
-  ;; mix_from(w, h, grid, snap, phase, thrTab, salt): the whole grid as one zone, deciding on the snapshot at snap
-  (func (export "mix_from") (param $w i32) (param $h i32) (param $grid i32) (param $snap i32) (param $phase i32) (param $thrTab i32) (param $salt i64) (result i32)
-    (call $mix_zone (local.get $w) (local.get $grid) (local.get $snap) (local.get $phase) (local.get $thrTab) (i32.const 0) (local.get $h) (i32.const 0) (local.get $h) (i32.const 0) (local.get $h) (local.get $salt)))
+  ;; mix(w, h, grid, phase, alt, thrTab, salt): the whole grid as one zone, deciding on the live pixels
+  (func (export "mix") (param $w i32) (param $h i32) (param $grid i32) (param $phase i32) (param $alt i32) (param $thrTab i32) (param $salt i64) (result i32)
+    (call $mix_zone (local.get $w) (local.get $grid) (local.get $grid) (local.get $phase) (local.get $alt) (local.get $thrTab) (i32.const 0) (local.get $h) (i32.const 0) (local.get $h) (i32.const 0) (local.get $h) (local.get $salt)))
+  ;; mix_from(w, h, grid, snap, phase, alt, thrTab, salt): the whole grid as one zone, deciding on the snapshot at snap
+  (func (export "mix_from") (param $w i32) (param $h i32) (param $grid i32) (param $snap i32) (param $phase i32) (param $alt i32) (param $thrTab i32) (param $salt i64) (result i32)
+    (call $mix_zone (local.get $w) (local.get $grid) (local.get $snap) (local.get $phase) (local.get $alt) (local.get $thrTab) (i32.const 0) (local.get $h) (i32.const 0) (local.get $h) (i32.const 0) (local.get $h) (local.get $salt)))
 
   ;; majority(src, o, x, w, g, h, stride, nbr, off): bitwise majority over a neighbourhood of
   ;; the pixel at src + o (column x, global row g; off = 0 or 8 selects the i64 half).
@@ -249,6 +306,34 @@
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $loop)))
     (i32.wrap_i64 (local.get $sum)))
+
+  ;; mutate(n, grid, base, lam, salt): random bit flips, the mutation step of a turn. lam is the expected number of
+  ;; flips per pixel as 32.32 fixed point (128 x the per-bit rate): every pixel gets floor(lam) flips, plus one more
+  ;; with probability frac(lam), each at a bit position drawn from the hash of (salt, base + i), so a band of rows
+  ;; starting at pixel base produces the same flips as the whole grid would. Two flips on the same bit cancel.
+  ;; Returns the number of flips.
+  (func (export "mutate") (param $n i32) (param $grid i32) (param $base i32) (param $lam i64) (param $salt i64) (result i32)
+    (local $i i32) (local $p i32) (local $c i32) (local $h i64) (local $pos i32) (local $flips i32)
+    (block $exit (loop $loop
+      (br_if $exit (i32.ge_u (local.get $i) (local.get $n)))
+      (local.set $p (i32.add (local.get $grid) (i32.shl (local.get $i) (i32.const 4))))
+      (local.set $h (call $mix64 (i64.xor (local.get $salt)
+        (i64.mul (i64.extend_i32_u (i32.add (local.get $base) (local.get $i))) (i64.const 0x9E3779B97F4A7C15)))))
+      (local.set $c (i32.add (i32.wrap_i64 (i64.shr_u (local.get $lam) (i64.const 32)))
+        (i64.lt_u (i64.and (local.get $h) (i64.const 0xFFFFFFFF)) (i64.and (local.get $lam) (i64.const 0xFFFFFFFF)))))
+      (block $done (loop $flip
+        (br_if $done (i32.eqz (local.get $c)))
+        (local.set $pos (i32.and (i32.wrap_i64 (i64.shr_u (local.get $h) (i64.const 32))) (i32.const 127)))
+        (if (i32.lt_u (local.get $pos) (i32.const 64))
+          (then (i64.store (local.get $p) (i64.xor (i64.load (local.get $p)) (i64.shl (i64.const 1) (i64.extend_i32_u (local.get $pos))))))
+          (else (i64.store offset=8 (local.get $p) (i64.xor (i64.load offset=8 (local.get $p)) (i64.shl (i64.const 1) (i64.extend_i32_u (i32.sub (local.get $pos) (i32.const 64))))))))
+        (local.set $flips (i32.add (local.get $flips) (i32.const 1)))
+        (local.set $h (call $mix64 (local.get $h)))
+        (local.set $c (i32.sub (local.get $c) (i32.const 1)))
+        (br $flip)))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br $loop)))
+    (local.get $flips))
 
   ;; randomize(nwords, dst, seed): fill 32-bit words with xorshift32. Returns the new seed.
   (func (export "randomize") (param $n i32) (param $dst i32) (param $seed i32) (result i32)

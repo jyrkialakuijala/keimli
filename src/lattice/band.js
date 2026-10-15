@@ -8,28 +8,35 @@
 // within a turn. The depth is chosen so the interior rows always stay valid.
 const Band = (() => {
   // wasm phase ids: 0 LR even, 1 UD even, 2 LR odd, 3 UD odd. A turn runs each of the four
-  // swap phases once, always alternating left-right and up-down, which leaves 8 of the 24
-  // orders (LR or UD first, and the order within each pair); turn t uses order t mod 8, so
-  // over 8 turns every order has been used once. The cycle is arranged so consecutive orders
-  // differ as much as possible: the difference of two orders is the sum over the phases of how
-  // far each phase's position moves (at most 8). No cycle through the 8 keeps every step at 8;
-  // this one (found by search) has 6 steps of 8 and 2 of 6, the optimum. Each phase goes first
-  // twice per cycle, and no two consecutive turns share a first or a last phase.
-  // Names as shown in the page: LR0 UD0 LR1 UD1.
+  // swap phases once, always in the same order: UD0 LR0 UD1 LR1. (An earlier version cycled
+  // through the 8 LR/UD-alternating orders with the turn counter. With the fixed order the
+  // specks in the frozen floor mostly stand still and blink; the cycle made them wander.)
+  // Names as shown in the page.
   const PHASE_NAMES = ['LR0', 'UD0', 'LR1', 'UD1'];
-  const PERMS = ['0123', '1230', '0321', '2103', '3012', '2301', '1032', '3210'].map(s => [...s].map(Number));
-  const orderDistance = (a, b) => [0, 1, 2, 3].reduce((s, ph) => s + Math.abs(a.indexOf(ph) - b.indexOf(ph)), 0);
-  const order = turn => PERMS[((turn % 8) + 8) % 8];
-  const orderName = turn => order(turn).map(p => PHASE_NAMES[p]).join(' ');
-  // The two up-down phases cost at most two rows per side (given even band starts and an
-  // even depth), each smoothing pass R rows per side, R = radius(nbr): 1 for the 4- and
-  // 8-connected neighbourhoods, 2 for 5x5. Kept even so the parity argument holds.
+  const ORDER = [1, 0, 3, 2];
+  const order = () => ORDER;
+  const orderName = () => ORDER.map(p => PHASE_NAMES[p]).join(' ');
+  // The brick pattern of a phase leaves an edge column (left-right phases) or an edge row (up-down
+  // phases) without partners; those pixels pair along their edge instead (up and down in a left-right
+  // phase, left and right in an up-down phase) with a brick offset of their own, so that every pixel
+  // takes part in four exchanges a turn. The offset alternates with the turn parity alt, and the two
+  // directions use opposite offsets, so a corner (two neighbours only) gets three exchanges every turn
+  // rather than four and two in alternation. leftover(n, off) says whether the pattern with offset off
+  // over n pixels leaves an end pixel out.
+  const edgeParity = (ph, alt) => (ph & 1) ? (alt ^ 1) : alt;
+  const leftover = (n, off) => off === 1 || ((n - 1 - off) & 1) === 0;
+  // The swap phases cost at most two rows per side (given even band starts and an even depth):
+  // an up-down phase, or a left-right phase whose leftover columns pair up and down, invalidates a
+  // zone-edge row whose partner lies outside, and with the fixed order that happens at most twice.
+  // Each smoothing pass costs R rows per side, R = radius(nbr): 1 for the 4- and 8-connected
+  // neighbourhoods, 2 for 5x5. Kept even so the parity argument holds.
   const radius = nbr => nbr === 2 ? 2 : 1;
   const depthFor = (passes, nbr = 0) => { const n = radius(nbr) * passes; return 2 + n + (n & 1); };
   // st = { wasm, W, H, y0, rows, D, GRID, GRID2, PRM, THR, THRY }
-  // msg = { haloTop, haloBottom (Uint8Array of D rows or null at the grid edge), order (the turn's four phase ids), passes,
+  // msg = { haloTop, haloBottom (Uint8Array of D rows or null at the grid edge), order (the turn's four phase ids), alt (the turn parity, for the edge pairs), passes,
   //         thrSwap (BigUint64Array W), thrSmooth (BigUint64Array H), salts (BigInt per step), changer (bool), pair ({ mode, flip }),
-  //         nbr (smoothing neighbourhood 0 cross / 1 3x3 / 2 5x5) }
+  //         nbr (smoothing neighbourhood 0 cross / 1 3x3 / 2 5x5), mut ({ lam, salt }: expected flips per pixel as 32.32
+  //         fixed-point BigInt, and this turn's salt; absent or lam 0 for no mutation) }
   function runTurn(st, msg) {
     const { wasm, W, H, y0, rows, D, GRID, GRID2 } = st, S = 16 * W, y1 = y0 + rows, gy0 = y0 - D;
     const m8 = new Uint8Array(wasm.memory.buffer);
@@ -44,9 +51,12 @@ const Band = (() => {
     let moved = 0, smoothed = 0, k = 0;
     m8.copyWithin(GRID2, GRID, GRID + (rows + 2 * D) * S);   // snapshot: every swap decision of the turn is read from the map before the first phase
     for (const ph of msg.order) {
-      moved += wasm.mix_zone(W, GRID, GRID2, ph, st.THR, gy0, H, D - vt, D + rows + vb, D, D + rows, msg.salts[k++]);   // count only the band's own rows
-      if (ph & 1) {   // up-down: a zone-edge row whose partner lies outside the zone is no longer valid
-        const off = ph >> 1;
+      const ea = edgeParity(ph, msg.alt | 0);
+      moved += wasm.mix_zone(W, GRID, GRID2, ph, ea, st.THR, gy0, H, D - vt, D + rows + vb, D, D + rows, msg.salts[k++]);   // count only the band's own rows
+      // vertical pairs (an up-down phase, or the leftover columns of a left-right phase): a zone-edge row whose
+      // partner lies outside the zone is no longer valid
+      const off = (ph & 1) ? ph >> 1 : leftover(W, ph >> 1) ? ea : -1;
+      if (off >= 0) {
         if (topArt) { const g = y0 - vt; if (((g - 1) & 1) === off) useTop(); }
         if (botArt) { const gb = y1 + vb - 1; if ((gb & 1) === off) useBot(); }
       }
@@ -60,7 +70,8 @@ const Band = (() => {
     }
     if (msg.pair) new Int32Array(wasm.memory.buffer, st.PRM + 104, 2).set([msg.pair.mode | 0, msg.pair.flip ? 1 : 0]);   // pairs: mode and this turn's flip
     const rewritten = msg.changer ? wasm.change(rows * W, GRID + D * S, st.PRM) : 0;
-    return { moved, smoothed, rewritten };
+    const mutated = msg.mut && msg.mut.lam ? wasm.mutate(rows * W, GRID + D * S, y0 * W, msg.mut.lam, msg.mut.salt) : 0;   // own rows, global pixel indices
+    return { moved, smoothed, rewritten, mutated };
   }
   // the band's first and last E interior rows, E = max(D, POST_HALO): the neighbours' halos for the next turn
   // (D rows) and for rendering (POST_HALO rows)
@@ -101,5 +112,5 @@ const Band = (() => {
   // sampled at pixel centres: entry i is a + (b - a) * (i + 0.5) / n, so no pixel sits at exactly a or b
   // and the first and last columns (or rows) are not frozen when an edge value is 0.
   const gradient = (a, b, n) => { const tab = new BigUint64Array(n); for (let i = 0; i < n; i++) tab[i] = toThreshold(a + (b - a) * (i + 0.5) / n); return tab; };
-  return { PHASE_NAMES, PERMS, order, orderName, orderDistance, radius, depthFor, runTurn, edges, split, toThreshold, gradient, POST_HALO, POST_BYTES, postFrame };
+  return { PHASE_NAMES, ORDER, order, orderName, edgeParity, leftover, radius, depthFor, runTurn, edges, split, toThreshold, gradient, POST_HALO, POST_BYTES, postFrame };
 })();

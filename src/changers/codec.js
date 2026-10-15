@@ -100,13 +100,13 @@ const Codec = (() => {
     m8.set(built.bytes, LAYOUT.TEXT);
     const headerBits = built.headerBits ?? cursorBits(textLen), offsetUnit = Math.ceil(textLen / 2 ** headerBits);
     put(LAYOUT.PRM, [OUT, OUT_BYTES, LAYOUT.LIT, 0, 0, 0, 0, 0, textLen, FLAGS, 0, offsetUnit, 0, 0, LAYOUT.LUT, meanRaw, meanDec, gain, 0, 0, 0, 0, 0, 256, headerBits, CURSOR_OFFSET, 0, 0, FLAGS + 128]);   // ..., pairMode, pairFlip, pairBuf
-    const cosTab = new Float64Array(memory.buffer, LAYOUT.COS, 64);   // cos(pi m / 32) for the DCT processors
-    for (let m = 0; m < 64; m++) cosTab[m] = Math.cos(Math.PI * m / 32);
+    const cosTab = new Float64Array(memory.buffer, LAYOUT.COS, 33);   // cos(pi m / 64), m = 0..32, for the DCT processors (16 and 32 points, the rest by symmetry)
+    for (let m = 0; m <= 32; m++) cosTab[m] = Math.cos(Math.PI * m / 64);
     const io = { OUT, FLAGS, textLen, OUT_BYTES, offsetUnit, headerBits, cursorOffset: CURSOR_OFFSET, meanRaw, meanDec, gain, lastOffset: () => new Int32Array(memory.buffer, LAYOUT.PRM, 13)[12],
              // cursor header width: 2^bits start positions, ceil(textLen / 2^bits) bytes apart
              setHeaderBits: bits => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 25); io.headerBits = bits; io.offsetUnit = Math.ceil(textLen / 2 ** bits); a[11] = io.offsetUnit; a[24] = bits; },
              setCursorOffset: n => { io.cursorOffset = n; new Int32Array(memory.buffer, LAYOUT.PRM, 26)[25] = n; },
-             // pairs: mode 0 single cells, 1 concatenated, 2 bit-interleaved; flip swaps the roles of the two cells (alternate it per turn)
+             // pairs: mode 0 single cells, 1 concatenated, 2 bit-interleaved, 3 xor then add, 4 add then subtract, 5 byte-interleaved; flip swaps the roles of the two cells (alternate it per turn)
              setPair: (mode, flip) => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 28); a[26] = mode | 0; a[27] = flip ? 1 : 0; },
              setChanger: m => { new Int32Array(memory.buffer, LAYOUT.PRM, 19)[18] = m; },
              setSteps: n => { new Int32Array(memory.buffer, LAYOUT.PRM, 24)[23] = n; },

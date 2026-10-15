@@ -1,7 +1,7 @@
 # The lattice
 
 Source: `src/lattice/lattice.wat` (the kernels) and `src/lattice/band.js`
-(the turn, the swap-order cycle, the band pipeline for worker threads).
+(the turn, the swap order, the band pipeline for worker threads).
 Tests: `test/mix.test.mjs` (mixing rule, smoothing, jam checks) and
 `test/band.test.mjs` (bands reproduce the full grid bit for bit).
 
@@ -22,7 +22,9 @@ The grid is a plane with edges, not a torus.
 3. **Bit-plane median filtering passes** (entropy decrease), 0 to 5 per turn (default 3).
 4. **The local changer** rewrites every pixel's 16 bytes with its output
    (see [changers.md](changers.md)). It can be switched off, in which case
-   it only feeds the views.
+   it only feeds the views. In the Links regime this step is instead four
+   phases of persistent per-link CPUs, one instruction each.
+5. **Mutation** flips a random share of all bits (below).
 
 The view is refreshed once per turn.
 
@@ -53,33 +55,46 @@ walks only the bit positions where the two pixels differ (`$pair`), uses a
 branchless 128-bit rotate for the context (`$ctx`), and skips hashing
 entirely at p = 0 and p = 1.
 
-## The swap-order cycle
+## Mutation
 
-The four phases LR0, UD0, LR1, UD1 run once each per turn, so every pixel
-exchanges once with each neighbour. Their order changes every turn.
-Left–right and up–down always alternate, which leaves 8 of the 24
-permutations (LR or UD first, and the order within each pair); turn t uses
-order t mod 8 (`Band.order`), so over any 8 turns every order has been used
-once and no fixed order can shape the long run.
+The last step of a turn flips bits at random (`mutate`). The control is a
+percentage of all bits per turn, 0.001 % by default: with 128 bits a cell
+that is an expected 0.00128 flips per cell, about 21 flipped bits a turn on
+a 128 × 128 grid, one every 50 turns in a given cell. The kernel takes the
+expected flips per cell λ in 32.32 fixed point and gives every cell
+floor(λ) flips plus one more with probability frac(λ), each at a bit
+position drawn from the hash of the turn's salt and the cell's global
+index, so a band of rows in a worker produces exactly the flips the whole
+grid would. Two flips on the same bit cancel. Mutation is always salted by
+the turn number, whatever the hash-seed setting says, or the same bits
+would flip every turn. The statistics panel counts the flips.
 
-The cycle through the 8 is arranged so that consecutive orders differ as
-much as possible. Measuring the difference of two orders as the total
-distance the four phases move between them (at most 8), no cycle through
-the 8 keeps every step at 8; the cycle used, found by exhaustive search,
-has 6 steps of 8 and 2 of 6, the optimum. Each phase goes first twice per
-cycle and no two consecutive turns share a first or a last phase. The page
-shows the current order next to the turn counter.
+## The swap order
 
-| turn mod 8 | order |
-|---|---|
-| 0 | LR0 UD0 LR1 UD1 |
-| 1 | UD0 LR1 UD1 LR0 |
-| 2 | LR0 UD1 LR1 UD0 |
-| 3 | LR1 UD0 LR0 UD1 |
-| 4 | UD1 LR0 UD0 LR1 |
-| 5 | LR1 UD1 LR0 UD0 |
-| 6 | UD0 LR0 UD1 LR1 |
-| 7 | UD1 LR1 UD0 LR0 |
+The four phases run once each per turn, always in the same order:
+UD0, LR0, UD1, LR1 (`Band.order`), so every pixel exchanges once with each
+neighbour and left–right and up–down alternate.
+
+A phase pairs the pixels of a row or column as bricks, (0, 1), (2, 3), …
+at offset 0 and (1, 2), (3, 4), … at offset 1, and on a plane with edges
+that leaves pixels out: the left column in LR1 and, when the width is even,
+the right column as well, and likewise the top and bottom rows in UD1 (for
+odd sizes it is LR0 and UD0 that leave the far edge out). Those pixels pair
+along their edge instead, up and down in a left–right phase and left and
+right in an up–down phase, as bricks with an offset of their own that
+alternates with the turn parity (the `alt` argument of `mix_zone`,
+`Band.edgeParity`). Every pixel then takes part in four exchanges a turn;
+a corner, which has only two neighbours, takes part in three, because the
+two directions use opposite offsets so that the corner's extra exchange
+comes once a turn rather than twice every other turn. In the band pipeline
+an edge column's vertical pairs consume halo rows exactly like an up-down
+phase, and the fixed order keeps that to two rows per side. An earlier version cycled
+through the 8 LR/UD-alternating orders with the turn counter, chosen so that
+consecutive orders differed as much as possible. The order matters for the
+small structures: with the fixed order the specks that live in the frozen
+floor mostly stand still and blink, while the cycle made them wander (about
+four times as many moving specks, moving on most turns). The page shows the
+order in the statistics panel.
 
 ## Entropy decrease through median filtering
 
@@ -143,5 +158,5 @@ not have.
 
 ## Exports
 
-`mix`, `mix_from`, `mix_zone`, `smooth`, `smooth_zone`, `bits`,
+`mix`, `mix_from`, `mix_zone`, `smooth`, `smooth_zone`, `mutate`, `bits`,
 `randomize`, and `memory`.
