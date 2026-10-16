@@ -53,7 +53,7 @@ else
 fi
 # Links: with 4 workers configured, Cells = Links and the Z80 run on the worker pool (edge rows exchanged between bands every round), with persistent link CPUs rewriting pixels.
 if out=$(timeout 120 node test/cdp-poll.mjs "file://$PWD/index.html#selftest" "$(cat test/links-expr.js)" 60000) &&
-   node -e 'const s = JSON.parse(JSON.parse(process.argv[1])); process.exit(s.turns > 0 && /^1,046,528 × 16 instructions a turn, reset every 4 turns/.test(s.linkN) && +s.rewritten.replace(/,/g, "") > 0 && /4 thr/.test(s.time) ? 0 : 1)' "$out"; then
+   node -e 'const s = JSON.parse(JSON.parse(process.argv[1])); process.exit(s.turns > 0 && /^1,046,528 × 16 instructions a turn, reset every 4 turns/.test(s.linkN) && +s.rewritten.replace(/,/g, "") > 0 && /4 thr/.test(s.time) && /link machines whose code starts in this cell/.test(s.inspect) && (s.inspect.match(/PC=/g) || []).length === 4 ? 0 : 1)' "$out"; then
   echo "ok   links mode runs on 4 workers with persistent CPUs: $out"
 else
   echo "FAIL links mode: $out"; status=1

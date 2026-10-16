@@ -113,6 +113,17 @@ check('random pixels consume a plausible number of bits', consumed / N > 20 && c
     check('Z80 LD SP,12; LD HL,0; ADD HL,SP; PUSH HL: the stack pointer\'s own value (000Ch) goes onto the stack at 10,11, SP = 10', r.mem[10] === 0x0c && r.mem[11] === 0x00 && r16(r.regs, 20) === 10 && r16(r.regs, 4) === 12);
     r = runZ(z('31 0C 00 ED 73 0E 00 18 FE'));
     check('Z80 LD (0Eh),SP stores SP (000Ch) without moving it', r.mem[14] === 0x0c && r.mem[15] === 0x00 && r16(r.regs, 20) === 12);
+    // store-free programs are fixed points of the changer: the lattice saturates in cells like these two (seen on the page),
+    // which run their 256 instructions without a single write, so only the swaps, the smoothing and mutation move them on
+    r = runZ(z('00 01 54 40 80 20 11 10 4B 40 4B 40 4B 00 4B 40'));
+    check(`Z80 fixed point: NOP; LD BC,4054h; ADD A,B; JR NZ,+11h (to byte 8); LD C,E / LD B,B ... runs 256 instructions with no store (${r.ret & 255} bytes changed, A = ${r.regs[7].toString(16)}h)`,
+          (r.ret & 255) === 0 && (r.ret >> 8) === 256 && r.fl.every(f => f === 0) && r.regs[7] === 0x7f);
+    r = runZ(z('3E 00 3E 00 3E 00 3E 00 5E 00 41 00 3E 00 1E 00'));
+    check(`Z80 fixed point: LD A,0 x4; LD E,(HL); LD B,C; LD A,0; LD E,0: loads only, no store (${r.ret & 255} bytes changed)`, (r.ret & 255) === 0 && (r.ret >> 8) === 256 && r.fl.every(f => f === 0));
+    r = runZ(z('00 00 29 00 29 00 29 20 29 00 29 00 49 D0 00 08'));
+    check(`Z80 fixed point: ADD HL,HL runs, JR NZ, LD C,C, RET NC (pops without writing), EX AF,AF': no store (${r.ret & 255} bytes changed)`, (r.ret & 255) === 0 && (r.ret >> 8) === 256 && r.fl.every(f => f === 0));
+    r = runZ(z('BD 81 3F 90 3F 08 3F 20 23 20 3F 00 3F 00 5B 44'));
+    check(`Z80 fixed point: CP L; ADD A,C; CCF; SUB B; EX AF,AF'; JR NZ ...; LD E,E; LD B,H: arithmetic on registers only (${r.ret & 255} bytes changed)`, (r.ret & 255) === 0 && (r.ret >> 8) === 256 && r.fl.every(f => f === 0));
     r = runZ(z('31 0E 00 21 34 12 E3 18 FE 00 00 00 00 00 CD AB'));
     check('Z80 EX (SP),HL swaps HL with the word at the top of the stack in place: HL = ABCDh, bytes 14,15 = 34 12, SP unchanged', r16(r.regs, 4) === 0xabcd && r.mem[14] === 0x34 && r.mem[15] === 0x12 && r16(r.regs, 20) === 14);
     r = runZ(z('31 0E 00 DD 21 34 12 DD E3 18 FE 00 00 00 CD AB'));
@@ -986,5 +997,42 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   check('links: a 6502 reset gives every link P = 0x24 and S = 0xFF', m8[ST + 4] === 0x24 && m8[ST + 3] === 0xFF && m8[ST + 128 * (4 * n - 1) + 4] === 0x24);
   io.setChanger(0); io.setPair(0, 0); links_reset(ST, 4 * n, 0);
   check('links: a non-CPU changer does nothing (' + turnLinks() + ' changes)', true);
+  // the phase order is the swap order UD0 LR0 UD1 LR1, forward machine before backward within a pair. On a 2 x 2 grid
+  // (0,0) = INC (HL) toggles its own byte 0 between 34h (INC) and 35h (DEC) each time a machine runs it, and (1,0) reads
+  // (0,0)[0] through the backward LR0 machine (LD A,(0010h)) and stores it two rounds later (LD (0005h),A). UD0 first gives
+  // 34h (the UD0 machine toggled to 35h, the LR0 forward machine back to 34h before the backward one read it) and lets
+  // the LR0 store land last; LR0 first would read 35h and have the UD0 machine of (1,0)-(1,1) overwrite the byte with 0.
+  {
+    io.setChanger(6); io.setPair(0, 0); links_reset(ST, 4 * 4, 6); m8.fill(0, GRID, GRID + 16 * 4);
+    m8.set([0x34], GRID); m8.set([0x3A, 0x10, 0x00, 0x32, 0x05, 0x00], GRID + 16);
+    for (let r = 0; r < 2; r++) for (const ph of order) links(2, 2, GRID, PRM, ph, ST);   // order = [1, 0, 3, 2] = UD0 LR0 UD1 LR1, as Band.order
+    check(`links: phases run UD0 LR0 UD1 LR1 like the swaps, forward before backward ((1,0)[5] = ${px(1)[5].toString(16)}h, 34h expected)`, px(1)[5] === 0x34 && px(0)[0] === 0x34);
+  }
+  // the LZ decompressor as a link machine (kind 0): step 1 reads the start cursor from the first 13 bits of the pair memory,
+  // step 2 reads the first command and copies its bytes into the memory at 0; the same header and command the whole-cell
+  // decode of A starts with, so the first fragment of decode_pixel is what lands in A.
+  {
+    io.setChanger(0); io.setPair(1, 0); links_reset(ST, 8, 0); m8.fill(0, GRID, GRID + 32);
+    const cell = [0x5a, 0x13, 0xc4, 0x27, 0x80, 0x01, 0x6e, 0x9b, 0x3c, 0x55, 0xaa, 0x0f, 0xf0, 0x81, 0x7e, 0x42]; m8.set(cell, GRID);
+    decode_pixel(GRID, 0, PRM); const o = out(), f = flags(); let k = 1; while (k < 16 && f[k] === f[0]) k++;
+    const frag = o.slice(0, k), start = io.lastOffset();
+    links(2, 1, GRID, PRM, 0, ST);   // LR0: the forward machine (A then B) and the backward one (B then A) each read their header
+    const st1 = m8.slice(ST, ST + 8);
+    check(`links, LZ machine: the first step reads the ${io.headerBits}-bit header into the cursor (${st1[4] | (st1[5] << 8)}, the whole-cell decode starts at ${start}) and nothing is written`, st1[2] === 1 && (st1[4] | (st1[5] << 8)) === start && (st1[0] | (st1[1] << 8)) === io.headerBits && px(0).every((b, i) => b === cell[i]));
+    links(2, 1, GRID, PRM, 0, ST);
+    check(`links, LZ machine: the second step copies the first command's ${k} bytes "${String.fromCharCode(...frag)}" into the pair memory at 0, output position ${m8[ST + 6]}`, frag.every((b, i) => px(0)[i] === b) && m8[ST + 6] === k && px(0).slice(k).every((b, i) => b === cell[k + i]));
+    io.setPair(0, 0);
+  }
+  // the joining: with pairMode 5 (byte-interleaved) the forward machine of (0,0)-(1,0) sees A on the even addresses and B on the odd,
+  // so a program can be laid out across the two cells: A = 3E 32 00 FE .., B = 2A 08 18 .. reads LD A,2Ah; LD (0008h),A; JR -2,
+  // and joint address 8 is A's byte 4. A single row, so no vertical machine runs A's bytes with another partner.
+  {
+    const w1 = 4, h1 = 1, n1 = w1 * h1;
+    io.setChanger(6); io.setPair(5, 0); links_reset(ST, 4 * n1, 6); m8.fill(0, GRID, GRID + 16 * n1);
+    m8.set([0x3E, 0x32, 0x00, 0xFE], GRID); m8.set([0x2A, 0x08, 0x18], GRID + 16);
+    let c = 0; for (let r = 0; r < 3; r++) for (const ph of order) c += links(w1, h1, GRID, PRM, ph, ST);
+    check(`links, byte-interleaved joining: a program spread over A's even and B's odd addresses stores 2Ah into joint byte 8 = A[4] (${c} pixel writes)`, px(0)[4] === 0x2a && px(0)[0] === 0x3e && px(1)[0] === 0x2a && c === 1);
+    io.setPair(0, 0);
+  }
 }
 console.log(fails ? fails + ' failures' : 'all passed'); process.exit(fails ? 1 : 0);

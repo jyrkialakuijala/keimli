@@ -236,12 +236,11 @@
       <label for="pair">Cells</label>
       <select id="pair">
         <option value="0" selected>Each cell on its own</option>
-        <option value="1">Pairs, concatenated: A then B, then B then A on alternating turns</option>
-        <option value="2">Pairs, bit-interleaved: A on the even bits and B on the odd, swapped on alternating turns</option>
-        <option value="5">Pairs, byte-interleaved: A on the even bytes and B on the odd, swapped on alternating turns</option>
-        <option value="3">Pairs, xor then add (bytes): A xor B, then B plus that; roles swapped on alternating turns</option>
-        <option value="4">Pairs, add then subtract (bytes): A plus B, then A minus half the sum; roles swapped on alternating turns</option>
-        <option value="6">Links: a persistent CPU per pair of neighbours (left–right and up–down), one instruction per link per phase</option>
+        <option value="1">Pairs, concatenated: A then B (B then A for the other role)</option>
+        <option value="2">Pairs, bit-interleaved: A on the even bits and B on the odd (swapped for the other role)</option>
+        <option value="5">Pairs, byte-interleaved: A on the even bytes and B on the odd (swapped for the other role)</option>
+        <option value="3">Pairs, xor then add (bytes): A xor B, then B plus that (roles swapped for the other role)</option>
+        <option value="4">Pairs, add then subtract (bytes): A plus B, then A minus half the sum (roles swapped for the other role)</option>
       </select>
     </div>
     <div class="group" id="xfGroup" hidden>
@@ -402,8 +401,9 @@
   Every pixel holds a 128-bit string on a plane with edges (no wrap-around). Each turn runs the four swap phases in the fixed order UD0, LR0, UD1, LR1; the edge column or row that a phase's brick pattern leaves out pairs along the edge instead, with a brick offset that alternates by turn, so every pixel takes part in four exchanges a turn (a corner in three).
   Then comes a block of bit-plane median filtering passes (entropy decrease), then the local changer: every pixel's 16
   bytes are replaced by what the changer makes of them, so the decompressed text or the Brainfuck tape becomes the
-  pixel's new content. With Cells set to Links, every pair of neighbouring pixels has instead two CPUs of its own, one per direction, each of which
-  runs one instruction per phase on the two pixels as its 32-byte memory; a turn makes 128 such rounds of the four
+  pixel's new content. With Cells set to pairs, the transforms and Brainfuck see the two cells of a column pair joined into one 32-byte
+  cell, the roles alternating by turn; a CPU changer or the LZ decompressor instead gives every pair of neighbouring pixels (left–right and up–down) two persistent machines of its own,
+  one per direction, each of which runs one instruction (one copy command for the decompressor) per phase on the two pixels joined as the Cells box says, its own pixel in the first role, as its 32-byte memory; a turn makes 128 such rounds of the four
   phases (the Link rounds box) before the lattice is drawn, and the machines start each turn fresh, PC 0 and registers 0,
   unless the Link reset box lets them keep their registers for several turns or for good.
   Last, mutation flips a random share of all bits (0.001 % by default, about 335 bits a turn on a
@@ -485,7 +485,7 @@ function workerMain() {
   const ensureLinks = kind => {   // the band's link states, allocated on first use, fresh when the mode starts, the band changes or the kind changes
     const need = LINKS + Band.linkStateBytes(st), have = wasm.memory.buffer.byteLength;
     if (need > have) { wasm.memory.grow(Math.ceil((need - have) / 65536)); m8 = new Uint8Array(wasm.memory.buffer); }
-    const key = W + 'x' + rows + '@' + y0 + ':' + kind;
+    const key = W + 'x' + rows + '@' + y0 + ':' + kind + ':' + new Int32Array(wasm.memory.buffer, LAY.PRM + 104, 1)[0];   // fresh machines when the joining changes too
     if (linkKey !== key) { wasm.links_reset(LINKS, 4 * rows * W, kind); linkKey = key; }
   };
   async function linkRounds(l) {   // l = { kind, rounds, reset }: rounds of one instruction per link, exchanging edge rows with the neighbours
@@ -563,11 +563,16 @@ function workerMain() {
           postMessage(reply, [px.buffer]);
           return;
         }
+        case 'linkState': {   // one link machine's state: a left-right pair of local row d.r, or an up-down pair whose first row is global row y0 - 1 + d.j
+          const at = d.vertical ? LINKS + 256 * rows * W + 256 * (d.j * W + d.x) : LINKS + 256 * (d.r * W + d.x);
+          reply.state = linkKey ? m8.slice(at + (d.back ? 128 : 0), at + (d.back ? 128 : 0) + 128) : null;
+          break;
+        }
         case 'inspect': {
           const li = d.local, base = GRID + D * S, r = wasm.decode_pixel(base, li, LAY.PRM);
           reply.bits = m8.slice(base + 16 * li, base + 16 * li + 16);
           reply.out = m8.slice(io.OUT, io.OUT + 16); reply.flags = m8.slice(io.FLAGS, io.FLAGS + 16);
-          reply.consumed = r >> 8; reply.copied = r & 255; reply.offset = io.lastOffset(); reply.regs = m8.slice(256, 256 + 28);
+          reply.consumed = r >> 8; reply.copied = r & 255; reply.offset = io.lastOffset(); reply.regs = m8.slice(256, 256 + 128);
           break;
         }
         case 'paint':
@@ -651,12 +656,12 @@ function workerMain() {
   const CPU_IDS = [1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24], XF_IDS = [3, 4, 5, 16, 17, 18];
   const changerId = () => { const m = $('changer').value; return m === 'cpu' ? Number($('cpu').value) : m === 'xf' ? Number($('xf').value) : 0; };
   const changerActive = () => $('changer').value !== 'none';
-  // links: one persistent CPU per pair of neighbouring pixels (Cells = Links), for the CPU changers only; runs on the single-instance engine
-  const isCpuKind = k => k >= 6 && k <= 24 && (k < 16 || k > 18);
-  const linkMode = () => $('pair').value === '6';
-  const linksActive = () => linkMode() && changerActive() && isCpuKind(changerId());
+  // links: with Cells set to any pair joining and a CPU changer, every pair of neighbouring pixels gets two persistent CPUs whose memory is the joined pair
+  const linkKind = k => k === 0 || (k >= 6 && k <= 24 && (k < 16 || k > 18));   // the CPUs and the LZ decompressor, which runs one copy command a step
+  const linkMode = () => Number($('pair').value) > 0;
+  const linksActive = () => linkMode() && changerActive() && linkKind(changerId());
   const linkResetDue = () => { const n = Number($('lreset').value); return n > 0 && turn % n === 0; };   // fresh machines (PC 0, registers 0) at the start of every nth turn
-  const showChangerBoxes = () => { const m = $('changer').value; $('cpuGroup').hidden = m !== 'cpu'; $('stepsGroup').hidden = m !== 'cpu' || changerId() < 6 || linkMode(); $('roundsGroup').hidden = $('lresetGroup').hidden = m !== 'cpu' || changerId() < 6 || !linkMode(); $('xfGroup').hidden = m !== 'xf'; };
+  const showChangerBoxes = () => { const m = $('changer').value; $('cpuGroup').hidden = m !== 'cpu'; $('stepsGroup').hidden = m !== 'cpu' || changerId() < 6 || linkMode(); $('roundsGroup').hidden = $('lresetGroup').hidden = !(linkMode() && linkKind(changerId())); $('xfGroup').hidden = m !== 'xf'; };
   // a processor number from an older saved state (the single 0..21 menu) -> mode and box
   const setChangerId = id => { id = Number(id); if (CPU_IDS.includes(id)) { $('changer').value = 'cpu'; $('cpu').value = id; } else if (XF_IDS.includes(id)) { $('changer').value = 'xf'; $('xf').value = id; } else $('changer').value = 'lz'; };
 
@@ -670,7 +675,7 @@ function workerMain() {
     const ensureLinks = kind => {
       const need = LINKS + 512 * N, have = wasm.memory.buffer.byteLength;
       if (need > have) { wasm.memory.grow(Math.ceil((need - have) / 65536)); views(); }
-      const key = N + ':' + kind;
+      const key = N + ':' + kind + ':' + new Int32Array(wasm.memory.buffer, PRM + 104, 1)[0];   // and when the joining changes
       if (linkKey !== key) { wasm.links_reset(LINKS, 4 * N, kind); linkKey = key; }   // fresh CPUs when the mode starts, the grid changes size or the kind changes
     };
     const views = () => { m8 = new Uint8Array(wasm.memory.buffer); image = new ImageData(new Uint8ClampedArray(wasm.memory.buffer, PIX, 4 * N), W, H); };
@@ -717,7 +722,13 @@ function workerMain() {
       async inspect(i) {
         const r = wasm.decode_pixel(GRID, i, PRM);
         return { bits: m8.slice(GRID + 16 * i, GRID + 16 * i + 16), out: m8.slice(io.OUT, io.OUT + 16), flags: m8.slice(io.FLAGS, io.FLAGS + 16),
-                 consumed: r >> 8, copied: r & 255, offset: io.lastOffset(), regs: m8.slice(256, 256 + 28) };
+                 consumed: r >> 8, copied: r & 255, offset: io.lastOffset(), regs: m8.slice(256, 256 + 128) };
+      },
+      // the 128-byte state of one link machine: the pair whose first pixel is (x, y), horizontal or vertical, forward or backward; null until the links have run
+      async linkState(x, y, vertical, back) {
+        if (!linkKey) return null;
+        const p = vertical ? N + y * W + x : y * W + x;
+        return m8.slice(LINKS + 256 * p + (back ? 128 : 0), LINKS + 256 * p + (back ? 128 : 0) + 128);
       },
       async paint(i, ones) { m8.fill(ones ? 255 : 0, GRID + 16 * i, GRID + 16 * i + 16); },
       async cells() { return m8.slice(GRID, GRID + 16 * N); },
@@ -782,6 +793,10 @@ function workerMain() {
         return image;
       },
       async inspect(i) { const [k, local] = owner(i); return call(workers[k], { type: 'inspect', local }); },
+      async linkState(x, y, vertical, back) {   // a left-right pair belongs to the band of its row, an up-down pair to the band of its second row (see Band.linkBand)
+        const k = bands.findIndex(b => y + (vertical ? 1 : 0) >= b.y0 && y + (vertical ? 1 : 0) < b.y0 + b.rows);
+        return (await call(workers[k], { type: 'linkState', x, vertical, back, r: y - bands[k].y0, j: y + 1 - bands[k].y0 })).state;
+      },
       async paint(i, ones) { const [k, local] = owner(i); const r = await call(workers[k], { type: 'paint', local, ones }); edgesFrom(r, k); },
       cellsSync() { return null; },
       async cells() {   // the whole grid, band by band
@@ -959,17 +974,19 @@ function workerMain() {
   async function inspect() {
     if (sel < 0) return;
     const r = await engine.inspect(sel), textLen = built.bytes.length, hb = HB, unit = Math.ceil(textLen / 2 ** hb);
-    const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18), z80 = (ch >= 6 && ch <= 15) || ch >= 19;
+    const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18), z80 = (ch >= 6 && ch <= 15) || ch >= 19 || (ch === 0 && linksActive());
     $('selPos').textContent = `x ${sel % W}, y ${Math.floor(sel / W)}`;
     $('selHex').textContent = Array.from(r.bits, b => b.toString(16).padStart(2, '0')).join(' ');
     if (z80) {
       const frag = document.createDocumentFragment();
       r.out.forEach((b, i) => { const s = document.createElement('span'); s.className = r.flags[i] ? 'c' : ''; s.textContent = b.toString(16).padStart(2, '0') + ' '; frag.appendChild(s); });
       $('selText').replaceChildren(frag);
-      const g = r.regs, h2 = v => v.toString(16).padStart(2, '0'), h4 = (lo, hi) => h2(g[hi]) + h2(g[lo]);
-      const steps = Number($('steps').value), hx = (lo, n) => Array.from(g.slice(lo, lo + n), h2).join(' ');
+      const h2 = v => v.toString(16).padStart(2, '0'), steps = Number($('steps').value);
+      const dump = g => {   // one machine's registers from its 128-byte register file
+      const h4 = (lo, hi) => h2(g[hi]) + h2(g[lo]), hx = (lo, n) => Array.from(g.slice(lo, lo + n), h2).join(' ');
       const x32 = n => { const d = g[64 + 4 * n] | (g[65 + 4 * n] << 8) | (g[66 + 4 * n] << 16) | (g[67 + 4 * n] << 24); return (d >>> 0).toString(16).padStart(8, '0'); };
       const dumps = {
+        0: () => `bit ${g[0] | (g[1] << 8)} of 256, output at byte ${g[6]}, dictionary cursor ${(g[4] | (g[5] << 8)).toLocaleString()}${g[2] ? '' : ' (start cursor not read yet)'}`,
         6: () => `A=${h2(g[7])} F=${h2(g[6])} BC=${h4(0, 1)} DE=${h4(2, 3)} HL=${h4(4, 5)} IX=${h4(16, 17)} IY=${h4(18, 19)} SP=${h4(20, 21)} PC=${h4(22, 23)}`,
         7: () => `A=${h2(g[0])} X=${h2(g[1])} Y=${h2(g[2])} S=${h2(g[3])} P=${h2(g[4])} (${['N','V','-','B','D','I','Z','C'].filter((_, k) => g[4] & (0x80 >> k)).join('')}) PC=${h4(22, 23)}`,
         8: () => `A=${h2(g[7])} F=${h2(g[6])} BC=${h4(0, 1)} DE=${h4(2, 3)} HL=${h4(4, 5)} SP=${h4(20, 21)} PC=${h4(22, 23)}`,
@@ -987,8 +1004,10 @@ function workerMain() {
         24: () => { const o = (lo, n, w) => { let v = 0n; for (let k = n - 1; k >= 0; k--) v = (v << 8n) | BigInt(g[lo + k]); return v.toString(8).padStart(w, '0'); }; return `X0..X7=${Array.from({ length: 8 }, (_, k) => o(64 + 8 * k, 8, 20)).join(' ')} A0..A7=${Array.from({ length: 8 }, (_, k) => o(24 + 4 * k, 4, 6)).join(' ')} B1..B7=${Array.from({ length: 7 }, (_, k) => o(3 * k, 3, 6)).join(' ')} P=${g[22] >> 2}.${g[22] & 3} (octal; words 0..1 are pixel bits 0..119)`; },
         21: () => `D0..D7=${Array.from({ length: 8 }, (_, k) => x32(k)).join(' ')} A0..A7=${Array.from({ length: 8 }, (_, k) => x32(8 + k)).join(' ')} SR=${['X','N','Z','V','C'].filter((_, k) => g[20] & (16 >> k)).join('') || '-'} PC=${h4(22, 23)}`,
       };
-      $('selWindow').textContent = `after ${steps} instructions: ` + dumps[ch]();
-      const notes = { 6: 'HALT, DI, EI, IM and I/O are NOPs', 7: 'undocumented opcodes (JAM/KIL included) are NOPs', 8: 'HLT, DI, EI, IN and OUT are NOPs',
+      return dumps[ch]();
+      };
+      const notes = { 0: 'LZ: a step reads one copy length and 3-bit skip from the memory bits at the bit position (the first step reads the 13-bit start cursor), copies that many dictionary bytes to the output position and advances both, wrapping; what it reads is what it writes',
+        6: 'HALT, DI, EI, IM and I/O are NOPs', 7: 'undocumented opcodes (JAM/KIL included) are NOPs', 8: 'HLT, DI, EI, IN and OUT are NOPs',
         9: 'mem[b] -= mem[a]; branch to c when the result is <= 0', 10: 'no display or keypad: DXYN clears VF, EX9E never skips, EXA1 always skips, FX0A is a NOP',
         11: 'the 16 bytes are the ROM and 32 RAM nibbles; output and status instructions are NOPs', 12: 'HALT, STOP, DI, EI and invalid opcodes are NOPs',
         13: 'internal RAM is the pixel: register banks and the stack live in it; reserved A5h is a NOP', 14: 'SYNC, CWAI and the SWIs are NOPs',
@@ -999,6 +1018,28 @@ function workerMain() {
         22: '5 words of 24 bits, addresses mod 5, the 1950 octal operation codes; print and the stops are NOPs',
         23: 'little-endian, every operand specifier; HALT, floating point, decimal, strings, queues and privileged instructions are NOPs',
         24: '2 words of 60 bits in 15-bit parcels; the full central processor set with 6600 floating point, addresses mod 2' };
+      if (linksActive()) {   // the cell is changed by the link machines, not by a run over the cell alone: show the four whose code starts here
+        const x = sel % W, y = Math.floor(sel / W), rounds = Number($('rounds').value), n = Number($('lreset').value);
+        const own = [x + 1 < W && ['→', 'pair with the right neighbour, forward machine', engine.linkState(x, y, false, false)],
+                     y + 1 < H && ['↓', 'pair with the neighbour below, forward machine', engine.linkState(x, y, true, false)],
+                     x > 0 && ['←', 'pair with the left neighbour, backward machine', engine.linkState(x - 1, y, false, true)],
+                     y > 0 && ['↑', 'pair with the neighbour above, backward machine', engine.linkState(x, y - 1, true, true)]].filter(Boolean);
+        const states = await Promise.all(own.map(m => m[2]));
+        const frag = document.createDocumentFragment();
+        const head = document.createElement('div');
+        head.textContent = `link machines whose code starts in this cell (${rounds} instructions a turn, ${n === 1 ? 'reset every turn' : n > 1 ? `reset every ${n} turns` : 'never reset'}):`;
+        frag.appendChild(head);
+        const wordPC = ch === 0 || ch === 19 || ch === 22 || ch === 24, pm = Number($('pair').value);   // the word machines count PC in words, the others in bytes of the 32-byte pair memory
+        const whose = a => pm === 1 ? (a < 16 ? ', this cell' : ', the neighbour') : pm === 5 ? (a & 1 ? ', the neighbour' : ', this cell') : '';
+        const at = g => { if (wordPC) return ''; const a = (g[22] | (g[23] << 8)) & 31; return ` → next instruction at ${a}${whose(a)}`; };
+        own.forEach((m, k) => { const d = document.createElement('div'); d.textContent = states[k] ? `${m[0]} ${m[1]}: ${dump(states[k])}${at(states[k])}` : `${m[0]} ${m[1]}: not run yet`; frag.appendChild(d); });
+        $('selWindow').replaceChildren(frag);
+        $('selText').textContent = 'changed in place by the link machines, one instruction at a time; there is no separate output';
+        const joining = { 1: 'concatenated: the own cell at addresses 0–15 and the neighbour at 16–31', 2: 'bit-interleaved: the own cell on the even bits, the neighbour on the odd', 5: 'byte-interleaved: the own cell on the even addresses, the neighbour on the odd', 3: 'xor then add: bytes 0–15 are own xor neighbour, 16–31 the neighbour plus that', 4: 'add then subtract: bytes 0–15 are the sums, 16–31 the own cell minus half the sum' }[Number($('pair').value)];
+        $('selNote').textContent = `Link CPUs: eight machines change this cell, the four above and the four of the same pairs whose code starts in the neighbour; each sees its pair as 32 bytes (${joining}; addresses wrap mod 32) and runs one instruction a round. A pixel is written back only when a byte differs, so a store of the value already there leaves no trace. The single-cell run of ${steps} instructions does not apply here. ` + notes[ch];
+        return;
+      }
+      $('selWindow').textContent = `after ${steps} instructions: ` + dump(r.regs);
       $('selNote').textContent = `memory after the run (the 16 bytes are the whole address space, wrapping mod 16); ${r.copied} of 16 bytes changed; ` + notes[ch];
       return;
     }
@@ -1095,7 +1136,7 @@ function workerMain() {
     const passes = Number($('iters').value);
     const salts = Array.from({ length: 4 + passes }, () => 0n);   // the swap and smoothing hashes see the neighbouring bits only, no turn salt
     const mut = { lam: mutationLam(), salt: BigInt(turn * 64 + 63) };   // mutation is always salted by the turn, or the same bits would flip every turn
-    const r = await engine.turn({ order: Band.order(turn), alt: turn & 1, passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, changer: changerActive(), pair: { mode: linkMode() ? 0 : Number($('pair').value), flip: turn & 1 }, mut, links: linksActive() ? { kind: changerId(), rounds: Number($('rounds').value), reset: linkResetDue() } : null });
+    const r = await engine.turn({ order: Band.order(turn), alt: turn & 1, passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, changer: changerActive(), pair: { mode: Number($('pair').value), flip: turn & 1 }, mut, links: linksActive() ? { kind: changerId(), rounds: Number($('rounds').value), reset: linkResetDue() } : null });
     moved = r.moved; smoothed = r.smoothed; rewritten = r.rewritten; mutated = r.mutated || 0; totalBits = r.bits; noteHist(r.hist);
     turn++;
     timeSum += performance.now() - t0; timed++;
@@ -1209,6 +1250,7 @@ function workerMain() {
             ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['mut', 'mut', '0.001'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['changer', 'changer', 'lz'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['steps', 'steps', '256'], ['rounds', 'rounds', '128'], ['lreset', 'lreset', '1'], ['coff', 'coff', '610'], ['pair', 'pair', '0']])
         $(id).value = saved[key] ?? dflt;
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
+      if ($('pair').value === '') $('pair').value = saved.pair === '6' ? '1' : '0';   // the former "Links" entry: concatenated pairs
       if (!$('size').value) { const w = parseInt(saved.size) || 512; $('size').value = [...$('size').options].some(o => o.value === `${w}x${w}`) ? `${w}x${w}` : '512x512'; }
       sel = saved.sel ?? -1; turn = saved.turn || 0;
       setRunning(saved.running ?? running);

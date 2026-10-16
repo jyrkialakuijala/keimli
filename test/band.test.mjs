@@ -60,15 +60,15 @@ for (const [W, H, K, passes, changer, nbr = 0, pair = 0] of [[64, 48, 4, 3, 0], 
 // top-edge pair, the row goes back; the bottom row returns; LR1), run synchronously here in band order, must give the
 // same grid, the same states and the same pixel-write count as the whole-grid `links` call, over a whole turn's worth
 // of rounds and across a reset.
-for (const [W, H, K, kind, rounds] of [[32, 24, 3, 6, 40], [32, 32, 4, 7, 24], [24, 16, 2, 15, 20], [32, 24, 5, 19, 12]]) {
+for (const [W, H, K, kind, rounds, mode = 1] of [[32, 24, 3, 6, 40], [32, 32, 4, 7, 24], [24, 16, 2, 15, 20], [32, 24, 5, 19, 12], [32, 24, 4, 6, 24, 2], [32, 24, 3, 8, 24, 5], [32, 24, 4, 12, 24, 3], [32, 24, 3, 7, 24, 4], [32, 24, 3, 0, 24, 1], [32, 24, 4, 0, 24, 5]]) {
   const N = W * H, S = 16 * W, D = 2;
-  const full = await mk(); full.io.setChanger(kind);
+  const full = await mk(); full.io.setChanger(kind); full.io.setPair(mode, 0);
   const fm8 = new Uint8Array(full.ex.memory.buffer), GRID = L.GRID, ST = GRID + 16 * N + 1024;
   full.ex.randomize(4 * N, GRID, 1234 + K);
   const ref = fm8.slice(GRID, GRID + 16 * N);
   const bands = [];
   for (const b of Band.split(H, K, D)) {
-    const inst = await mk(); inst.io.setChanger(kind);
+    const inst = await mk(); inst.io.setChanger(kind); inst.io.setPair(mode, 0);
     const m8 = new Uint8Array(inst.ex.memory.buffer), G = GRID, LINKS = G + (b.rows + 2 * D) * S + 1024;
     const need = LINKS + 512 * b.rows * W; if (need > m8.length) inst.ex.memory.grow(Math.ceil((need - m8.length) / 65536));
     new Uint8Array(inst.ex.memory.buffer).set(ref.subarray(b.y0 * S, (b.y0 + b.rows) * S), G + D * S);
@@ -86,7 +86,7 @@ for (const [W, H, K, kind, rounds] of [[32, 24, 3, 6, 40], [32, 32, 4, 7, 24], [
   for (let r = 0; r < rounds; r++) { for (const ph of order) fw += full.ex.links(W, H, GRID, L.PRM, ph, ST); round(); }
   const same = () => { const a = new Uint8Array(16 * N); for (const b of bands) a.set(new Uint8Array(b.ex.memory.buffer).subarray(b.st.GRID + D * S, b.st.GRID + (D + b.st.rows) * S), b.st.y0 * S); for (let i = 0; i < 16 * N; i++) if (a[i] !== fm8[GRID + i]) return false; return true; };
   const bw = bands.reduce((c, b) => c + b.lb.changed, 0);
-  check(`links on ${bands.length} bands, ${W}x${H}, kind ${kind}: grid bit-identical to the whole-grid run after ${rounds} rounds (${fw} pixel writes)`, same() && fw === bw && fw > 0);
+  check(`links on ${bands.length} bands, ${W}x${H}, kind ${kind}, joining ${mode}: grid bit-identical to the whole-grid run after ${rounds} rounds (${fw} pixel writes)`, same() && fw === bw && fw > 0);
   // the states agree too: compare the forward state of the up-down pair across each band edge, which the lower band owns
   let states = true;
   for (let k = 1; k < bands.length; k++) {

@@ -22,8 +22,9 @@ The grid is a plane with edges, not a torus.
 3. **Bit-plane median filtering passes** (entropy decrease), 0 to 5 per turn (default 3).
 4. **The local changer** rewrites every pixel's 16 bytes with its output
    (see [changers.md](changers.md)). It can be switched off, in which case
-   it only feeds the views. In the Links regime this step is instead four
-   phases of persistent per-link CPUs, one instruction each.
+   it only feeds the views. With a CPU changer on cell pairs this step is
+   instead rounds of four phases of persistent per-link CPUs, one
+   instruction each.
 5. **Mutation** flips a random share of all bits (below).
 
 The view is refreshed once per turn.

@@ -9,10 +9,15 @@
     window.__l = { stage: 'start' };
     set('threads', '4');
     setTimeout(() => {
-      set('changer', 'cpu'); set('cpu', '6'); set('pair', '6'); set('rounds', '16'); set('lreset', '4');
+      set('changer', 'cpu'); set('cpu', '6'); set('pair', '1'); set('rounds', '16'); set('lreset', '4');
       setTimeout(() => {
         const t0 = T();
-        setTimeout(() => { Object.assign(window.__l, { turns: T() - t0, linkN: txt('linkN'), rewritten: txt('rewritten'), time: txt('turnTime'), done: true }); }, 4000);
+        setTimeout(() => {
+          Object.assign(window.__l, { turns: T() - t0, linkN: txt('linkN'), rewritten: txt('rewritten'), time: txt('turnTime') });
+          const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();   // inspect the centre cell: the link machines that start there
+          cv.dispatchEvent(new MouseEvent('click', { clientX: b.left + b.width / 2, clientY: b.top + b.height / 2, bubbles: true }));
+          setTimeout(() => { Object.assign(window.__l, { inspect: txt('selWindow'), done: true }); }, 1500);
+        }, 4000);
       }, 2500);
     }, 2500);
     return null;

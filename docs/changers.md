@@ -50,6 +50,16 @@ Unused input bits are ignored; a 1024-bit cap on input consumption remains
 as a safety net. `codec.js` builds the length-limited code and its lookup
 table.
 
+On cell pairs the decompressor runs as a link machine like the CPUs
+(`$lz_step`, see the Links section): one copy command a step, with the bit
+position, the dictionary cursor and the output position kept in the
+machine's state between steps. Its memory is the joined pair, read for the
+input bits as it stands at each step and written at the output position,
+both wrapping around the 32 bytes like a CPU's addresses, so a machine can
+read its own output back as commands and the decoder's output does not
+stop at the cell's end as it does in the whole-cell decode. The first step
+reads the start cursor from the leading header bits.
+
 ## Brainfuck
 
 Each pixel's 16 bytes run as a Brainfuck program on a 16-cell circular
@@ -87,16 +97,20 @@ transform runs over the sum and difference halves.
 ## Pairs: two cells changed together
 
 The "Cells" box in the Local changer section can change two neighbouring
-cells, columns 2i and 2i + 1, as one. Their 256 bits are joined into a
-32-byte joint cell, the changer runs once on it, and the result is split
-back by the same mapping in reverse (`$join` and `$split` in `decode.wat`;
-the host sets `pairMode` and this turn's `pairFlip` in the parameter block,
-and `change` walks the pairs). Five joinings are offered, and each alternates
-from turn to turn so that neither cell keeps the first role:
+cells as one. For the LZ decompressor, the transforms and Brainfuck the pair
+is columns 2i and 2i + 1: their 256 bits are joined into a 32-byte joint
+cell, the changer runs once on it, and the result is split back by the same
+mapping in reverse (`$join` and `$split` in `decode.wat`; the host sets
+`pairMode` and this turn's `pairFlip` in the parameter block, and `change`
+walks the pairs), the roles alternating from turn to turn so that neither
+cell keeps the first role. For a CPU changer the same joinings define the
+memory of the link CPUs of the next section, where every 4-connected pair
+of pixels is a pair and the two roles are the two directions. Five joinings
+are offered:
 
-- **Concatenated.** A then B on even turns, B then A on odd turns. A CPU
-  then has 32 bytes of memory, so a program in one cell can read and write
-  the other; the decompressor reads its cursor and commands from 256 input
+- **Concatenated.** A then B (B then A for the other role). A CPU then has
+  32 bytes of memory, so a program in one cell can read and write the
+  other; the decompressor reads its cursor and commands from 256 input
   bits and emits 32 bytes.
 - **Bit-interleaved.** On even turns A's bits take the even positions of
   the joint cell and B's the odd ones; on odd turns the other way round.
@@ -133,15 +147,21 @@ configurations through it.
 
 ## Links: a persistent CPU per pair of neighbours
 
-The last entry of the "Cells" box, Links, changes the regime for the CPU
-changers (Z80 and up, kinds 6 to 15 and 19 to 24). Instead of a fresh
-machine running 256 instructions over one cell, every link of the lattice
-has a machine of its own whose registers persist from round to round. A
-link is directed: the pair of horizontally or vertically adjacent pixels
-A, B carries two links, A→B and B→A, with two separate machines. The A→B
-machine's memory is A at addresses 0 to 15 followed by B at 16 to 31, the
-B→A machine's is B followed by A, read when its instruction runs and written
-straight back. A round runs the four link phases in the swap-phase order
+With the "Cells" box on any pair joining, the CPU changers (Z80 and up,
+kinds 6 to 15 and 19 to 24) and the LZ decompressor (kind 0, one copy
+command a step) change regime. Instead of a fresh machine
+running 256 instructions over one cell, every link of the lattice has a
+machine of its own whose registers persist from round to round. A link is
+directed: the pair of horizontally or vertically adjacent pixels A, B
+carries two links, A→B and B→A, with two separate machines. The A→B
+machine's memory is the 32-byte joint cell of A and B with A in the first
+role, under the selected joining (concatenated: A at addresses 0 to 15
+followed by B at 16 to 31; byte-interleaved: A on the even addresses;
+bit-interleaved: A on the even bits; the lifting joinings: differences and
+sums of the two), the B→A machine's the joint cell with B in the first
+role. The joint cell is built when the instruction runs and split back
+straight after, so under the lifting joinings a store into one byte lands
+in both pixels. A round runs the four link phases in the swap-phase order
 (UD0, LR0, UD1, LR1): in each phase every pair of that phase runs one
 instruction of its forward machine (left or top pixel first) and then one
 of its backward machine, which sees what the forward one wrote. So a pixel
@@ -183,8 +203,20 @@ top-edge pair, hands that row back changed, puts the returned bottom row in
 place and runs LR1. The rows travel over direct channels between
 neighbouring workers, two short messages per band edge per round, and the
 result is bit-identical to the single-instance run (`test/band.test.mjs`).
-With a non-CPU changer the Links setting has no effect and the changer runs
-cell by cell.
+With a transform or Brainfuck there are no link machines: the joining
+applies to the column pairs of the previous section and the changer runs
+once a turn on each joint cell.
+
+A pixel is written back only when one of its bytes differs after the
+instruction, so a store of the value already there leaves no trace and does
+not count as a write; with the machines reset every turn the lattice can
+settle into a state where every store reproduces what is there, and the
+"pixels rewritten" counter falls to the few pixels the swaps and mutation
+keep disturbing. The inspector in this mode shows the four link machines
+whose code starts in the selected cell (the forward machines of its pairs to
+the right and below, the backward machines of the pairs to the left and
+above) with their registers as they stand, instead of the single-cell run,
+which is not what changes the cell here.
 
 ## How much each changer changes
 
@@ -192,3 +224,16 @@ cell by cell.
 twice, and reports the share of pixels and bytes changed. It asserts which
 changers change fewer than 5% of random pixels: only "do nothing" since the
 register spill (before it CHIP-8 and the 4004 were in that set).
+
+The second pass is much quieter than the first for every CPU (the Z80 drops
+from 78% of pixels to 14%), and on the lattice the share keeps falling: a
+cell whose 16 bytes hold no store instruction is a fixed point of the
+changer, its program runs its 256 instructions and leaves the memory as it
+was, and once a cell gets there only the swaps, the smoothing and mutation
+move it on. The lattice saturates in such cells, for instance
+`00 01 54 40 80 20 11 10 4b 40 4b 40 4b 00 4b 40` (NOP; LD BC,4054h; ADD
+A,B; JR NZ to byte 8; then LD C,E and LD B,B) or
+`3e 00 3e 00 3e 00 3e 00 5e 00 41 00 3e 00 1e 00` (LD A,0 four times, LD
+E,(HL), LD B,C, LD A,0, LD E,0); four such cells are in `test/mix.test.mjs`. The byte
+histogram then stays broad, since many different store-free programs
+coexist, while the "pixels rewritten" counter falls.

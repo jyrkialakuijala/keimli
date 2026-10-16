@@ -51,6 +51,7 @@ const Band = (() => {
     let vt = topArt ? D : 0, vb = botArt ? D : 0;           // valid halo rows above / below the interior
     const useTop = () => { if (vt === 0) throw new Error('band halo exhausted above'); vt--; };
     const useBot = () => { if (vb === 0) throw new Error('band halo exhausted below'); vb--; };
+    if (msg.pair) new Int32Array(wasm.memory.buffer, st.PRM + 104, 2).set([msg.pair.mode | 0, msg.pair.flip ? 1 : 0]);   // pairs: the joining and this turn's flip, for the link rounds and the changer
     let moved = 0, smoothed = 0, k = 0;
     m8.copyWithin(GRID2, GRID, GRID + (rows + 2 * D) * S);   // snapshot: every swap decision of the turn is read from the map before the first phase
     for (const ph of msg.order) {
@@ -76,7 +77,6 @@ const Band = (() => {
   // the changer (unless the link rounds took its place: then linkWrites is their pixel-write count) and the mutation
   function runTail(st, msg, linkWrites = 0) {
     const { wasm, W, y0, rows, D, GRID } = st, S = 16 * W;
-    if (msg.pair) new Int32Array(wasm.memory.buffer, st.PRM + 104, 2).set([msg.pair.mode | 0, msg.pair.flip ? 1 : 0]);   // pairs: mode and this turn's flip
     const rewritten = msg.links ? linkWrites : msg.changer ? wasm.change(rows * W, GRID + D * S, st.PRM) : 0;
     const mutated = msg.mut && msg.mut.lam ? wasm.mutate(rows * W, GRID + D * S, y0 * W, msg.mut.lam, msg.mut.salt) : 0;   // own rows, global pixel indices
     return { rewritten, mutated };

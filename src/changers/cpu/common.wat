@@ -8,6 +8,7 @@
   ;; advances it; $push/$pop use SP at offset 20. $fld_rd/$fld_wr access an n-bit field (n <= 64) at any
   ;; bit offset of the pixel for the wide-word machines.
   (global $zp (mut i32) (i32.const 0))   ;; base address of the current pixel's 16 bytes
+  (global $prmg (mut i32) (i32.const 0))   ;; the parameter block, for machines that need it in $step (the LZ machine)
   (func $zr (param $o i32) (result i32) (i32.load8_u offset=256 (local.get $o)))
   (func $zw (param $o i32) (param $v i32) (i32.store8 offset=256 (local.get $o) (local.get $v)))
   (func $zr16 (param $o i32) (result i32) (i32.load16_u offset=256 (local.get $o)))

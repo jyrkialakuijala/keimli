@@ -159,6 +159,44 @@
       (br $fill)))
     (i32.or (i32.shl (local.get $bp) (i32.const 8)) (local.get $cmds)))
 
+  ;; lz_step: the LZ decompressor as a machine that runs one command a step, for the links. State in the register
+  ;; file: 0..1 the bit position, 2 whether the start cursor has been read, 4..5 the dictionary cursor, 6 the output
+  ;; position. Its memory is the joint cell at $zp ($cw bytes): the input bits are read from it as it stands, so its
+  ;; own output can be read back as commands, and each command's copy is written at the output position, both
+  ;; positions wrapping like a CPU's addresses. The first step reads the header into the cursor; every later step
+  ;; reads one copy length and skip and copies that many dictionary bytes. Parameters from $prmg.
+  (func $lz_step
+    (local $prm i32) (local $bp i32) (local $cursor i32) (local $pos i32) (local $entry i32) (local $len i32) (local $textLen i32) (local $text i32)
+    (local.set $prm (global.get $prmg))
+    (local.set $textLen (i32.load offset=32 (local.get $prm)))
+    (local.set $text (i32.sub (i32.load (local.get $prm)) (local.get $textLen)))
+    (local.set $bp (call $zr16 (i32.const 0)))
+    (if (i32.eqz (call $zr (i32.const 2))) (then
+      (call $zw16 (i32.const 4) (i32.rem_u
+        (i32.add (i32.mul (call $peekm (global.get $zp) (i32.const 0) (i32.load offset=96 (local.get $prm))) (i32.load offset=44 (local.get $prm)))
+                 (i32.load offset=100 (local.get $prm)))
+        (local.get $textLen)))
+      (call $zw16 (i32.const 0) (i32.load offset=96 (local.get $prm)))
+      (call $zw (i32.const 2) (i32.const 1))
+      (return)))
+    (local.set $entry (i32.load (i32.add (i32.load offset=8 (local.get $prm))
+      (i32.shl (call $peekm (global.get $zp) (local.get $bp) (i32.const 12)) (i32.const 2)))))
+    (local.set $len (i32.add (i32.shr_u (local.get $entry) (i32.const 8)) (i32.const 2)))
+    (local.set $bp (i32.add (local.get $bp) (i32.and (local.get $entry) (i32.const 255))))
+    (local.set $cursor (i32.rem_u
+      (i32.add (call $zr16 (i32.const 4)) (call $peekm (global.get $zp) (local.get $bp) (i32.const 3)))
+      (local.get $textLen)))
+    (local.set $bp (i32.and (i32.add (local.get $bp) (i32.const 3)) (i32.sub (i32.shl (global.get $cw) (i32.const 3)) (i32.const 1))))
+    (local.set $pos (call $zr (i32.const 6)))
+    (block $e (loop $l (br_if $e (i32.eqz (local.get $len)))
+      (call $mwr (local.get $pos) (i32.load8_u (i32.add (local.get $text) (local.get $cursor))))
+      (local.set $pos (i32.and (i32.add (local.get $pos) (i32.const 1)) (i32.sub (global.get $cw) (i32.const 1))))
+      (local.set $cursor (i32.rem_u (i32.add (local.get $cursor) (i32.const 1)) (local.get $textLen)))
+      (local.set $len (i32.sub (local.get $len) (i32.const 1))) (br $l)))
+    (call $zw16 (i32.const 0) (local.get $bp))
+    (call $zw16 (i32.const 4) (local.get $cursor))
+    (call $zw (i32.const 6) (local.get $pos)))
+
   ;; ---- pairs: two cells changed together ----
   ;; spread(x): the 32 low bits of x moved to the even bit positions of an i64; squeeze(x): the inverse.
   (func $spread (param $x i64) (result i64)
