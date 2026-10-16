@@ -21,7 +21,7 @@ with it).
 ## The entry point
 
 `$decode` in `decode.wat` dispatches on the changer number in the parameter
-block (`codec.js` keeps the numbering: 0 LZ, 1 and 2 Brainfuck, 3 to 5 the
+block (`codec.js` keeps the numbering: 0 LZ, 1 and 2 Brainfuck (1 unused), 3 to 5 the
 simple transforms, 6 to 15 and 19 to 24 CPUs, 16 add 17, 17 and 18 DCT),
 and is itself the LZ decoder. The parameter block, output buffer, flags
 (one byte per output byte, for the inspector) and the dictionary are placed
@@ -68,8 +68,11 @@ the commands `> < + - . , [ ]` in that order and any other value is a
 comment, so the "Random bytes 0–7" start fills the field with programs. `.`
 does nothing, `,` reads the program's own bytes cyclically, unmatched
 brackets are ignored, and execution stops after 1024 steps. The tape starts
-empty or as a copy of the pixel, selectable. The inspector shows the
-disassembled program and the tape with changed cells highlighted.
+as a copy of the pixel (changer 2; changer 1, the same interpreter on an
+empty tape, is still in the module but no longer offered, since a program
+on an empty tape rarely leaves anything in it that survives). The
+inspector shows the disassembled program and the tape with changed cells
+highlighted.
 
 ## Simple transforms
 

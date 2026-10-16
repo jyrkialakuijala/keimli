@@ -264,8 +264,7 @@
     <div class="group" id="cpuGroup" hidden>
       <label for="cpu">CPU</label>
       <select id="cpu">
-        <option value="1">Brainfuck, empty tape</option>
-        <option value="2">Brainfuck, tape = pixel</option>
+        <option value="2">Brainfuck (the tape starts as a copy of the pixel)</option>
         <option value="6" selected>Zilog Z80</option>
         <option value="7">MOS 6502</option>
         <option value="8">Intel 8080</option>
@@ -1009,7 +1008,7 @@ function workerMain() {
   // local changer: 'none' keeps the LZ decompressor for the views but skips the rewrite phase
   // The local changer is chosen in two steps: a mode (none / LZ / transform / CPU) and, for the last two,
   // the processor in its own box. changerId() is the wasm processor number (0 LZ, 1..21 as listed in the boxes).
-  const CPU_IDS = [1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24], XF_IDS = [3, 4, 5, 16, 17, 18];
+  const CPU_IDS = [2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24], XF_IDS = [3, 4, 5, 16, 17, 18];
   const changerId = () => { const m = $('changer').value; return m === 'cpu' ? Number($('cpu').value) : m === 'xf' ? Number($('xf').value) : 0; };
   const changerActive = () => $('changer').value !== 'none';
   // links: with Cells set to any pair joining and a CPU changer, every pair of neighbouring pixels gets two persistent CPUs whose memory is the joined pair
@@ -1019,7 +1018,7 @@ function workerMain() {
   const linkResetDue = () => { const n = Number($('lreset').value); return n > 0 && turn % n === 0; };   // fresh machines (PC 0, registers 0) at the start of every nth turn
   const showChangerBoxes = () => { const m = $('changer').value; $('cpuGroup').hidden = m !== 'cpu'; $('stepsGroup').hidden = m !== 'cpu' || changerId() < 6 || linkMode(); $('roundsGroup').hidden = $('lresetGroup').hidden = !(linkMode() && linkKind(changerId())); $('xfGroup').hidden = m !== 'xf'; };
   // a processor number from an older saved state (the single 0..21 menu) -> mode and box
-  const setChangerId = id => { id = Number(id); if (CPU_IDS.includes(id)) { $('changer').value = 'cpu'; $('cpu').value = id; } else if (XF_IDS.includes(id)) { $('changer').value = 'xf'; $('xf').value = id; } else $('changer').value = 'lz'; };
+  const setChangerId = id => { id = Number(id); if (id === 1) id = 2;   /* the empty-tape Brainfuck, no longer offered */ if (CPU_IDS.includes(id)) { $('changer').value = 'cpu'; $('cpu').value = id; } else if (XF_IDS.includes(id)) { $('changer').value = 'xf'; $('xf').value = id; } else $('changer').value = 'lz'; };
 
   // packed 8-bit mean colour from frame sums (the LUT views stretch the next frame around it)
   const packMean = s => Math.round(s.r / s.n) | (Math.round(s.g / s.n) << 8) | (Math.round(s.b / s.n) << 16);
@@ -1232,8 +1231,7 @@ function workerMain() {
       return;
     }
     if (changerId() !== 0) {
-      $('codeNote').textContent = `Brainfuck: each pixel's 16 bytes are a program run on a 16-cell circular tape` +
-        (changerId() === 2 ? ' that starts as a copy of the pixel' : ' that starts empty') +
+      $('codeNote').textContent = `Brainfuck: each pixel's 16 bytes are a program run on a 16-cell circular tape that starts as a copy of the pixel` +
         `; byte values 0–7 are > < + - . , [ ] and other values are comments; "," reads the program's own bytes, "." does nothing, ` +
         `unmatched brackets are ignored, execution stops after 1024 steps; the tape afterwards is the pixel's new content`;
       return;
