@@ -54,8 +54,8 @@ src/
                   band.js       a turn, the swap order, bands for worker threads
   changers/       decode.wat    byte-changer entry point and the LZ decoder
                   codec.js      length codes, memory layout (LAYOUT), installer, byte colour LUT
-                  declaration.txt   the default dictionary
-                  dict/         seventeen more dictionaries in many scripts and their manifest.json (title, author, language, source)
+                  declaration.txt   the US Declaration of Independence, the dictionary of the examples
+                  dict/         seventeen more texts in many scripts, the codebook-search dictionaries and their manifest.json (title, author, language, source)
                   brainfuck.wat, simple.wat, dct.wat
                   codecs.wat    the decoders: Deflate, LZ4, Snappy, Brotli-like, prefix code, Morse, Rice, VP8, PNG filters, JPEG
     cpu/          common.wat    register file and pixel memory helpers shared by all cores

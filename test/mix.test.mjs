@@ -1399,6 +1399,23 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
     io.setChanger(45); io.setPair(1, 0); m8.set(A, GRID); m8.set(B, GRID + 16); instance.exports.change(2, GRID, PRM); io.setPair(0, 0);
     const got = m8.slice(GRID, GRID + 32), pref = bookRef(Uint8Array.from([...A, ...B]), 32);
     check(`codebook on a concatenated pair: 32 bytes match the reference (header + 16 codes = ${pref.used} bits)`, str(got) === str(pref.out) && pref.used === 167);
+    // 46 bit codebook: in place, 10- or 11-bit entries, the writer wrapping over the header; an 8-bit header (cursor read 256)
+    io.setCursorRead(256);
+    const bitbookRef = (bytes, cw) => { const c = bytes.slice(), nb = 8 * cw; let bp = 0, used = 0;
+      const rd = () => { const b = bp & (nb - 1); bp++; used++; return (c[b >> 3] >> (7 - (b & 7))) & 1; }; const bits = n => { let v = 0; while (n--) v = (v << 1) | rd(); return v; };
+      const win = bits(8) % L; let op = bp;
+      while (used < nb) { const code = bits(10), pos = (win + ((code * L) >> 10)) % L, b0 = dict[pos], len = 10 + (b0 & 1), w = (b0 << 8) | dict[(pos + 1) % L];
+        for (let i = 0; i < len; i++) { const b = op & (nb - 1); if ((w >> (15 - i)) & 1) c[b >> 3] |= 128 >> (b & 7); else c[b >> 3] &= ~(128 >> (b & 7)); op++; } }
+      return { out: c, used }; };
+    r = cell(46, new Uint8Array(16));
+    const zr46 = bitbookRef(new Uint8Array(16), 16);
+    check(`bit codebook: a zero cell decodes in place to the reference (${r.used} bits read: 8 header + 12 codes of ${10 + (dict[0] & 1)}-bit entries)`, str(r.out) === str(zr46.out) && r.used === zr46.used && r.used === 128);
+    ok = true;
+    for (const c16 of [A, B, half]) { const w = cell(46, c16), ref = bitbookRef(c16, 16); if (str(w.out) !== str(ref.out) || w.used !== ref.used) ok = false; }
+    check('bit codebook: three 16-byte cells match the in-place reference bit for bit, including the wrap over the header', ok);
+    io.setChanger(46); io.setPair(1, 0); m8.set(A, GRID); m8.set(B, GRID + 16); instance.exports.change(2, GRID, PRM); io.setPair(0, 0);
+    const got46 = m8.slice(GRID, GRID + 32), pref46 = bitbookRef(Uint8Array.from([...A, ...B]), 32);
+    check(`bit codebook on a concatenated pair: 32 bytes match the reference (${pref46.used} bits read: 8 header + 25 codes, the last one wrapping)`, str(got46) === str(pref46.out) && pref46.used === 258);
     io.setCursorRead(prev.cr); io.setCursorOffset(prev.co); io.setSkipBits(prev.sk);
   }
   // every decoder on random cells: output differs from the input, reads stay within the cap

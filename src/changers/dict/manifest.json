@@ -214,5 +214,53 @@
   "year": "6th century",
   "source": "https://ar.wikisource.org/w/index.php?title=معلقة_امرئ_القيس&action=raw",
   "note": "The first ten verses (qifā nabki), each verse a two-line stanza with the two hemistichs on separate lines; a pre-Islamic text, public domain."
+ },
+ {
+  "id": "ca-codebook-1",
+  "file": "ca-codebook-1.txt",
+  "title": "Codebook search 1",
+  "titleLatin": "Codebook search 1 (200 bytes, found by tools/ca-search.mjs)",
+  "author": "tools/ca-search.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "A 200-byte dictionary found by hill climbing for the codebook decoder (kind 45) on concatenated pairs with the entropy stages off: every pair settles into a cycle of 2 to 8 turns within about ten turns, into one of several attractors. Not a text."
+ },
+ {
+  "id": "ca-codebook-2",
+  "file": "ca-codebook-2.txt",
+  "title": "Codebook search 2",
+  "titleLatin": "Codebook search 2 (open-ended: many attractors, all periods)",
+  "note": "Found by tools/ca-search.mjs in rich mode for the codebook decoder (kind 45) on concatenated pairs with the entropy stages off: about 19 attractors with 15 effective, cycles of every length from 2 to 8, transients near 19 turns. Not a text.",
+  "author": "tools/ca-search.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": ""
+ },
+ {
+  "id": "ca-codebook-3",
+  "file": "ca-codebook-3.txt",
+  "title": "Codebook search 3",
+  "titleLatin": "Codebook search 3 (strict: 6-24 attractors, 6 periods)",
+  "note": "Found by tools/ca-search.mjs in strict mode: about 9 attractors with 7 effective, six distinct periods, transients near 11 turns. Not a text.",
+  "author": "tools/ca-search.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": ""
+ },
+ {
+  "id": "ca-codebook-4",
+  "file": "ca-codebook-4.txt",
+  "title": "Codebook search 4",
+  "titleLatin": "Codebook search 4 (512 bytes; codebook, 8 skip bits, cursor read 128)",
+  "author": "tools/ca-search.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Found by tools/ca-search.mjs in long mode (1024 steps per start) for the codebook decoder (kind 45) on concatenated pairs with 8 skip bits and a 7-bit header, the entropy stages off: 19 attractors with 18 effective, ten distinct cycle lengths with a mean of about 107 turns, transients near 80 turns. Not a text."
  }
 ]

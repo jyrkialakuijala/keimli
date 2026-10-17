@@ -16,8 +16,8 @@ the views without writing back.
 The section's on/off box switches the rewrite off altogether; with it on,
 the "Changer" box picks a mode: none, a transform (second box: do nothing,
 invert, reverse, extremes, DCT, inverse DCT, the sorts), a decoder (second
-box: the LZ decompressor, the default, and the ten decoders of kinds 31 to
-40) or a CPU (second box: Brainfuck and the twenty-four machines; a "CPU
+box: the LZ decompressor, the ten decoders of kinds 31 to 40 and the
+codebook, kind 45, the default) or a CPU (second box: Brainfuck and the twenty-four machines; a "CPU
 steps" box appears with it).
 
 ## The entry point
@@ -37,7 +37,7 @@ static dictionary, the Declaration of Independence, which is not part of
 the image. The first ⌈log₂ N⌉ leading bits, 13 for the Declaration's
 N = 8,122 bytes, are read as the start cursor, so every byte of the
 dictionary is a start position (values past the end wrap to its start), and
-the "LZ cursor offset" slider (0 to N, default 50) is added to that cursor,
+the "LZ cursor offset" slider (0 to N, default 0) is added to that cursor,
 again wrapping at the end of the text, so the start positions can be
 shifted away from the dictionary's opening.
 
@@ -64,15 +64,21 @@ stop at the cell's end as it does in the whole-cell decode. The first step
 reads the start cursor from the leading header bits.
 
 The "LZ cursor read" slider (1 to the dictionary size on a semi-logarithmic
-scale: 1 to 8 one by one, then quarter octaves; `prm + 52`) sets the
+scale: 1 to 8 one by one, then quarter octaves; `prm + 52`), or the number
+box beside it for an exact value (the slider then moves to its nearest
+stop, and moving the slider fills the box), sets the
 range V the header is read over: the header is ceil(log₂ V) bits wide and
 its value is the start position, wrapped round once when it is V or more
 (with V = 5 the 3-bit values 6 and 7 read as 0 and 1), to which the constant "LZ cursor
 offset" (`prm + 100`, never read from the pixel) is added before wrapping at
 the end of the dictionary. V = 1 reads no header bits, so every pixel starts
 at the offset; V = the dictionary size (the default) makes every byte a
-start position with a 13-bit header; the page's default is V = 5, a 3-bit
-header, with 6 skipped bits before it and an offset of 50.
+start position with a 13-bit header; the LZ examples above use V = 5, a
+3-bit header. The page starts in the codebook search's setting: a 128 × 128 grid,
+the codebook on concatenated pairs with the 512-byte "Codebook search 4"
+dictionary, no skipped bits, a cursor read of 256 (an 8-bit header), offset 0 and both
+entropy stages off; the LZ decompressor with the Declaration, 6 skipped
+bits and an offset of 50 is the setting the examples above describe.
 
 The "Skip bits" slider (0 to 16, `prm + 40`) makes the decoder skip that
 many bits of the pixel before it reads the cursor header, so the header and
@@ -132,7 +138,7 @@ coefficients are dealt back to the two cells bit, nibble or byte by byte.
 
 ## Decoders
 
-Kinds 31 to 40 and 45 (`src/changers/codecs.wat`) read the cell as a coded signal
+Kinds 31 to 40, 45 and 46 (`src/changers/codecs.wat`) read the cell as a coded signal
 rather than as a program: the information-centric changers. Every one of
 them reads the `$cw`-byte cell as a bitstream or byte stream that starts
 after the "Skip bits" and wraps at the end of the cell (reads are capped at
@@ -202,6 +208,21 @@ header and 16 codes with 89 bits to spare; the output is a chain of 16
 dictionary bigrams, and reading those bigrams back as codes is the
 iterated map. `tools/ca-search.mjs` looks for dictionaries whose map has several
 attractors with balanced basins, short cycles and moderate transients.
+
+**Bit codebook (46)** is the codebook with entries of 10 or 11 bits,
+decoded in place. The cell is copied to the output buffer and both read
+and written there: after the skip bits and the cursor header the reader
+takes 10-bit codes, and the writer, starting where the header ended, lays
+down each code's entry, the bits of the dictionary bytes at
+(window + code · L / 1024) mod L and the next, MSB-first, 11 of them when
+the first byte is odd and 10 when it is even. Every odd entry puts the
+writer one bit further ahead of the reader, so later codes are read from
+bits the decoder itself has just written, and the stream wraps round the
+end of the cell: the last bits land over the header, so the next decoding
+starts from a window the previous one chose. Decoding stops when the
+reader has been once round the cell, skip and header included; there is
+no fold, the wrap is the feedback. Made for an 8-bit header (cursor read
+256) over a 512-byte dictionary.
 
 ## Dictionaries
 

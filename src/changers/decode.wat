@@ -111,8 +111,8 @@
       (return (call $dct (local.get $p) (local.get $prm) (i32.const 1)))))
     (if (i32.or (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 41)) (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 42))) (then
       (return (call $sortx (local.get $p) (local.get $prm) (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 42))))))   ;; 41 sort, 42 primes first
-    (if (i32.or (i32.and (i32.ge_u (i32.load offset=72 (local.get $prm)) (i32.const 31)) (i32.le_u (i32.load offset=72 (local.get $prm)) (i32.const 40))) (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 45))) (then
-      (return (call $codec (local.get $p) (local.get $prm) (i32.load offset=72 (local.get $prm))))))   ;; 31..40 and 45: the decoders
+    (if (i32.or (i32.and (i32.ge_u (i32.load offset=72 (local.get $prm)) (i32.const 31)) (i32.le_u (i32.load offset=72 (local.get $prm)) (i32.const 40))) (i32.or (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 45)) (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 46)))) (then
+      (return (call $codec (local.get $p) (local.get $prm) (i32.load offset=72 (local.get $prm))))))   ;; 31..40, 45 and 46: the decoders
     (if (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 6)) (then
       (return (call $z80 (local.get $p) (local.get $prm)))))
     (if (i32.ge_u (i32.load offset=72 (local.get $prm)) (i32.const 7)) (then   ;; 7..30 and 43: the CPU driver
