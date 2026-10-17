@@ -248,9 +248,8 @@
         <option value="0" selected>Each cell on its own</option>
         <option value="1">Pairs, concatenated: A then B (B then A for the other role)</option>
         <option value="2">Pairs, bit-interleaved: A on the even bits and B on the odd (swapped for the other role)</option>
+        <option value="3">Pairs, nibble-interleaved: A on the low nibbles and B on the high (swapped for the other role)</option>
         <option value="5">Pairs, byte-interleaved: A on the even bytes and B on the odd (swapped for the other role)</option>
-        <option value="3">Pairs, xor then add (bytes): A xor B, then B plus that (roles swapped for the other role)</option>
-        <option value="4">Pairs, add then subtract (bytes): A plus B, then A minus half the sum (roles swapped for the other role)</option>
       </select>
     </div>
     <div class="group" id="xfGroup" hidden>
@@ -278,6 +277,7 @@
         <option value="32">Morse code</option>
         <option value="40">Rice-coded residuals of a predictor (FLAC-style)</option>
         <option value="39">VP8 boolean decoder against the dictionary's bigrams (WebP)</option>
+        <option value="45">Codebook: 10-bit codes to dictionary byte pairs, the halves folded into each other</option>
         <option value="37">PNG filters (rows of a filter byte and 3 samples)</option>
         <option value="38">JPEG 4×4 block (standard Huffman and quantiser tables)</option>
       </select>
@@ -714,7 +714,7 @@ function workerMain() {
   // local changer: 'none' keeps the LZ decompressor for the views but skips the rewrite phase
   // The local changer is chosen in two steps: a mode (none / transform / decoder / CPU) and, for the last three,
   // the processor in its own box. changerId() is the wasm processor number (0 LZ, 1..21 as listed in the boxes).
-  const CPU_IDS = [2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 43, 44], XF_IDS = [3, 4, 5, 16, 17, 18, 41, 42], DEC_IDS = [0, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40];
+  const CPU_IDS = [2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 43, 44], XF_IDS = [3, 4, 5, 16, 17, 18, 41, 42], DEC_IDS = [0, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 45];
   const changerId = () => { const m = $('changer').value; return m === 'cpu' ? Number($('cpu').value) : m === 'xf' ? Number($('xf').value) : m === 'dec' ? Number($('dec').value) : 0; };
   const changerActive = () => $('chgOn').checked && $('changer').value !== 'none';   // the section's on/off box and the menu's None entry both switch the changer off
   // links: with Cells set to any pair joining and a CPU changer, every pair of neighbouring pixels gets two persistent CPUs whose memory is the joined pair
@@ -925,6 +925,7 @@ function workerMain() {
         37: 'PNG filters: the 16 bytes are 4 rows of a filter byte (low 3 bits mod 5: None, Sub, Up, Average, Paeth) and 3 one-byte samples, reconstructed as the PNG decoder does from the sample to the left, above and above-left (zero outside). The filter bytes are kept, so the cell integrates itself turn after turn: Sub makes running sums along a row, Up down the columns, Paeth something in between.',
         38: 'JPEG: the bits are the entropy-coded data of one 4×4 block with a restart before it (DC predictor 0): the DC category and bits, then run/size pairs for the 15 AC coefficients in zigzag order, with the standard luminance Huffman tables of Annex K, read most significant bit first; EOB ends the block. The coefficients are dequantised with the top-left 4×4 of the standard luminance quantiser, inverse-transformed and level-shifted into 16 samples, row by row. On a pair, two blocks.',
         39: 'VP8 boolean decoder (WebP\'s arithmetic coder, RFC 6386): the cell\'s bytes feed the decoder and each output byte is eight binary decisions down a tree whose probabilities are an order-1 model of the dictionary (the previous output byte is the context, smoothed towards the byte frequencies). So the 128 bits are read as the arithmetic code of text in the dictionary\'s statistics, and random bits decode to text-like bytes.',
+        45: 'Codebook, made for cellular-automaton dynamics: first the second half of the cell is folded into the first two bytes as the decoder reads them (byte 0 xor the second half\'s even bytes, byte 1 xor its odd bytes), so in a pair each half steers the other; then, after the skip bits and the cursor header (the window start, read MSB-first), 10-bit codes are read until the output is full, each giving the two dictionary bytes at (window + code × L / 1024) mod L, so neighbouring codes land on neighbouring places of the dictionary. With the entropy stages off every pair iterates this map on its own, and the dictionary decides its fixed points and cycles.',
         40: 'Rice-coded residuals, as in a FLAC subframe with a first-order fixed predictor: a 3-bit Rice parameter k, then per sample a unary quotient (zeros ended by a 1, at most 32) and k remainder bits; the folded value becomes a signed residual added to the previous sample (128 before the first). Smooth signals cost few bits.',
       }[changerId()];
       return;
@@ -1157,7 +1158,7 @@ function workerMain() {
         own.forEach((m, k) => { const d = document.createElement('div'); d.textContent = states[k] ? `${m[0]} ${m[1]}: ${dump(states[k])}${at(states[k])}` : `${m[0]} ${m[1]}: not run yet`; frag.appendChild(d); });
         $('selWindow').replaceChildren(frag);
         $('selText').textContent = 'changed in place by the link machines, one instruction at a time; there is no separate output';
-        const joining = { 1: 'concatenated: the own cell at addresses 0–15 and the neighbour at 16–31', 2: 'bit-interleaved: the own cell on the even bits, the neighbour on the odd', 5: 'byte-interleaved: the own cell on the even addresses, the neighbour on the odd', 3: 'xor then add: bytes 0–15 are own xor neighbour, 16–31 the neighbour plus that', 4: 'add then subtract: bytes 0–15 are the sums, 16–31 the own cell minus half the sum' }[Number($('pair').value)];
+        const joining = { 1: 'concatenated: the own cell at addresses 0–15 and the neighbour at 16–31', 2: 'bit-interleaved: the own cell on the even bits, the neighbour on the odd', 3: 'nibble-interleaved: the own cell on the low nibbles of the 32 bytes, the neighbour on the high', 5: 'byte-interleaved: the own cell on the even addresses, the neighbour on the odd' }[Number($('pair').value)];
         $('selNote').textContent = `Link CPUs: eight machines change this cell, the four above and the four of the same pairs whose code starts in the neighbour; each sees its pair as 32 bytes (${joining}; addresses wrap mod 32) and runs one instruction a round. A pixel is written back only when a byte differs, so a store of the value already there leaves no trace. The single-cell run of ${steps} instructions does not apply here. ` + notes[ch];
         return;
       }
@@ -1174,7 +1175,7 @@ function workerMain() {
       $('selWindow').textContent = { 31: 'nibbles decoded with the cell\'s own 16 code lengths, two to a byte', 32: 'the letters the bits key out in Morse, then silence',
         33: 'Deflate fixed-Huffman literals and matches (preset dictionary: the text before the cursor read from the stream)', 34: 'LZ4 literals and matches (preset dictionary: the text before the cursor read from the stream)',
         35: 'Snappy literals and copies (preset dictionary: the text before the cursor read from the stream)', 36: 'Brotli-like inserts and copies, dictionary words transformed',
-        37: 'the 4 rows reconstructed through their filter bytes (kept)', 38: 'the 16 samples of the 4×4 JPEG block, row by row', 39: 'bytes arithmetic-decoded against the dictionary\'s bigram model', 40: 'samples from the Rice-coded residuals' }[ch];
+        45: 'dictionary byte pairs picked by 10-bit codes after the header, the window set by the header (the second half folded into the first two bytes first)', 37: 'the 4 rows reconstructed through their filter bytes (kept)', 38: 'the 16 samples of the 4×4 JPEG block, row by row', 39: 'bytes arithmetic-decoded against the dictionary\'s bigram model', 40: 'samples from the Rice-coded residuals' }[ch];
       $('selText').replaceChildren(frag);
       $('selNote').textContent = `${r.consumed} input bits read${skipBits() ? ` after ${skipBits()} skipped bits` : ''}${ch >= 33 && ch <= 36 ? ` (${hb} of them the dictionary cursor: the preset window ends at ${r.offset.toLocaleString()} of ${textLen.toLocaleString()})` : ''}${r.consumed >= 1024 ? ' (the cap: the rest of the cell keeps its bytes)' : ''}; ${r.copied} of 16 bytes differ from the input; ` +
         (ch === 37 || ch === 38 ? 'changed bytes highlighted' : 'alternate commands highlighted (a nibble, letter, literal run, match or sample each)') + (r.consumed < 1024 && r.out.length ? '' : '');
@@ -1401,7 +1402,7 @@ function workerMain() {
       if ($('dict').value === '') $('dict').value = DICTS[0].id;
       applyDict();
       $('cread').value = creadPos(Number(saved.cread) || 5);   // saved as the range V, the slider holds a position (default 5)
-      if ($('pair').value === '') $('pair').value = saved.pair === '6' ? '1' : '0';   // the former "Links" entry: concatenated pairs
+      if ($('pair').value === '') $('pair').value = saved.pair === '6' ? '1' : saved.pair === '4' ? '3' : '0';   // the former "Links" entry: concatenated pairs; the former add-then-subtract: nibbles
       if ($('avg').value === '') $('avg').value = '2';   // the former three-stage entry: two stages, the slow stage comes with the sharpening
       for (const [id, key] of [['swapOn', 'swapOn'], ['medOn', 'medOn'], ['chgOn', 'chgOn']]) $(id).checked = saved[key] === undefined ? true : saved[key] === true || saved[key] === 'true';
       $('lnever').checked = saved.lnever === undefined ? true : saved.lnever === true || saved.lnever === 'true' || String(saved.lreset) === '0';   // a saved 0 meant never; older states take the default

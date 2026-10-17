@@ -18,6 +18,7 @@
   ;;   38 JPEG: one 4x4 block entropy-coded with the standard luminance Huffman tables, dequantised, inverse DCT
   ;;   39 WebP's VP8 boolean decoder: the bits arithmetic-decoded against an order-1 model of the dictionary's bytes
   ;;   40 Rice-coded residuals of a first-order predictor, as in FLAC: a 3-bit parameter, then unary quotient and remainder
+  ;;   45 codebook: the second half folded into the first two bytes, then 10-bit codes each giving two dictionary bytes
   ;; Tables at $DT, written by Codec.install: 0 Deflate length bases (i16 x 29), 64 their extra bits, 96 distance bases
   ;; (i32 x 30), 224 their extra bits, 256 the Morse alphabet by path, 384 the JPEG DC code (16 counts, 12 values),
   ;; 416 the AC code (16 counts, 162 values), 608 the 4x4 quantiser in zigzag order, 624 the zigzag, 1024.. scratch
@@ -437,15 +438,47 @@
       (call $cmd) (call $oput (local.get $prev))
       (br $l))))
 
-  ;; codec(p, prm, kind): run decoder `kind` (31..40) on the $cw-byte cell at p into prm.out; bytes the decoder did not
+  ;; 45: a fixed codebook, made for cellular-automaton dynamics. Before anything is read, the second half of the cell
+  ;; is folded into the first two bytes as the reader sees them (byte 0 ^= the xor of the second half's even bytes,
+  ;; byte 1 ^= the xor of its odd bytes; the cell itself is untouched, the reader works on a copy), so the two halves
+  ;; of a pair act on each other: the second half steers the window and the first code of the first. Then the skip
+  ;; bits, the cursor header (MSB-first, the window start as for LZ4) and 10-bit codes MSB-first until the output is
+  ;; full: code c yields the two dictionary bytes at (window + (c L >> 10)) mod L and the position after it, L the
+  ;; text length, so neighbouring codes land on neighbouring places of the dictionary.
+  (func $dec_book
+    (local $tl i32) (local $base i32) (local $c i32) (local $pos i32)
+    (local.set $tl (i32.load offset=32 (global.get $cprm)))
+    (local.set $base (i32.sub (i32.load (global.get $cprm)) (local.get $tl)))
+    (block $e (loop $l (br_if $e (call $stop))
+      (local.set $c (call $bitsM (i32.const 10)))
+      (local.set $pos (i32.rem_u (i32.add (global.get $dwin) (i32.shr_u (i32.mul (local.get $c) (local.get $tl)) (i32.const 10))) (local.get $tl)))
+      (call $cmd)
+      (call $oput (i32.load8_u (i32.add (local.get $base) (local.get $pos))))
+      (local.set $pos (i32.add (local.get $pos) (i32.const 1)))
+      (if (i32.ge_u (local.get $pos) (local.get $tl)) (then (local.set $pos (i32.const 0))))
+      (call $oput (i32.load8_u (i32.add (local.get $base) (local.get $pos))))
+      (br $l))))
+
+  ;; codec(p, prm, kind): run decoder `kind` (31..40, 45) on the $cw-byte cell at p into prm.out; bytes the decoder did not
   ;; produce keep the cell's own value. flags[i] = command parity (31..36, 39, 40) or whether the byte changed (37, 38).
   ;; prm.lastOffset = bits consumed. Returns (bits consumed << 8) | number of bytes that differ from the input.
   (func $codec (param $p i32) (param $prm i32) (param $kind i32) (result i32)
-    (local $i i32) (local $changed i32)
+    (local $i i32) (local $changed i32) (local $book i32) (local $f0 i32) (local $f1 i32)
+    (local.set $book (i32.eq (local.get $kind) (i32.const 45)))
     (global.set $cp (local.get $p)) (global.set $cprm (local.get $prm))
     (global.set $cbp (i32.load offset=40 (local.get $prm))) (global.set $cused (i32.const 0))   ;; the decoders start after the skipped bits
     (global.set $dwin (i32.rem_u (i32.load offset=100 (local.get $prm)) (i32.load offset=32 (local.get $prm))))
-    (if (i32.and (i32.ge_u (local.get $kind) (i32.const 33)) (i32.le_u (local.get $kind) (i32.const 36))) (then   ;; the LZ77 formats read the dictionary cursor first
+    (if (local.get $book) (then   ;; the codebook reads a copy of the cell whose first two bytes carry the fold of the second half
+      (memory.copy (i32.add (global.get $DT) (i32.const 1216)) (local.get $p) (global.get $cw))
+      (local.set $i (i32.shr_u (global.get $cw) (i32.const 1)))
+      (block $ke (loop $kl (br_if $ke (i32.ge_u (local.get $i) (global.get $cw)))
+        (local.set $f0 (i32.xor (local.get $f0) (i32.load8_u (i32.add (local.get $p) (local.get $i)))))
+        (local.set $f1 (i32.xor (local.get $f1) (i32.load8_u offset=1 (i32.add (local.get $p) (local.get $i)))))
+        (local.set $i (i32.add (local.get $i) (i32.const 2))) (br $kl)))
+      (i32.store8 offset=1216 (global.get $DT) (i32.xor (i32.load8_u offset=1216 (global.get $DT)) (local.get $f0)))
+      (i32.store8 offset=1217 (global.get $DT) (i32.xor (i32.load8_u offset=1217 (global.get $DT)) (local.get $f1)))
+      (global.set $cp (i32.add (global.get $DT) (i32.const 1216))) (local.set $i (i32.const 0))))
+    (if (i32.or (local.get $book) (i32.and (i32.ge_u (local.get $kind) (i32.const 33)) (i32.le_u (local.get $kind) (i32.const 36)))) (then   ;; the LZ77 formats and the codebook read the dictionary cursor first
       (if (i32.or (i32.eq (local.get $kind) (i32.const 33)) (i32.eq (local.get $kind) (i32.const 36)))
         (then (local.set $i (call $bitsL (i32.load offset=96 (local.get $prm)))))
         (else (local.set $i (call $bitsM (i32.load offset=96 (local.get $prm))))))
@@ -459,10 +492,11 @@
     (global.set $opos (i32.const 0)) (global.set $ocmd (i32.const 0))
     (global.set $oout (i32.load (local.get $prm))) (global.set $oflg (i32.load offset=36 (local.get $prm)))
     (memory.fill (global.get $oflg) (i32.const 0) (global.get $cw))
+    (if (local.get $book) (then (call $dec_book)) (else
     (block $d (block $b40 (block $b39 (block $b38 (block $b37 (block $b36 (block $b35 (block $b34 (block $b33 (block $b32 (block $b31
       (br_table $b31 $b32 $b33 $b34 $b35 $b36 $b37 $b38 $b39 $b40 $d (i32.sub (local.get $kind) (i32.const 31))))
       (call $dec_huff) (br $d)) (call $dec_morse) (br $d)) (call $dec_deflate) (br $d)) (call $dec_lz4) (br $d)) (call $dec_snappy) (br $d))
-      (call $dec_brotli) (br $d)) (call $dec_png) (br $d)) (call $dec_jpeg) (br $d)) (call $dec_vp8) (br $d)) (call $dec_rice))
+      (call $dec_brotli) (br $d)) (call $dec_png) (br $d)) (call $dec_jpeg) (br $d)) (call $dec_vp8) (br $d)) (call $dec_rice))))
     (block $fe (loop $fl (br_if $fe (call $full))   ;; what was not produced stays
       (i32.store8 (i32.add (global.get $oout) (global.get $opos)) (i32.load8_u (i32.add (local.get $p) (global.get $opos))))
       (i32.store8 (i32.add (global.get $oflg) (global.get $opos)) (i32.const 0))
@@ -472,5 +506,5 @@
         (local.set $changed (i32.add (local.get $changed) (i32.const 1)))
         (if (i32.or (i32.eq (local.get $kind) (i32.const 37)) (i32.eq (local.get $kind) (i32.const 38))) (then (i32.store8 (i32.add (global.get $oflg) (local.get $i)) (i32.const 1))))))
       (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $cl)))
-    (i32.store offset=48 (local.get $prm) (select (global.get $dwin) (global.get $cused) (i32.and (i32.ge_u (local.get $kind) (i32.const 33)) (i32.le_u (local.get $kind) (i32.const 36)))))   ;; lastOffset: the window for the LZ77 formats, else the bits read
+    (i32.store offset=48 (local.get $prm) (select (global.get $dwin) (global.get $cused) (i32.or (local.get $book) (i32.and (i32.ge_u (local.get $kind) (i32.const 33)) (i32.le_u (local.get $kind) (i32.const 36))))))   ;; lastOffset: the window for the LZ77 formats, else the bits read
     (i32.or (i32.shl (global.get $cused) (i32.const 8)) (local.get $changed)))

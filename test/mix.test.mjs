@@ -1026,49 +1026,40 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
   check('sharpen: a linear ramp is unchanged inside, the edge columns extrapolate (2*0-(10+0)/3 -> 0 at the corner, 2*50-(40+50+50)/3 = 53 at the right edge)',
     org(2 * W + 2)[0] === 20 && org(2 * W + 3)[0] === 30 && org(0)[0] === 0 && org(2 * W + 5)[0] === 53);
 }
-// ---- pairs: two cells changed together (change() with pairMode 1 = concatenated, 2 = bit-interleaved, 3 = xor then add, 4 = add then subtract, 5 = byte-interleaved; flip swaps the roles)
+// ---- pairs: two cells changed together (change() with pairMode 1 = concatenated, 2 = bit-interleaved, 3 = nibble-interleaved, 5 = byte-interleaved; flip swaps the roles)
 {
   const bitsOf = arr => { const o = []; for (let i = 0; i < arr.length * 8; i++) o.push((arr[i >> 3] >> (i & 7)) & 1); return o; };
   const fromBits = bits => { const a = new Uint8Array(bits.length / 8); bits.forEach((b, i) => { a[i >> 3] |= b << (i & 7); }); return a; };
   const joinRef = (A, B, mode, flip) => { const [a, b] = flip ? [B, A] : [A, B]; if (mode === 1) return Uint8Array.from([...a, ...b]);
-    if (mode === 3) return Uint8Array.from([...a.map((v, k) => v ^ b[k]), ...b.map((v, k) => (v + (a[k] ^ v)) & 255)]);
-    if (mode === 4) return Uint8Array.from([...a.map((v, k) => (v + b[k]) & 255), ...a.map((v, k) => (v - (((v + b[k]) & 255) >> 1)) & 255)]);
+    if (mode === 3) { const nib = (x, m) => (x[m >> 1] >> (4 * (m & 1))) & 15; return Uint8Array.from({ length: 32 }, (_, m) => nib(a, m) | (nib(b, m) << 4)); }
     if (mode === 5) return Uint8Array.from({ length: 32 }, (_, i) => (i & 1 ? b : a)[i >> 1]);
     const ab = bitsOf(a), bb = bitsOf(b), j = []; for (let k = 0; k < 128; k++) j.push(ab[k], bb[k]); return fromBits(j); };
   const splitRef = (J, mode, flip) => { let a, b; if (mode === 1) { a = J.slice(0, 16); b = J.slice(16); }
-    else if (mode === 3) { const x = J.slice(0, 16), y = J.slice(16); b = y.map((v, k) => (v - x[k]) & 255); a = x.map((v, k) => v ^ b[k]); }
-    else if (mode === 4) { const sm = J.slice(0, 16), d = J.slice(16); a = d.map((v, k) => (v + (sm[k] >> 1)) & 255); b = sm.map((v, k) => (v - a[k]) & 255); }
+    else if (mode === 3) { a = new Uint8Array(16); b = new Uint8Array(16); J.forEach((v, m) => { a[m >> 1] |= (v & 15) << (4 * (m & 1)); b[m >> 1] |= (v >> 4) << (4 * (m & 1)); }); }
     else if (mode === 5) { a = J.filter((_, i) => i % 2 === 0); b = J.filter((_, i) => i % 2 === 1); }
     else { const jb = bitsOf(J); a = fromBits(jb.filter((_, i) => i % 2 === 0)); b = fromBits(jb.filter((_, i) => i % 2 === 1)); } return flip ? [b, a] : [a, b]; };
-  // the lifting joinings are bijections on byte pairs: every (a, b) round-trips through the reference
-  {
-    let bij = true;
-    for (const mode of [3, 4]) for (let a = 0; a < 256 && bij; a++) for (let b = 0; b < 256; b++) {
-      const J = joinRef(new Uint8Array(16).fill(a), new Uint8Array(16).fill(b), mode, 0), [a2, b2] = splitRef(J, mode, 0);
-      if (a2[0] !== a || b2[0] !== b) { bij = false; break; }
-    }
-    check('pairs: xor-then-add and add-then-subtract round-trip every pair of bytes (reference)', bij);
-  }
   const A = Uint8Array.from({ length: 16 }, (_, k) => (k * 37 + 11) & 255), B = Uint8Array.from({ length: 16 }, (_, k) => (k * 91 + 200) & 255);
   const px = i => m8.slice(GRID + 16 * i, GRID + 16 * i + 16), eq = (x, y) => x.length === y.length && x.every((v, k) => v === y[k]);
   const { change } = instance.exports;
   const run = (changer, mode, flip, a = A, b = B) => { io.setChanger(changer); io.setPair(mode, flip); m8.set(a, GRID); m8.set(b, GRID + 16); const n = change(2, GRID, PRM); io.setPair(0, 0); return n; };
   // the bijection: do nothing round-trips both representations, in both flips
   let ok = true;
-  for (const mode of [1, 2, 3, 4, 5]) for (const flip of [0, 1]) { const n = run(3, mode, flip); if (n !== 0 || !eq(px(0), A) || !eq(px(1), B)) ok = false; }
-  check('pairs: "do nothing" on a joint cell leaves both cells unchanged (all five joinings, both flips)', ok);
+  for (const mode of [1, 2, 3, 5]) for (const flip of [0, 1]) { const n = run(3, mode, flip); if (n !== 0 || !eq(px(0), A) || !eq(px(1), B)) ok = false; }
+  check('pairs: "do nothing" on a joint cell leaves both cells unchanged (all four joinings, both flips)', ok);
   // invert commutes with the mapping
   ok = true;
-  for (const mode of [1, 2, 5]) for (const flip of [0, 1]) { run(4, mode, flip); if (!eq(px(0), A.map(v => v ^ 255)) || !eq(px(1), B.map(v => v ^ 255))) ok = false; }
-  check('pairs: invert on a joint cell inverts both cells (the layout joinings: concatenated, bit- and byte-interleaved)', ok);
+  for (const mode of [1, 2, 3, 5]) for (const flip of [0, 1]) { run(4, mode, flip); if (!eq(px(0), A.map(v => v ^ 255)) || !eq(px(1), B.map(v => v ^ 255))) ok = false; }
+  check('pairs: invert on a joint cell inverts both cells (all four joinings)', ok);
+  // the nibble joining, checked against the reference on the kernel's own join: reverse bytes then compare
+  { run(5, 3, 0); const J = joinRef(A, B, 3, 0); const want = splitRef(J.slice().reverse(), 3, 0); check(`pairs: nibble-interleaved: joint byte 0 is A's low nibble under B's low nibble (${(J[0] & 15).toString(16)} | ${(J[0] >> 4).toString(16)}), joint byte 1 the high nibbles; reverse bytes splits back as the reference says`, (J[0] & 15) === (A[0] & 15) && (J[0] >> 4) === (B[0] & 15) && (J[1] & 15) === (A[0] >> 4) && (J[1] >> 4) === (B[0] >> 4) && eq(px(0), want[0]) && eq(px(1), want[1])); }
   // reverse bytes: compare with a JavaScript reference of join / reverse / split
   ok = true;
-  for (const mode of [1, 2, 3, 4, 5]) for (const flip of [0, 1]) {
+  for (const mode of [1, 2, 3, 5]) for (const flip of [0, 1]) {
     run(5, mode, flip);
     const J = joinRef(A, B, mode, flip), R = J.slice().reverse(), [a2, b2] = splitRef(R, mode, flip);
     if (!eq(px(0), a2) || !eq(px(1), b2)) ok = false;
   }
-  check('pairs: reverse bytes on the joint cell matches the reference join / reverse / split (all five joinings, both flips)', ok);
+  check('pairs: reverse bytes on the joint cell matches the reference join / reverse / split (all four joinings, both flips)', ok);
   // the DCT on a joint cell is a 32-point transform over it: compare with a JavaScript reference of the kernel's formula
   // (same summation order, round half to even), split back through the joining's inverse
   const roundEven = x => { const r = Math.round(x); return Math.abs(x % 1) === 0.5 && r % 2 !== 0 ? r - 1 : r; };
@@ -1078,10 +1069,10 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
         acc += (t * c) * Math.cos(Math.PI * m / (2 * Nn)); }
       out[k] = Math.max(0, Math.min(255, 128 + roundEven(acc))); }
     return out; };
-  for (const mode of [1, 3, 4]) {
+  for (const mode of [1, 3]) {
     const J = joinRef(A, B, mode, 0), D = dctRef(J, 0), [a2, b2] = splitRef(D, mode, 0);
     run(17, mode, 0);
-    const name = { 1: 'concatenated', 3: 'xor-then-add', 4: 'add-then-subtract' }[mode];
+    const name = { 1: 'concatenated', 3: 'nibble-interleaved' }[mode];
     const err = Math.max(...px(0).map((v, i) => Math.abs(v - a2[i])), ...px(1).map((v, i) => Math.abs(v - b2[i])));
     check(`pairs: the DCT on a ${name} joint cell is the 32-point transform of the joint cell, split back by the inverse (max error ${err})`, err <= 1);
   }
@@ -1387,6 +1378,29 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
   }
   r = cell(40, msb('010' + '110' + '101' + '0110' + '100'));
   check(`Rice (k = 2): residuals +1 -1 +3 0 from 128 give ${r.out.slice(0, 4).join(' ')}`, r.out.slice(0, 4).join() === '129,128,131,131');
+  // 45 codebook: a JavaScript reference of the fold, the 7-bit header (cursor read 127) and the 10-bit codes
+  {
+    const prev = { cr: io.cursorRead, co: io.cursorOffset, sk: io.skipBits };
+    io.setCursorRead(127); io.setCursorOffset(0); io.setSkipBits(0);
+    const dict = built.bytes, L = dict.length;
+    const bookRef = (bytes, cw) => { const c = bytes.slice(); let f0 = 0, f1 = 0; for (let i = cw / 2; i < cw; i += 2) { f0 ^= bytes[i]; f1 ^= bytes[i + 1]; } c[0] ^= f0; c[1] ^= f1;
+      let bp = 0, used = 0; const bit = () => { const b = bp & (8 * cw - 1); bp++; used++; return (c[b >> 3] >> (7 - (b & 7))) & 1; }; const bits = n => { let v = 0; while (n--) v = (v << 1) | bit(); return v; };
+      let h = bits(7); if (h >= 127) h -= 127; const win = h % L; const o = [];
+      while (o.length < cw && used < 1024) { const code = bits(10); const pos = (win + ((code * L) >> 10)) % L; o.push(dict[pos]); if (o.length < cw) o.push(dict[(pos + 1) % L]); }
+      return { out: Uint8Array.from(o), used }; };
+    r = cell(45, new Uint8Array(16));
+    check(`codebook: a zero cell decodes to the dictionary's first two bytes over and over ("${str(r.out)}", ${r.used} bits read: 7 header + 8 codes)`, str(r.out) === str(dict.slice(0, 2)).repeat(8) && r.used === 87);
+    const A = Uint8Array.from({ length: 16 }, (_, i) => (i * 97 + 31) & 255), B = Uint8Array.from({ length: 16 }, (_, i) => (i * 53 + 7) & 255);
+    const half = new Uint8Array(16); half.set(A.subarray(8), 8);   // zeros in front, so only the fold moves the header and first code
+    let ok = true;
+    for (const c16 of [A, B, half]) { const w = cell(45, c16), ref = bookRef(c16, 16); if (str(w.out) !== str(ref.out) || w.used !== ref.used) ok = false; }
+    const hr = bookRef(half, 16), zr = bookRef(new Uint8Array(16), 16);
+    check(`codebook: three 16-byte cells match the reference bit for bit; the fold of the second half alone changes the output ("${str(hr.out).replace(/[^ -~]/g, '·')}" vs "${str(zr.out)}")`, ok && str(hr.out) !== str(zr.out));
+    io.setChanger(45); io.setPair(1, 0); m8.set(A, GRID); m8.set(B, GRID + 16); instance.exports.change(2, GRID, PRM); io.setPair(0, 0);
+    const got = m8.slice(GRID, GRID + 32), pref = bookRef(Uint8Array.from([...A, ...B]), 32);
+    check(`codebook on a concatenated pair: 32 bytes match the reference (header + 16 codes = ${pref.used} bits)`, str(got) === str(pref.out) && pref.used === 167);
+    io.setCursorRead(prev.cr); io.setCursorOffset(prev.co); io.setSkipBits(prev.sk);
+  }
   // every decoder on random cells: output differs from the input, reads stay within the cap
   randomize(4 * N, GRID, 99);
   for (const k of [31, 32, 33, 34, 35, 36, 37, 38, 39, 40]) {

@@ -70,7 +70,7 @@
       (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $l))))
   ;; link_run(a, b, st, out, kind, mode) -> pixels changed (0..2): one instruction of the machine whose 32-byte memory
   ;; is the pixel at a joined with the pixel at b by joining `mode` ($join in decode.wat: 1 concatenated, a first;
-  ;; 2 bit-interleaved, a on the even bits; 5 byte-interleaved; 3 and 4 the lifting steps), registers restored from
+  ;; 2 bit-interleaved, a on the even bits; 3 nibble-interleaved, a on the low nibbles; 5 byte-interleaved), registers restored from
   ;; and saved to the 128-byte state at st; the joint cell is split back and a pixel counts as written when a byte
   ;; of it changed.
   (func $link_run (param $a i32) (param $b i32) (param $st i32) (param $out i32) (param $kind i32) (param $mode i32) (result i32)
@@ -103,7 +103,7 @@
     (local.set $kind (i32.load offset=72 (local.get $prm)))
     (local.set $mode (i32.load offset=104 (local.get $prm)))
     (if (i32.eqz (local.get $mode)) (then (local.set $mode (i32.const 1))))
-    (if (i32.or (i32.and (i32.ge_u (local.get $kind) (i32.const 1)) (i32.lt_u (local.get $kind) (i32.const 6))) (i32.or (i32.and (i32.gt_u (local.get $kind) (i32.const 30)) (i32.lt_u (local.get $kind) (i32.const 43)))
+    (if (i32.or (i32.and (i32.ge_u (local.get $kind) (i32.const 1)) (i32.lt_u (local.get $kind) (i32.const 6))) (i32.or (i32.and (i32.gt_u (local.get $kind) (i32.const 30)) (i32.or (i32.lt_u (local.get $kind) (i32.const 43)) (i32.gt_u (local.get $kind) (i32.const 44))))
         (i32.and (i32.ge_u (local.get $kind) (i32.const 16)) (i32.le_u (local.get $kind) (i32.const 18))))) (then (return (i32.const 0))))
     (local.set $out (i32.load (local.get $prm)))
     (global.set $prmg (local.get $prm))

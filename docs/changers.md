@@ -127,12 +127,12 @@ same way. Both offset by 128 and clamp to 0..255. The cosines come from a
 `LAYOUT.COS`, extended by symmetry (`$cos64`). A DCT followed by an inverse
 DCT returns a pixel, or a pair, to within rounding unless a coefficient
 clipped. On a concatenated pair the first cell receives the 16 lowest
-frequencies and the second the 16 highest; on the lifting joinings the
-transform runs over the sum and difference halves.
+frequencies and the second the 16 highest; on the interleaved joinings the
+coefficients are dealt back to the two cells bit, nibble or byte by byte.
 
 ## Decoders
 
-Kinds 31 to 40 (`src/changers/codecs.wat`) read the cell as a coded signal
+Kinds 31 to 40 and 45 (`src/changers/codecs.wat`) read the cell as a coded signal
 rather than as a program: the information-centric changers. Every one of
 them reads the `$cw`-byte cell as a bitstream or byte stream that starts
 after the "Skip bits" and wraps at the end of the cell (reads are capped at
@@ -183,6 +183,25 @@ cell itself (prefix), run lengths as symbols (Morse), prediction with coded
 residuals (Rice, PNG), a transform code (JPEG) and an arithmetic code
 against a language model (VP8), under which every bit string is a valid
 code and decodes to text-like bytes.
+
+**Codebook (45)** is the odd one out: not borrowed from a file format but
+made for cellular-automaton dynamics with the entropy stages off, where
+every cell, or every concatenated pair, iterates the decoder on its own
+and the dictionary decides its fixed points and cycles. Before anything is
+read, the second half of the cell is folded into the first two bytes as
+the decoder sees them (byte 0 xor the even bytes of the second half, byte
+1 xor its odd bytes; the cell itself is untouched), so in a pair each half
+steers the other: the second half shifts the window and the first code of
+the first half, while the first half's codes write most of the second.
+Then come the skip bits, the cursor header (MSB-first, the window start as
+for LZ4) and 10-bit codes read MSB-first until the output is full, each
+giving the two dictionary bytes at (window + code · L / 1024) mod L and
+the position after it, L being the text length, so neighbouring codes
+land on neighbouring places of the dictionary. A 32-byte pair holds the
+header and 16 codes with 89 bits to spare; the output is a chain of 16
+dictionary bigrams, and reading those bigrams back as codes is the
+iterated map. `tools/ca-search.mjs` looks for dictionaries whose map has several
+attractors with balanced basins, short cycles and moderate transients.
 
 ## Dictionaries
 
@@ -254,7 +273,7 @@ mapping in reverse (`$join` and `$split` in `decode.wat`; the host sets
 walks the pairs), the roles alternating from turn to turn so that neither
 cell keeps the first role. For a CPU changer the same joinings define the
 memory of the link CPUs of the next section, where every 4-connected pair
-of pixels is a pair and the two roles are the two directions. Five joinings
+of pixels is a pair and the two roles are the two directions. Four joinings
 are offered:
 
 - **Concatenated.** A then B (B then A for the other role). A CPU then has
@@ -265,24 +284,20 @@ are offered:
   the joint cell and B's the odd ones; on odd turns the other way round.
   Every byte of the joint cell then mixes four bits of each cell, so
   whatever the changer does is spread over both.
+- **Nibble-interleaved.** The 32 nibbles of each cell, counted from the
+  low nibble of byte 0, are dealt alternately: A's nibble k becomes the
+  low nibble of joint byte k and B's nibble k its high nibble (the other
+  way round on odd turns). Every joint byte holds one nibble of each cell,
+  so a changer that works on bytes couples the two cells four bits at a
+  time, between the bit and the byte interleavings in grain.
 - **Byte-interleaved.** A's byte k at joint byte 2k and B's at 2k + 1 on
   even turns, the other way round on odd turns. The bytes stay whole, so
   a CPU sees the two cells as alternating memory bytes and the
   decompressor's output alternates between them.
-- **Xor then add.** Byte by byte, the first half of the joint cell is
-  x = A xor B and the second is y = B + x (mod 256); the way back is
-  B = y − x, A = x xor B. The first half holds the difference of the two
-  cells, the second a sum.
-- **Add then subtract.** Byte by byte, s = A + B and d = A − (s >> 1), the
-  way back A = d + (s >> 1), B = s − A: an integer sum-and-difference
-  (lifting) step, so the first half is the sum and the second half the
-  distance from the mean.
 
-The last two are lifting steps: each is a bijection on the pair of bytes,
-so the "do nothing" changer leaves both cells as they were, like the first
-two. They differ from concatenation in that the changer's edits to one
-half land, through the inverse, in both cells, and in that arithmetic
-carries couple the bits within a byte.
+All four are permutations of the 256 bits, so the "do nothing" changer
+leaves both cells as they were, and the copy back is the exact inverse of
+the joining: the split de-interleaves what the join interleaved.
 
 The changers see the joint cell through the cell width `$cw` (16 or 32
 bytes): memory accesses wrap at it, Brainfuck's program and tape have that
@@ -306,11 +321,11 @@ carries two links, A→B and B→A, with two separate machines. The A→B
 machine's memory is the 32-byte joint cell of A and B with A in the first
 role, under the selected joining (concatenated: A at addresses 0 to 15
 followed by B at 16 to 31; byte-interleaved: A on the even addresses;
-bit-interleaved: A on the even bits; the lifting joinings: differences and
-sums of the two), the B→A machine's the joint cell with B in the first
+bit-interleaved: A on the even bits; nibble-interleaved: A on the low
+nibbles), the B→A machine's the joint cell with B in the first
 role. The joint cell is built when the instruction runs and split back
-straight after, so under the lifting joinings a store into one byte lands
-in both pixels. A round runs the four link phases in the swap-phase order
+straight after, so under the bit and nibble interleavings a store into one
+byte lands in both pixels. A round runs the four link phases in the swap-phase order
 (UD0, LR0, UD1, LR1): in each phase every pair of that phase runs one
 instruction of its forward machine (left or top pixel first) and then one
 of its backward machine, which sees what the forward one wrote. So a pixel
