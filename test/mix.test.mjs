@@ -965,6 +965,10 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
     const S6 = Array.from({ length: 6 }, (_, j) => [200 - 30 * j, 20 * j, 100]);
     t = 0; feed(S6[0], 1); for (let j = 1; j < 6; j++) feed(S6[j]); const c6 = feed(S6[0]);
     check(`a 6-cycle: six stripes (${c6} cycling)`, [0, 1, 2, 3, 4, 5, 6].every(x => rgb(x).join() === S6[x % 6].join()) && c6 === N);
+    const S5 = Array.from({ length: 5 }, (_, j) => [40 * j, 255 - 40 * j, 60 + 30 * j]);
+    t = 0; feed(S5[0], 1); for (let j = 1; j < 5; j++) feed(S5[j]); const c5 = feed(S5[0]);
+    check(`a 5-cycle: five stripes, column 5 repeating column 0, and the next row starting at the first colour again (${c5} cycling)`, [0, 1, 2, 3, 4, 5].every(x => col(x, 0).join() === S5[x % 5].join()) && col(0, 1).join() === S5[0].join() && c5 === N);
+    feed(S5[1]); check('the next frame keeps the 5-stripes', [0, 1, 2, 3, 4].every(x => rgb(x).join() === S5[x].join()));
     // not exact: a jump of 100 with a colour 2 back within 2 is a 2-cycle; a small flicker (distance 3) passes
     t = 0; feed([98, 0, 0], 1); feed([0, 0, 0]); const ca = feed([100, 0, 0]);
     check(`an inexact 2-cycle (100 after 0, 98 two back) is striped: ${rgb(0).join(' ')} | ${rgb(1).join(' ')} (${ca} cycling)`, rgb(0).join() === '100,0,0' && rgb(1).join() === '0,0,0' && ca === N);
@@ -1083,6 +1087,15 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
     check(`pairs: 32-point DCT then inverse DCT returns the pair to within rounding (max error ${err})`, err <= 3);
   }
   check('pairs: interleaving really mixes the cells: reversed interleaved A, B differ from reversed A and reversed B', !eq(px(0), A.slice().reverse()));
+  // segment influence: invert one half of the pair and count the bits of the other half's new content that change
+  {
+    const SCR = GRID + 64;
+    const infl = (changer, mode) => { io.setChanger(changer); io.setPair(mode, 0); m8.set(A, GRID); m8.set(B, GRID + 16); instance.exports.influence(2, GRID, PRM, SCR, 7n); io.setPair(0, 0); return Array.from(new Int32Array(m8.buffer, SCR, 5)); };
+    const dn = infl(3, 1), rv = infl(5, 1), cb = infl(45, 1), untouched = eq(px(0), A) && eq(px(1), B);
+    check(`influence: do nothing 0 bits both ways (${dn.join(' ')}); reverse bytes on a concatenated pair: the replaced bits, all pairs (${rv.join(' ')}); the codebook some both ways, the fold included (${cb.join(' ')}); the grid is left as it was`,
+      dn.join() === '0,0,0,0,1' && rv[0] > 32 && rv[0] <= 128 && rv[1] === 1 && rv[2] > 32 && rv[3] === 1 && cb[4] === 1 && cb[0] > 0 && cb[2] > 0 && untouched);
+    io.setChanger(0);
+  }
   // a Z80 program in A writes into B's half: the joint cell is the whole address space
   const prog = new Uint8Array(16); prog.set([0x3E, 0x42, 0x32, 0x14, 0x00, 0x76]);   // LD A,42h; LD (0014h),A; HALT
   const zero = new Uint8Array(16);
@@ -1399,17 +1412,17 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
     io.setChanger(45); io.setPair(1, 0); m8.set(A, GRID); m8.set(B, GRID + 16); instance.exports.change(2, GRID, PRM); io.setPair(0, 0);
     const got = m8.slice(GRID, GRID + 32), pref = bookRef(Uint8Array.from([...A, ...B]), 32);
     check(`codebook on a concatenated pair: 32 bytes match the reference (header + 16 codes = ${pref.used} bits)`, str(got) === str(pref.out) && pref.used === 167);
-    // 46 bit codebook: in place, 10- or 11-bit entries, the writer wrapping over the header; an 8-bit header (cursor read 256)
+    // 46 bit codebook: in place, 11- to 13-bit entries, the writer wrapping over the header; an 8-bit header (cursor read 256)
     io.setCursorRead(256);
     const bitbookRef = (bytes, cw) => { const c = bytes.slice(), nb = 8 * cw; let bp = 0, used = 0;
       const rd = () => { const b = bp & (nb - 1); bp++; used++; return (c[b >> 3] >> (7 - (b & 7))) & 1; }; const bits = n => { let v = 0; while (n--) v = (v << 1) | rd(); return v; };
       const win = bits(8) % L; let op = bp;
-      while (used < nb) { const code = bits(10), pos = (win + ((code * L) >> 10)) % L, b0 = dict[pos], len = 10 + (b0 & 1), w = (b0 << 8) | dict[(pos + 1) % L];
+      while (used < nb) { const code = bits(10), pos = (win + ((code * L) >> 10)) % L, b0 = dict[pos], len = 11 + (b0 % 3), w = (b0 << 8) | dict[(pos + 1) % L];
         for (let i = 0; i < len; i++) { const b = op & (nb - 1); if ((w >> (15 - i)) & 1) c[b >> 3] |= 128 >> (b & 7); else c[b >> 3] &= ~(128 >> (b & 7)); op++; } }
       return { out: c, used }; };
     r = cell(46, new Uint8Array(16));
     const zr46 = bitbookRef(new Uint8Array(16), 16);
-    check(`bit codebook: a zero cell decodes in place to the reference (${r.used} bits read: 8 header + 12 codes of ${10 + (dict[0] & 1)}-bit entries)`, str(r.out) === str(zr46.out) && r.used === zr46.used && r.used === 128);
+    check(`bit codebook: a zero cell decodes in place to the reference (${r.used} bits read: 8 header + 12 codes of ${11 + (dict[0] % 3)}-bit entries)`, str(r.out) === str(zr46.out) && r.used === zr46.used && r.used === 128);
     ok = true;
     for (const c16 of [A, B, half]) { const w = cell(46, c16), ref = bitbookRef(c16, 16); if (str(w.out) !== str(ref.out) || w.used !== ref.used) ok = false; }
     check('bit codebook: three 16-byte cells match the in-place reference bit for bit, including the wrap over the header', ok);

@@ -71,7 +71,10 @@ const scoreStrict = c => c.q * win(c.effN, 6, 24, 1) * (1 + 0.15 * Math.min(6, c
 const scoreRich = c => c.q * Math.log2(1 + c.effN) * (1 + 0.2 * Math.min(8, c.lenKinds)) * win(c.transient, 6, 30, 1) * (0.5 + 0.5 * c.cyc28);
 // long (for a step cap of 1024 or so): settling after long transients or into long cycles, into several attractors
 const scoreLong = c => c.q * Math.log2(1 + c.effN) * (1 + 0.1 * Math.min(8, c.lenKinds)) * (0.5 + 0.5 * c.longShare);
-const score = MODE === 'strict' ? scoreStrict : MODE === 'rich' ? scoreRich : MODE === 'long' ? scoreLong : scoreBasic;
+// many: as many attractors as possible, all of them short: the effective number of attractors (so use many starts)
+// times the share of starts in cycles of 2..8, with a slope through the near-recurrence credit while cycles are rare
+const scoreMany = c => c.effN * (c.cyc28 + 0.1 * c.q) * (1 - c.chaotic);
+const score = MODE === 'strict' ? scoreStrict : MODE === 'rich' ? scoreRich : MODE === 'long' ? scoreLong : MODE === 'many' ? scoreMany : scoreBasic;
 
 // ---- families (initial hypotheses) and mutations
 const phrase = (alpha, len) => Array.from({ length: len }, () => pick(alpha)).join('');

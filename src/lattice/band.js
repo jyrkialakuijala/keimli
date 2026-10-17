@@ -36,7 +36,7 @@ const Band = (() => {
   // msg = { haloTop, haloBottom (Uint8Array of D rows or null at the grid edge), order (the turn's four phase ids), alt (the turn parity, for the edge pairs), passes,
   //         thrSwap (BigUint64Array W), thrSmooth (BigUint64Array H), salts (BigInt per step), changer (bool), pair ({ mode, flip }),
   //         nbr (smoothing neighbourhood 0 cross / 1 3x3 / r = 2..5 the (2r+1)x(2r+1) block), mut ({ lam, salt }: expected flips per pixel as 32.32
-  //         fixed-point BigInt, and this turn's salt; absent or lam 0 for no mutation) }
+  //         fixed-point BigInt, and this turn's salt; absent or lam 0 for no mutation), influence (a BigInt salt: measure the segment influence of pairs with it; absent or 0n: do not) }
   // runTurn = runHead (the swap phases and the smoothing passes) + runTail (the changer and the mutation); the worker
   // runs the link rounds in between when links are on, see linkBand.
   function runTurn(st, msg) { return Object.assign(runHead(st, msg), runTail(st, msg)); }
@@ -77,9 +77,12 @@ const Band = (() => {
   // the changer (unless the link rounds took its place: then linkWrites is their pixel-write count) and the mutation
   function runTail(st, msg, linkWrites = 0) {
     const { wasm, W, y0, rows, D, GRID } = st, S = 16 * W;
+    // segment influence (msg.influence): before the changer rewrites the pairs, how much each half decides the other's new content
+    let infl = null;
+    if (msg.influence && msg.pair && msg.pair.mode && msg.changer && !msg.links) { wasm.influence(rows * W, GRID + D * S, st.PRM, st.GRID2, BigInt(msg.influence)); infl = Array.from(new Int32Array(wasm.memory.buffer, st.GRID2, 5)); }
     const rewritten = msg.links ? linkWrites : msg.changer ? wasm.change(rows * W, GRID + D * S, st.PRM) : 0;
     const mutated = msg.mut && msg.mut.lam ? wasm.mutate(rows * W, GRID + D * S, y0 * W, msg.mut.lam, msg.mut.salt) : 0;   // own rows, global pixel indices
-    return { rewritten, mutated };
+    return { rewritten, mutated, infl };
   }
   // ---- links: the persistent per-link CPUs in a band (docs/changers.md). Within a phase the pairs are disjoint and
   // every machine touches only its own two pixels, so a phase splits over bands exactly; only the up-down pairs across

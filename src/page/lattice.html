@@ -153,10 +153,10 @@
       <label for="size">Grid</label>
       <select id="size">
         <option value="64x64">64 × 64</option>
-        <option value="128x128" selected>128 × 128</option>
+        <option value="128x128">128 × 128</option>
         <option value="256x256">256 × 256</option>
         <option value="512x512">512 × 512</option>
-        <option value="1024x1024">1024 × 1024</option>
+        <option value="1024x1024" selected>1024 × 1024</option>
         <option value="2048x2048">2048 × 2048</option>
       </select>
     </div>
@@ -177,7 +177,7 @@
     </div>
   </div>
   <div class="section" role="group" aria-labelledby="sec-swap">
-    <span class="sec" id="sec-swap">Entropy increase through gene swapping <label class="chk" for="swapOn" title="off: no bits are exchanged between neighbours"><input id="swapOn" type="checkbox"> on</label></span>
+    <span class="sec" id="sec-swap">Entropy increase through gene swapping <label class="chk" for="swapOn" title="off: no bits are exchanged between neighbours"><input id="swapOn" type="checkbox" checked> on</label></span>
     <div class="group">
       <label for="thrL" title="the swap parameter at the left edge: each differing bit of a pair crosses over with probability 2 p (1 − p), so 0 and 1 are the identity and 0.5 the maximal mixing">p, left edge</label>
       <input id="thrL" type="range" min="0" max="1" value="0" step="0.01">
@@ -190,8 +190,8 @@
     </div>
     <div class="group">
       <label for="gpow" title="shapes the left-to-right gradient: the column's position is taken to [−1, 1], its magnitude raised to this power and the sign put back; below 1 the gradient is steep at the centre and flat towards the edges, 1 is linear, 0 two flat halves">Gradient power</label>
-      <input id="gpow" type="range" min="0" max="1" value="0.07" step="0.01">
-      <span id="gpowVal" class="mono val">0.07</span>
+      <input id="gpow" type="range" min="0" max="1" value="0.2" step="0.01">
+      <span id="gpowVal" class="mono val">0.20</span>
     </div>
     <div class="group">
       <label for="mut">Mutation, % of bits flipped per turn</label>
@@ -199,7 +199,7 @@
     </div>
   </div>
   <div class="section" role="group" aria-labelledby="sec-smooth">
-    <span class="sec" id="sec-smooth">Entropy decrease through median filtering <label class="chk" for="medOn" title="off: the median passes leave every bit as it is"><input id="medOn" type="checkbox"> on</label></span>
+    <span class="sec" id="sec-smooth">Entropy decrease through median filtering <label class="chk" for="medOn" title="off: the median passes leave every bit as it is"><input id="medOn" type="checkbox" checked> on</label></span>
     <div class="group">
       <label for="smoothT">p, top edge</label>
       <input id="smoothT" type="range" min="0" max="1" value="0" step="0.01">
@@ -246,8 +246,8 @@
     <div class="group">
       <label for="pair">Cells</label>
       <select id="pair">
-        <option value="0">Each cell on its own</option>
-        <option value="1" selected>Pairs, concatenated: A then B (B then A for the other role)</option>
+        <option value="0" selected>Each cell on its own</option>
+        <option value="1">Pairs, concatenated: A then B (B then A for the other role)</option>
         <option value="2">Pairs, bit-interleaved: A on the even bits and B on the odd (swapped for the other role)</option>
         <option value="3">Pairs, nibble-interleaved: A on the low nibbles and B on the high (swapped for the other role)</option>
         <option value="5">Pairs, byte-interleaved: A on the even bytes and B on the odd (swapped for the other role)</option>
@@ -273,13 +273,13 @@
         <option value="33">Deflate, fixed Huffman block (gzip's static block)</option>
         <option value="34">LZ4 block format</option>
         <option value="35">Snappy</option>
-        <option value="36">Brotli-like: insert-and-copy, distance ring, dictionary words with transforms</option>
+        <option value="36" selected>Brotli-like: insert-and-copy, distance ring, dictionary words with transforms</option>
         <option value="31">Prefix code over nibbles (canonical, 3-bit code lengths)</option>
         <option value="32">Morse code</option>
         <option value="40">Rice-coded residuals of a predictor (FLAC-style)</option>
         <option value="39">VP8 boolean decoder against the dictionary's bigrams (WebP)</option>
-        <option value="45" selected>Codebook: 10-bit codes to dictionary byte pairs, the halves folded into each other</option>
-        <option value="46">Bit codebook: 10-bit codes to 10- or 11-bit dictionary pieces, decoded in place and wrapping over the header</option>
+        <option value="45">Codebook: 10-bit codes to dictionary byte pairs, the halves folded into each other</option>
+        <option value="46">Bit codebook: 10-bit codes to 11-, 12- or 13-bit dictionary pieces, decoded in place and wrapping over the header</option>
         <option value="37">PNG filters (rows of a filter byte and 3 samples)</option>
         <option value="38">JPEG 4×4 block (standard Huffman and quantiser tables)</option>
       </select>
@@ -338,14 +338,14 @@
     </div>
     <div class="group">
       <label for="skip" title="bits of the pixel every decoder skips before it starts reading (the LZ decompressor before its cursor header); a byte-oriented format then reads its bytes from that bit on. Not used by the CPUs or the transforms">Skip bits</label>
-      <input id="skip" type="range" min="0" max="16" value="0" step="1">
-      <span id="skipVal" class="mono val">0</span>
+      <input id="skip" type="range" min="0" max="16" value="6" step="1">
+      <span id="skipVal" class="mono val">6</span>
     </div>
     <div class="group">
       <label for="cread" title="the cursor read range V: the LZ decompressor, and Deflate, LZ4, Snappy and the Brotli-like decoder for their preset dictionary, read ceil(log2 V) bits of the pixel first as a position among V bytes of the dictionary (a value of V or more wraps round: with V = 5, 6 and 7 read as 0 and 1); V = 1 reads no bits, the dictionary size makes every byte a start position">LZ cursor read</label>
       <input id="cread" type="range" min="0" max="60" value="60" step="1">
-      <input id="creadNum" type="number" min="1" max="8122" step="1" value="256" class="mono" style="width: 7ch" title="the exact cursor read range V; the slider moves to its nearest stop, and moving the slider fills this box">
-      <span id="creadVal" class="mono val">→ 8 bits</span>
+      <input id="creadNum" type="number" min="1" max="8122" step="1" value="4096" class="mono" style="width: 7ch" title="the exact cursor read range V; the slider moves to its nearest stop, and moving the slider fills this box">
+      <span id="creadVal" class="mono val">→ 12 bits</span>
     </div>
     <div class="group">
       <label for="coff" title="a constant added to the start cursor, not read from the pixel">LZ cursor offset</label>
@@ -421,6 +421,7 @@
   <div><dt>Bits moved last turn</dt><dd id="moved">0</dd></div>
   <div><dt>Bits mutated last turn</dt><dd id="mutated">0</dd></div>
   <div><dt>Pixels rewritten last turn</dt><dd id="rewritten">0</dd></div>
+  <div><dt>Segment influence <span class="sub">bits of the other half's new content that change when one half is replaced by random bits</span></dt><dd id="infl">–</dd></div>
   <div><dt>Link CPUs</dt><dd id="linkN">off</dd></div>
   <div><dt>Total set bits</dt><dd id="total">0</dd></div>
   <div><dt>Turn time</dt><dd id="turnTime">–</dd></div>
@@ -455,7 +456,7 @@
   strings are compared position by position; where the bits differ, the 32 bits around that position in each pixel are
   taken, the two contexts packed without regard to order and hashed once, so the decision does not depend on which pixel is which. Every
   position whose hash falls below the threshold is exchanged, a uniform crossover; swaps conserve the total number of set bits. The slider value p
-  runs along the x axis from the left-edge value to the right-edge value, each 0 to 1, with the column's position taken to [−1, 1], its magnitude raised to the Gradient power (0.07 by default, so the gradient is steep at the centre and nearly flat towards the edges) and the sign put back; the crossover rate is 2 p (1 − p), so p = 0 and p = 1 are the identity and p = 0.5 the maximal mixing. A median filtering pass
+  runs along the x axis from the left-edge value to the right-edge value, each 0 to 1, with the column's position taken to [−1, 1], its magnitude raised to the Gradient power (0.2 by default, so the gradient is steep at the centre and nearly flat towards the edges) and the sign put back; the crossover rate is 2 p (1 − p), so p = 0 and p = 1 are the identity and p = 0.5 the maximal mixing. A median filtering pass
   works on each of the 128 bit planes separately: it looks at every bit that disagrees with the majority of its neighbourhood (the 3 × 3 block by default, or itself and its four 4-connected neighbours, or the 5 × 5 block), hashes the
   pixel's 32 bits around that position, and if the hash is below the smoothing threshold the bit takes the majority
   value. The median filtering probability is a linear gradient along the y axis from the top-edge value to the bottom-edge value.
@@ -613,9 +614,17 @@ function workerMain() {
           break;
         }
         case 'inspect': {
-          const li = d.local, base = GRID + D * S, r = wasm.decode_pixel(base, li, LAY.PRM);
-          reply.bits = m8.slice(base + 16 * li, base + 16 * li + 16);
-          reply.out = m8.slice(io.OUT, io.OUT + 16); reply.flags = m8.slice(io.FLAGS, io.FLAGS + 16);
+          const li = d.local, base = GRID + D * S;
+          let r;
+          if (d.pair) {   // the pair's joint cell, as the changer will see it next turn
+            io.setPair(d.pair.mode, d.pair.flip); r = wasm.decode_pair(base, li, LAY.PRM);
+            const j = new Int32Array(wasm.memory.buffer, LAY.PRM + 112, 1)[0];
+            reply.bits = m8.slice(j, j + 32); reply.out = m8.slice(io.OUT, io.OUT + 32); reply.flags = m8.slice(io.FLAGS, io.FLAGS + 32); reply.pair = { ...d.pair, left: (li & 1) === 0 };
+          } else {
+            r = wasm.decode_pixel(base, li, LAY.PRM);
+            reply.bits = m8.slice(base + 16 * li, base + 16 * li + 16);
+            reply.out = m8.slice(io.OUT, io.OUT + 16); reply.flags = m8.slice(io.FLAGS, io.FLAGS + 16);
+          }
           reply.consumed = r >> 8; reply.copied = r & 255; reply.offset = io.lastOffset(); reply.regs = m8.slice(256, 256 + 128);
           break;
         }
@@ -659,13 +668,13 @@ function workerMain() {
   // the dictionaries: the manifest embedded by the build (id, title, language, text), the Declaration first
   const DICTS = (() => { try { const d = JSON.parse($('dicts').textContent); if (Array.isArray(d) && d.length) return d; } catch (e) {} return [{ id: 'declaration', titleLatin: 'US Declaration of Independence', language: 'English', text: declText }]; })();
   for (const d of DICTS) { const o = document.createElement('option'); o.value = d.id; o.textContent = `${d.titleLatin} (${d.language}${d.script && d.script !== 'Latin' ? ', ' + d.script : ''})`; $('dict').appendChild(o); }
-  $('dict').value = DICTS.some(d => d.id === 'ca-codebook-4') ? 'ca-codebook-4' : DICTS[0].id;   // the fresh-page default: the codebook search's 512-byte dictionary
+  $('dict').value = DICTS.some(d => d.id === 'ca-brotli-9') ? 'ca-brotli-9' : DICTS[0].id;   // the fresh-page default: the codebook search's 512-byte dictionary
   const dictEntry = () => DICTS.find(d => d.id === $('dict').value) || DICTS[0];
   const dictText = () => dictEntry().text;
   const codecSrc = $('codec-src').textContent, bandSrc = $('band-src').textContent;
 
   let W = 0, H = 0, N = 0;
-  let turn = 0, running = !reduceMotion, moved = 0, smoothed = 0, rewritten = 0, mutated = 0, totalBits = 0, sel = -1;
+  let turn = 0, running = !reduceMotion, moved = 0, smoothed = 0, rewritten = 0, mutated = 0, totalBits = 0, sel = -1, influence = null;   // influence: [bits B->A, pairs B->A, bits A->B, pairs A->B, pairs] of the last turn
   let seed = (Date.now() ^ 0x2545f491) >>> 0;
   let acc = 0, lastT = 0, timeSum = 0, timed = 0;
   let built = Codec.build(dictText(), 3);
@@ -676,7 +685,7 @@ function workerMain() {
   const creadOf = pos => pos < 8 ? pos + 1 : Math.min(TEXT_LEN, Math.round(8 * 2 ** ((pos - 7) / 4)));
   const creadPos = V => V <= 8 ? Math.max(0, Math.round(V) - 1) : Math.min(CREAD_MAX, Math.round(7 + 4 * Math.log2(V / 8)));
   let CREAD_MAX = 7 + Math.ceil(4 * Math.log2(Math.max(8, TEXT_LEN) / 8));   // the first position that reaches the dictionary size
-  $('cread').max = CREAD_MAX; $('cread').value = 27;   // the default cursor read range is 256 (position 27), an 8-bit header
+  $('cread').max = CREAD_MAX; $('cread').value = 43;   // the default cursor read range is 4096 (position 43), a 12-bit header, as in the Brotli search
   let CREAD_EXACT = null;   // a value typed into the number box; null while the slider's stop is the value
   const cursorRead = () => CREAD_EXACT !== null ? Math.max(1, Math.min(TEXT_LEN, CREAD_EXACT)) : creadOf(Math.max(0, Math.min(CREAD_MAX, Math.floor(Number($('cread').value)) || 0)));
   const showCread = () => { HB = Codec.rangeBits(cursorRead()); $('creadVal').textContent = `→ ${HB} bit${HB === 1 ? '' : 's'}`; if (document.activeElement !== $('creadNum')) $('creadNum').value = cursorRead(); };
@@ -786,18 +795,24 @@ function workerMain() {
         for (const ph of t.order) moved += wasm.mix_from(W, H, GRID, GRID2, ph, Band.edgeParity(ph, t.alt), LAYOUT.THR, t.salts[k++]);
         for (let i = 0; i < t.passes; i++) { smoothed += wasm.smooth(W, H, GRID, GRID2, LAYOUT.THRY, t.salts[k++], t.nbr); m8.copyWithin(GRID, GRID2, GRID2 + 16 * N); }
         io.setPair(t.pair ? t.pair.mode : 0, t.pair ? t.pair.flip : 0);
-        let rewritten = 0;
+        let rewritten = 0, infl = null;
+        if (t.influence && t.pair && t.pair.mode && t.changer && !t.links) { wasm.influence(N, GRID, PRM, GRID2, BigInt(t.influence)); infl = Array.from(new Int32Array(wasm.memory.buffer, GRID2, 5)); }
         if (t.links) { ensureLinks(t.links.kind); if (t.links.reset) wasm.links_reset(LINKS, 4 * N, t.links.kind); for (let r = 0; r < t.links.rounds; r++) for (const ph of t.order) rewritten += wasm.links(W, H, GRID, PRM, ph, LINKS); }   // rounds of one instruction per link, phase by phase
         else if (t.changer) rewritten = wasm.change(N, GRID, PRM);
         const mutated = t.mut && t.mut.lam ? wasm.mutate(N, GRID, 0, t.mut.lam, t.mut.salt) : 0;
-        return { moved, smoothed, rewritten, mutated, bits: wasm.bits(N, GRID), hist: histLocal() };
+        return { moved, smoothed, rewritten, mutated, infl, bits: wasm.bits(N, GRID), hist: histLocal() };
       },
       async render(mode) {
         wasm.render(N, GRID, PIX, PAL, mode, PRM);
         if (mode >= 4) { const s = io.frameSums(); if (s.n) { frameMean[mode] = packMean(s); io.setMean(mode, frameMean[mode]); } }   // next frame stretches around this frame's mean
         return image;
       },
-      async inspect(i) {
+      async inspect(i, pair) {
+        if (pair) {   // the pair's joint cell, as the changer will see it next turn
+          io.setPair(pair.mode, pair.flip); const r = wasm.decode_pair(GRID, i, PRM); const j = new Int32Array(wasm.memory.buffer, PRM + 112, 1)[0];
+          return { bits: m8.slice(j, j + 32), out: m8.slice(io.OUT, io.OUT + 32), flags: m8.slice(io.FLAGS, io.FLAGS + 32), pair: { ...pair, left: (i & 1) === 0 },
+                   consumed: r >> 8, copied: r & 255, offset: io.lastOffset(), regs: m8.slice(256, 256 + 128) };
+        }
         const r = wasm.decode_pixel(GRID, i, PRM);
         return { bits: m8.slice(GRID + 16 * i, GRID + 16 * i + 16), out: m8.slice(io.OUT, io.OUT + 16), flags: m8.slice(io.FLAGS, io.FLAGS + 16),
                  consumed: r >> 8, copied: r & 255, offset: io.lastOffset(), regs: m8.slice(256, 256 + 128) };
@@ -859,9 +874,9 @@ function workerMain() {
       async turn(t) {
         const rs = await all(k => ({ type: 'turn', ...t,
           haloTop: k > 0 ? bands[k - 1].bottom : null, haloBottom: k + 1 < K ? bands[k + 1].top : null }));
-        let moved = 0, smoothed = 0, rewritten = 0, mutated = 0;
-        rs.forEach((r, k) => { moved += r.moved; smoothed += r.smoothed; rewritten += r.rewritten; mutated += r.mutated; edgesFrom(r, k); });
-        return { moved, smoothed, rewritten, mutated, bits: bandBits.reduce((a, b) => a + b, 0), hist: sumHist(rs) };
+        let moved = 0, smoothed = 0, rewritten = 0, mutated = 0, infl = null;
+        rs.forEach((r, k) => { moved += r.moved; smoothed += r.smoothed; rewritten += r.rewritten; mutated += r.mutated; if (r.infl) infl = infl ? infl.map((v, i) => v + r.infl[i]) : r.infl.slice(); edgesFrom(r, k); });
+        return { moved, smoothed, rewritten, mutated, infl, bits: bandBits.reduce((a, b) => a + b, 0), hist: sumHist(rs) };
       },
       async render(mode, post) {   // each band renders and post-processes its own rows, with POST_HALO neighbour rows from the edges kept here
         const R = Band.POST_HALO, S = 16 * W;
@@ -873,7 +888,7 @@ function workerMain() {
         if (mode >= 4) { const tot = rs.reduce((a, r) => ({ r: a.r + r.sums.r, g: a.g + r.sums.g, b: a.b + r.sums.b, n: a.n + r.sums.n }), { r: 0, g: 0, b: 0, n: 0 }); if (tot.n) frameMean[mode] = packMean(tot); }
         return image;
       },
-      async inspect(i) { const [k, local] = owner(i); return call(workers[k], { type: 'inspect', local }); },
+      async inspect(i, pair) { const [k, local] = owner(i); return call(workers[k], { type: 'inspect', local, pair }); },
       async linkState(x, y, vertical, back) {   // a left-right pair belongs to the band of its row, an up-down pair to the band of its second row (see Band.linkBand)
         const k = bands.findIndex(b => y + (vertical ? 1 : 0) >= b.y0 && y + (vertical ? 1 : 0) < b.y0 + b.rows);
         return (await call(workers[k], { type: 'linkState', x, vertical, back, r: y - bands[k].y0, j: y + 1 - bands[k].y0 })).state;
@@ -924,7 +939,7 @@ function workerMain() {
         '256 instructions run from PC = 0 and the memory afterwards is the pixel\'s new content. Full instruction set with 8080 flags (S Z AC P CY); HLT, DI, EI, IN and OUT are NOPs.';
       return;
     }
-    if (changerId() >= 31 && changerId() <= 40) {
+    if (DEC_IDS.includes(changerId()) && changerId() !== 0) {
       $('codeNote').textContent = {
         31: 'prefix code: the first 48 bits are 16 code lengths of 3 bits (1 to 8) for the nibbles 0 to F, assigned canonically as in Deflate; the rest is decoded nibble by nibble (a code that matches nothing within 8 bits reads as 0) and packed two to a byte, high nibble first. The bits wrap at the end of the cell and reading stops after 1024.',
         32: 'Morse: the bits are a telegraph key, most significant bit of each byte first. A run of one 1 is a dot, two or more a dash; one 0 separates elements, two end the letter, three or more end the word (a space). Letters, digits and punctuation come out in lower case, unknown patterns as ?, and the rest of the cell is silence (spaces). A to Z are the hue circle in the byte colours, so the pixel shows what it spells.',
@@ -935,7 +950,7 @@ function workerMain() {
         37: 'PNG filters: the 16 bytes are 4 rows of a filter byte (low 3 bits mod 5: None, Sub, Up, Average, Paeth) and 3 one-byte samples, reconstructed as the PNG decoder does from the sample to the left, above and above-left (zero outside). The filter bytes are kept, so the cell integrates itself turn after turn: Sub makes running sums along a row, Up down the columns, Paeth something in between.',
         38: 'JPEG: the bits are the entropy-coded data of one 4×4 block with a restart before it (DC predictor 0): the DC category and bits, then run/size pairs for the 15 AC coefficients in zigzag order, with the standard luminance Huffman tables of Annex K, read most significant bit first; EOB ends the block. The coefficients are dequantised with the top-left 4×4 of the standard luminance quantiser, inverse-transformed and level-shifted into 16 samples, row by row. On a pair, two blocks.',
         39: 'VP8 boolean decoder (WebP\'s arithmetic coder, RFC 6386): the cell\'s bytes feed the decoder and each output byte is eight binary decisions down a tree whose probabilities are an order-1 model of the dictionary (the previous output byte is the context, smoothed towards the byte frequencies). So the 128 bits are read as the arithmetic code of text in the dictionary\'s statistics, and random bits decode to text-like bytes.',
-        46: 'Bit codebook: the codebook with entries of 10 or 11 bits, decoded in place. After the skip bits and the cursor header the reader takes 10-bit codes and the writer, starting where the header ended, lays down each code\'s entry, the bits of the dictionary bytes at (window + code × L / 1024) mod L and the next, 11 of them when the first byte is odd and 10 when even. Every odd entry puts the writer a bit further ahead of the reader, so later codes are read from bits just written, and the stream wraps round the cell: the last bits land over the header, so the next turn starts from a window this turn chose. Stops when the reader has been once round the cell.',
+        46: 'Bit codebook: the codebook with entries of 11, 12 or 13 bits, decoded in place. After the skip bits and the cursor header the reader takes 10-bit codes and the writer, starting where the header ended, lays down each code\'s entry, the bits of the dictionary bytes at (window + code × L / 1024) mod L and the next, 11 + (first byte mod 3) of them. Every entry puts the writer one to three bits further ahead of the reader, so later codes are read from bits just written, and the stream wraps round the cell: the last bits land over the header, so the next turn starts from a window this turn chose. Stops when the reader has been once round the cell.',
         45: 'Codebook, made for cellular-automaton dynamics: first the second half of the cell is folded into the first two bytes as the decoder reads them (byte 0 xor the second half\'s even bytes, byte 1 xor its odd bytes), so in a pair each half steers the other; then, after the skip bits and the cursor header (the window start, read MSB-first), 10-bit codes are read until the output is full, each giving the two dictionary bytes at (window + code × L / 1024) mod L, so neighbouring codes land on neighbouring places of the dictionary. With the entropy stages off every pair iterates this map on its own, and the dictionary decides its fixed points and cycles.',
         40: 'Rice-coded residuals, as in a FLAC subframe with a first-order fixed predictor: a 3-bit Rice parameter k, then per sample a unary quotient (zeros ended by a 1, at most 32) and k remainder bits; the folded value becomes a signed residual added to the previous sample (128 before the first). Smooth signals cost few bits.',
       }[changerId()];
@@ -998,7 +1013,7 @@ function workerMain() {
   // ---- thresholds as a per-bit probability p (linear sliders 0..1), thr = p * 2^64.
   const probability = id => Number($(id).value);
   // linear gradients sampled at pixel centres (Band.gradient): the edge values are reached at the image edges, not at the first and last pixel
-  const gradientPower = () => { const v = Number($('gpow').value); return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 0.07; };
+  const gradientPower = () => { const v = Number($('gpow').value); return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 0.2; };
   const swapTable = () => $('swapOn').checked ? Band.gradient(probability('thrL'), probability('thrR'), W, Band.mixRate, gradientPower()) : new BigUint64Array(W);        // per column, left to right, shaped by the power; the exchange rate is 2 p (1 - p), identity at both ends; off: every threshold 0, no exchange and no hashing
   const smoothTable = () => $('medOn').checked ? Band.gradient(probability('smoothT'), probability('smoothB'), H) : new BigUint64Array(H); // per row, top to bottom; off: every threshold 0, the passes copy the pixels unchanged
   function showThreshold() {
@@ -1084,6 +1099,7 @@ function workerMain() {
     $('mutated').textContent = mutated.toLocaleString();
     $('smoothed').textContent = smoothed.toLocaleString();
     $('rewritten').textContent = rewritten.toLocaleString();
+    $('infl').textContent = influence && influence[4] ? `B → A ${(influence[0] / influence[4]).toFixed(1)} of 128 bits a pair, ${(100 * influence[1] / influence[4]).toFixed(0)} % of pairs · A → B ${(influence[2] / influence[4]).toFixed(1)} bits, ${(100 * influence[3] / influence[4]).toFixed(0)} %` : linkMode() && changerActive() ? (N > 65536 ? 'not measured above 256 × 256' : '–') : 'needs cell pairs and a changer';
     $('linkN').textContent = linksActive() ? `${(2 * (2 * N - W - H)).toLocaleString()} × ${linkRoundCount().toLocaleString()} instructions a turn, ${linkResetEvery() === 1 ? 'reset every turn' : linkResetEvery() > 1 ? `reset every ${linkResetEvery().toLocaleString()} turns` : 'never reset'}` : linkMode() ? 'off (needs a CPU changer)' : 'off';
     $('total').textContent = totalBits.toLocaleString();
     drawCharts();
@@ -1091,9 +1107,10 @@ function workerMain() {
   }
   async function inspect() {
     if (sel < 0) return;
-    const r = await engine.inspect(sel), textLen = built.bytes.length, hb = HB, coff = Number($('coff').value);
-    const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18) || ch === 41 || ch === 42, dec = ch >= 31 && ch <= 40, z80 = (ch >= 6 && ch <= 15) || (ch >= 19 && ch <= 30) || ch === 43 || ch === 44 || (ch === 0 && linksActive());
-    $('selPos').textContent = `x ${sel % W}, y ${Math.floor(sel / W)}`;
+    const pairIns = linkMode() && changerActive() && !linksActive() ? { mode: Number($('pair').value), flip: turn & 1 } : null;   // decoders and transforms on pairs: inspect the joint cell
+    const r = await engine.inspect(sel, pairIns), textLen = built.bytes.length, hb = HB, coff = Number($('coff').value), nbits = r.bits.length * 8;
+    const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18) || ch === 41 || ch === 42, dec = (ch >= 31 && ch <= 40) || ch === 45 || ch === 46, z80 = (ch >= 6 && ch <= 15) || (ch >= 19 && ch <= 30) || ch === 43 || ch === 44 || (ch === 0 && linksActive());
+    $('selPos').textContent = `x ${sel % W}, y ${Math.floor(sel / W)}` + (r.pair ? ` · paired with x ${(sel % W) + (r.pair.left ? 1 : -1)}: the ${nbits}-bit joint cell below is ${({ 1: 'the two concatenated', 2: 'bit-interleaved', 3: 'nibble-interleaved', 5: 'byte-interleaved' })[r.pair.mode] || 'joined'}, this pixel in the ${r.pair.left !== !!r.pair.flip ? 'first' : 'second'} role this turn` : '');
     $('selHex').textContent = Array.from(r.bits, b => b.toString(16).padStart(2, '0')).join(' ');
     if (z80) {
       const frag = document.createDocumentFragment();
@@ -1186,9 +1203,9 @@ function workerMain() {
       $('selWindow').textContent = { 31: 'nibbles decoded with the cell\'s own 16 code lengths, two to a byte', 32: 'the letters the bits key out in Morse, then silence',
         33: 'Deflate fixed-Huffman literals and matches (preset dictionary: the text before the cursor read from the stream)', 34: 'LZ4 literals and matches (preset dictionary: the text before the cursor read from the stream)',
         35: 'Snappy literals and copies (preset dictionary: the text before the cursor read from the stream)', 36: 'Brotli-like inserts and copies, dictionary words transformed',
-        45: 'dictionary byte pairs picked by 10-bit codes after the header, the window set by the header (the second half folded into the first two bytes first)', 46: 'dictionary bit pieces of 10 or 11 bits picked by 10-bit codes, written in place from the end of the header and wrapping over it', 37: 'the 4 rows reconstructed through their filter bytes (kept)', 38: 'the 16 samples of the 4×4 JPEG block, row by row', 39: 'bytes arithmetic-decoded against the dictionary\'s bigram model', 40: 'samples from the Rice-coded residuals' }[ch];
+        45: 'dictionary byte pairs picked by 10-bit codes after the header, the window set by the header (the second half folded into the first two bytes first)', 46: 'dictionary bit pieces of 11 to 13 bits picked by 10-bit codes, written in place from the end of the header and wrapping over it', 37: 'the 4 rows reconstructed through their filter bytes (kept)', 38: 'the 16 samples of the 4×4 JPEG block, row by row', 39: 'bytes arithmetic-decoded against the dictionary\'s bigram model', 40: 'samples from the Rice-coded residuals' }[ch];
       $('selText').replaceChildren(frag);
-      $('selNote').textContent = `${r.consumed} input bits read${skipBits() ? ` after ${skipBits()} skipped bits` : ''}${ch >= 33 && ch <= 36 ? ` (${hb} of them the dictionary cursor: the preset window ends at ${r.offset.toLocaleString()} of ${textLen.toLocaleString()})` : ''}${r.consumed >= 1024 ? ' (the cap: the rest of the cell keeps its bytes)' : ''}; ${r.copied} of 16 bytes differ from the input; ` +
+      $('selNote').textContent = `${r.consumed} of ${nbits} input bits read${skipBits() ? ` after ${skipBits()} skipped bits` : ''}${ch >= 33 && ch <= 36 ? ` (${hb} of them the dictionary cursor: the preset window ends at ${r.offset.toLocaleString()} of ${textLen.toLocaleString()})` : ''}${r.consumed >= 1024 ? ' (the cap: the rest of the cell keeps its bytes)' : ''}; ${r.copied} of ${r.out.length} bytes differ from the input; ` +
         (ch === 37 || ch === 38 ? 'changed bytes highlighted' : 'alternate commands highlighted (a nibble, letter, literal run, match or sample each)') + (r.consumed < 1024 && r.out.length ? '' : '');
       return;
     }
@@ -1197,7 +1214,7 @@ function workerMain() {
       r.out.forEach((b, i) => { const s = document.createElement('span'); s.className = r.flags[i] ? 'c' : ''; s.textContent = b.toString(16).padStart(2, '0') + ' '; frag.appendChild(s); });
       $('selWindow').textContent = { 3: 'do nothing: output = input', 4: 'invert: every bit flipped', 5: 'reverse: the 16 bytes in reverse order', 16: 'extremes: the largest byte −23, its next +11, its previous +13; the smallest byte +23, its next −11, its previous −13; mod 256, index wrapping', 17: 'DCT coefficients of the 16 samples (byte 0 = mean), 128 = zero', 18: 'samples reconstructed from the 16 DCT coefficients, 128 = zero', 41: 'the bytes sorted in ascending order', 42: 'the prime values first, then the rest, each in ascending order' }[ch];
       $('selText').replaceChildren(frag);
-      $('selNote').textContent = `${r.copied} of 16 bytes differ from the input (highlighted)`;
+      $('selNote').textContent = `${r.copied} of ${r.out.length} bytes differ from the input (highlighted)`;
       return;
     }
     if (bf) {
@@ -1223,7 +1240,7 @@ function workerMain() {
     }
     if (built.bytes.some(b => b >= 128)) { const t = document.createElement('div'); t.textContent = 'as text: ' + new TextDecoder().decode(Uint8Array.from(r.out)).replace(/\n/g, '⏎'); frag.appendChild(t); }   // a UTF-8 dictionary: the 16 bytes as text, partial characters as U+FFFD
     $('selText').replaceChildren(frag);
-    $('selNote').textContent = `${r.consumed} of 128 input bits consumed (${skipBits() ? `${skipBits()} skipped + ` : ''}${hb} header + ${r.consumed - hb - skipBits()} command bits) for 128 output bits (1 : ${(128 / r.consumed).toFixed(2)}); ` +
+    $('selNote').textContent = `${r.consumed} of ${nbits} input bits consumed (${skipBits() ? `${skipBits()} skipped + ` : ''}${hb} header + ${r.consumed - hb - skipBits()} command bits) for ${nbits} output bits (1 : ${(nbits / r.consumed).toFixed(2)}); ` +
       `${r.copied} copy commands, shown as alternating fragments` +
       (r.consumed >= 1024 ? '; input consumption hit the cap, so the rest continued the dictionary from the cursor' : '');
   }
@@ -1286,8 +1303,9 @@ function workerMain() {
     const passes = Number($('iters').value);
     const salts = Array.from({ length: 4 + passes }, () => 0n);   // the swap and smoothing hashes see the neighbouring bits only, no turn salt
     const mut = { lam: mutationLam(), salt: BigInt(turn * 64 + 63) };   // mutation is always salted by the turn, or the same bits would flip every turn
-    const r = await engine.turn({ order: Band.order(turn), alt: turn & 1, passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, changer: changerActive(), pair: { mode: Number($('pair').value), flip: turn & 1 }, mut, links: linksActive() ? { kind: changerId(), rounds: linkRoundCount(), reset: linkResetDue() } : null });
+    const r = await engine.turn({ order: Band.order(turn), alt: turn & 1, passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, changer: changerActive(), pair: { mode: Number($('pair').value), flip: turn & 1 }, influence: N <= 65536 ? BigInt(turn * 64 + 61) : 0n, mut, links: linksActive() ? { kind: changerId(), rounds: linkRoundCount(), reset: linkResetDue() } : null });
     moved = r.moved; smoothed = r.smoothed; rewritten = r.rewritten; mutated = r.mutated || 0; totalBits = r.bits; noteHist(r.hist);
+    influence = r.infl || null;
     turn++;
     timeSum += performance.now() - t0; timed++;
     if (timed >= 5) {
@@ -1311,7 +1329,7 @@ function workerMain() {
   async function reset(pattern) {
     totalBits = await engine.fill(pattern, (seed = (seed * 1664525 + 1013904223) >>> 0));
     await restartLog();
-    turn = 0; moved = 0; smoothed = 0; rewritten = 0; mutated = 0; acc = 0; blendReset = true;
+    turn = 0; moved = 0; smoothed = 0; rewritten = 0; mutated = 0; influence = null; acc = 0; blendReset = true;
     await draw();
   }
   async function rebuild(pattern, keep) {   // new grid size or thread count; keep = carry the current grid over
@@ -1407,17 +1425,17 @@ function workerMain() {
   async function start(saved) {
     const selftest = location.hash === '#selftest' || location.hash === '#selftest-workers';
     if (saved && saved.w) {
-      for (const [id, key, dflt] of [['size', 'size', '128x128'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'], ['cph', 'cph', '0.12'],
-            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.07'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-codebook-4'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '45'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '0'], ['pair', 'pair', '1']])
+      for (const [id, key, dflt] of [['size', 'size', '1024x1024'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'], ['cph', 'cph', '0.12'],
+            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-brotli-9'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']])
         $(id).value = saved[key] ?? dflt;
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
       if ($('changer').value === '') { $('changer').value = 'dec'; $('dec').value = '0'; }   // the former "LZ decompressor" mode: the decoder menu's first entry
-      if ($('dict').value === '') $('dict').value = DICTS.some(d => d.id === 'ca-codebook-4') ? 'ca-codebook-4' : DICTS[0].id;
+      if ($('dict').value === '') $('dict').value = DICTS.some(d => d.id === 'ca-brotli-9') ? 'ca-brotli-9' : DICTS[0].id;
       applyDict();
-      setCursorReadExact(Number(saved.cread) || 256);   // saved as the range V: exact in the box, the slider at its nearest stop (default 256)
+      setCursorReadExact(Number(saved.cread) || 4096);   // saved as the range V: exact in the box, the slider at its nearest stop (default 4096)
       if ($('pair').value === '') $('pair').value = saved.pair === '6' ? '1' : saved.pair === '4' ? '3' : '0';   // the former "Links" entry: concatenated pairs; the former add-then-subtract: nibbles
       if ($('avg').value === '') $('avg').value = '2';   // the former three-stage entry: two stages, the slow stage comes with the sharpening
-      for (const [id, key, dflt] of [['swapOn', 'swapOn', false], ['medOn', 'medOn', false], ['chgOn', 'chgOn', true]]) $(id).checked = saved[key] === undefined ? dflt : saved[key] === true || saved[key] === 'true';   // the search's setting: the entropy stages off
+      for (const [id, key, dflt] of [['swapOn', 'swapOn', true], ['medOn', 'medOn', true], ['chgOn', 'chgOn', true]]) $(id).checked = saved[key] === undefined ? dflt : saved[key] === true || saved[key] === 'true';
       $('lnever').checked = saved.lnever === undefined ? true : saved.lnever === true || saved.lnever === 'true' || String(saved.lreset) === '0';   // a saved 0 meant never; older states take the default
       if (Number($('lreset').value) < 1) $('lreset').value = '1';
       $('lreset').disabled = $('lnever').checked;
@@ -1426,6 +1444,7 @@ function workerMain() {
       setRunning(saved.running ?? running);
     } else {
       $('threads').value = selftest ? (location.hash === '#selftest-workers' ? 4 : 1) : defaultThreads();
+      if (selftest) $('size').value = '128x128';   // the self-test runs 50 turns at boot: a small grid, whatever the default
       setRunning(running);
     }
     showCread(); showChangerBoxes(); showAvgBoxes(); codeNote(); showThreshold(); showSpeed();

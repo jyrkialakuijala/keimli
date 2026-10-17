@@ -7,7 +7,7 @@ export const Codec = vm.runInThisContext(fs.readFileSync(dir + '/src/changers/co
 export const Band = vm.runInThisContext(fs.readFileSync(dir + '/src/lattice/band.js', 'utf8') + '; Band');
 const wasmBytes = fs.readFileSync(dir + '/build/keimli.wasm');
 const L = Codec.LAYOUT;
-export async function makeSim({ W = 128, H = 128, passes = 3, nbr = 1, changer = 39, pairMode = 1, maxlen = 3, skip = 0, cread = 127, coff = 0, gpow = 0.07 } = {}) {
+export async function makeSim({ W = 128, H = 128, passes = 3, nbr = 1, changer = 39, pairMode = 1, maxlen = 3, skip = 0, cread = 127, coff = 0, gpow = 0.2 } = {}) {
   const { instance } = await WebAssembly.instantiate(wasmBytes);
   const wasm = instance.exports, N = W * H, S = 16 * W, D = Band.depthFor(passes, nbr);
   const GRID = L.GRID, GRID2 = GRID + (H + 2 * D) * S + 64, need = GRID2 + (H + 2 * D) * S + 65536;
@@ -49,7 +49,28 @@ export function metrics(sim, prev) {
   if (prev && prev[0]) for (let i = 0; i < g.length; i++) d1 += POP[g[i] ^ prev[0][i]];
   if (prev && prev[1]) for (let i = 0; i < g.length; i++) d2 += POP[g[i] ^ prev[1][i]];
   const z = zlib.deflateSync(Buffer.from(g), { level: 6 }).length / g.length;
-  return { ent, spatial, d1: d1 / (128 * N), d2: d2 / (128 * N), zip: z };
+  const seen = new Set(); for (let i = 0; i < N; i++) seen.add(Buffer.from(g.subarray(16 * i, 16 * i + 16)).toString('latin1'));   // distinct pixel contents
+  // regimes: every 8 x 8 block classified by its change since the previous frame (4 levels), its neighbour difference
+  // (4 levels) and its byte entropy (3 levels); the effective number of classes present (exp of the class entropy) says
+  // how many different kinds of behaviour the picture holds at once
+  let regimes = null;
+  if (prev && prev[0]) {
+    const cls = new Map(); const B = 8, nbx = Math.floor(W / B), nby = Math.floor(H / B);
+    for (let by = 0; by < nby; by++) for (let bx = 0; bx < nbx; bx++) {
+      let ch = 0, nd = 0, np = 0; const bc = new Float64Array(256);
+      for (let y = by * B; y < by * B + B; y++) for (let x = bx * B; x < bx * B + B; x++) {
+        const a = 16 * (y * W + x);
+        for (let k = 0; k < 16; k++) { ch += POP[g[a + k] ^ prev[0][a + k]]; bc[g[a + k]]++; if (x + 1 < bx * B + B) { nd += POP[g[a + k] ^ g[a + 16 + k]]; } }
+        if (x + 1 < bx * B + B) np++;
+      }
+      const a = ch / (B * B * 128), s = np ? nd / (np * 128) : 0; let e = 0; for (let v = 0; v < 256; v++) if (bc[v]) { const p = bc[v] / (B * B * 16); e -= p * Math.log2(p); }
+      const la = a < 0.01 ? 0 : a < 0.08 ? 1 : a < 0.25 ? 2 : 3, ls = s < 0.04 ? 0 : s < 0.12 ? 1 : s < 0.3 ? 2 : 3, le = e < 1.5 ? 0 : e < 3.5 ? 1 : 2;
+      const key = la * 12 + ls * 3 + le; cls.set(key, (cls.get(key) || 0) + 1);
+    }
+    const total = nbx * nby; let Hc = 0; for (const v of cls.values()) { const p = v / total; Hc -= p * Math.log(p); }
+    regimes = { classes: cls.size, effective: Math.exp(Hc) };
+  }
+  return { ent, spatial, d1: d1 / (128 * N), d2: d2 / (128 * N), zip: z, distinct: seen.size / N, regimes };
 }
 export function evaluate(sim, text, { turns = 200, seed = 1, every = 10 } = {}) {
   sim.setDict(text); sim.reset(seed);

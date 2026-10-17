@@ -325,6 +325,73 @@
     (global.set $cw (i32.const 16))
     (local.get $changed))
 
+  ;; influence(n, grid, prm, scr): how much each half of a pair decides the other half's new content. For every pair
+  ;; the joint cell is decoded as it is, then again with the second pixel replaced by pseudo-random bits (its own bits
+  ;; xor a 128-bit hash of the pair index and the salt: inverting would leave the codebook's parity folds unchanged),
+  ;; and the bits of the first pixel's new content that differ are counted (B -> A); then with the first pixel replaced,
+  ;; counting the second pixel's differing bits (A -> B). A is always the left pixel of the pair, whatever the roles
+  ;; this turn. The grid is not changed; the counts go to scr as five i32: bits B->A, pairs where B->A differs, bits
+  ;; A->B, pairs A->B, pairs. scr + 32 .. scr + 96 is scratch: the two pixel copies and the two split results.
+  (func (export "influence") (param $n i32) (param $grid i32) (param $prm i32) (param $scr i32) (param $salt i64)
+    (local $i i32) (local $p i32) (local $mode i32) (local $flip i32) (local $j i32) (local $out i32) (local $a i32) (local $b i32) (local $ra i32) (local $rb i32)
+    (local $a0 i64) (local $a1 i64) (local $b0 i64) (local $b1 i64) (local $d i32) (local $bitsBA i32) (local $pairsBA i32) (local $bitsAB i32) (local $pairsAB i32) (local $pairs i32) (local $m0 i64) (local $m1 i64)
+    (local.set $mode (i32.load offset=104 (local.get $prm)))
+    (local.set $flip (i32.load offset=108 (local.get $prm)))
+    (local.set $j (i32.load offset=112 (local.get $prm)))
+    (local.set $out (i32.load (local.get $prm)))
+    (local.set $a (i32.add (local.get $scr) (i32.const 32))) (local.set $b (i32.add (local.get $scr) (i32.const 48)))
+    (local.set $ra (i32.add (local.get $scr) (i32.const 64))) (local.set $rb (i32.add (local.get $scr) (i32.const 80)))
+    (if (local.get $mode) (then
+      (global.set $cw (i32.const 32))
+      (block $exit (loop $loop
+        (br_if $exit (i32.ge_u (i32.add (local.get $i) (i32.const 1)) (local.get $n)))
+        (local.set $p (i32.add (local.get $grid) (i32.shl (local.get $i) (i32.const 4))))
+        ;; as it is
+        (memory.copy (local.get $a) (local.get $p) (i32.const 16)) (memory.copy (local.get $b) (i32.add (local.get $p) (i32.const 16)) (i32.const 16))
+        (call $join (local.get $a) (local.get $b) (local.get $j) (local.get $mode) (local.get $flip))
+        (drop (call $decode (local.get $j) (local.get $prm)))
+        (call $split (local.get $out) (local.get $ra) (local.get $rb) (local.get $mode) (local.get $flip))
+        (local.set $a0 (i64.load (local.get $ra))) (local.set $a1 (i64.load offset=8 (local.get $ra)))
+        (local.set $b0 (i64.load (local.get $rb))) (local.set $b1 (i64.load offset=8 (local.get $rb)))
+        (local.set $m0 (call $mix64 (i64.xor (local.get $salt) (i64.mul (i64.extend_i32_u (local.get $i)) (i64.const 0x9E3779B97F4A7C15)))))
+        (local.set $m1 (call $mix64 (i64.xor (local.get $m0) (i64.const 0x5851F42D4C957F2D))))
+        ;; B replaced: what changes in A's new content
+        (memory.copy (local.get $a) (local.get $p) (i32.const 16)) (memory.copy (local.get $b) (i32.add (local.get $p) (i32.const 16)) (i32.const 16))
+        (i64.store (local.get $b) (i64.xor (i64.load (local.get $b)) (local.get $m0))) (i64.store offset=8 (local.get $b) (i64.xor (i64.load offset=8 (local.get $b)) (local.get $m1)))
+        (call $join (local.get $a) (local.get $b) (local.get $j) (local.get $mode) (local.get $flip))
+        (drop (call $decode (local.get $j) (local.get $prm)))
+        (call $split (local.get $out) (local.get $ra) (local.get $rb) (local.get $mode) (local.get $flip))
+        (local.set $d (i32.wrap_i64 (i64.add (i64.popcnt (i64.xor (i64.load (local.get $ra)) (local.get $a0))) (i64.popcnt (i64.xor (i64.load offset=8 (local.get $ra)) (local.get $a1))))))
+        (local.set $bitsBA (i32.add (local.get $bitsBA) (local.get $d))) (local.set $pairsBA (i32.add (local.get $pairsBA) (i32.ne (local.get $d) (i32.const 0))))
+        ;; A replaced: what changes in B's new content
+        (memory.copy (local.get $a) (local.get $p) (i32.const 16)) (memory.copy (local.get $b) (i32.add (local.get $p) (i32.const 16)) (i32.const 16))
+        (i64.store (local.get $a) (i64.xor (i64.load (local.get $a)) (local.get $m1))) (i64.store offset=8 (local.get $a) (i64.xor (i64.load offset=8 (local.get $a)) (local.get $m0)))
+        (call $join (local.get $a) (local.get $b) (local.get $j) (local.get $mode) (local.get $flip))
+        (drop (call $decode (local.get $j) (local.get $prm)))
+        (call $split (local.get $out) (local.get $ra) (local.get $rb) (local.get $mode) (local.get $flip))
+        (local.set $d (i32.wrap_i64 (i64.add (i64.popcnt (i64.xor (i64.load (local.get $rb)) (local.get $b0))) (i64.popcnt (i64.xor (i64.load offset=8 (local.get $rb)) (local.get $b1))))))
+        (local.set $bitsAB (i32.add (local.get $bitsAB) (local.get $d))) (local.set $pairsAB (i32.add (local.get $pairsAB) (i32.ne (local.get $d) (i32.const 0))))
+        (local.set $pairs (i32.add (local.get $pairs) (i32.const 1)))
+        (local.set $i (i32.add (local.get $i) (i32.const 2)))
+        (br $loop)))
+      (global.set $cw (i32.const 16))))
+    (i32.store (local.get $scr) (local.get $bitsBA)) (i32.store offset=4 (local.get $scr) (local.get $pairsBA))
+    (i32.store offset=8 (local.get $scr) (local.get $bitsAB)) (i32.store offset=12 (local.get $scr) (local.get $pairsAB))
+    (i32.store offset=16 (local.get $scr) (local.get $pairs)))
+
+  ;; decode_pair(grid, index, prm): decode the 32-byte joint cell of the pair that pixel `index` belongs to (pixels 2i and
+  ;; 2i + 1, joined by prm.pairMode and prm.pairFlip, see join) into the output buffer, as change does; the joint cell is
+  ;; left at prm.pairBuf for the inspector. Returns what decode returns.
+  (func (export "decode_pair") (param $grid i32) (param $index i32) (param $prm i32) (result i32)
+    (local $p i32) (local $j i32) (local $r i32)
+    (local.set $p (i32.add (local.get $grid) (i32.shl (i32.and (local.get $index) (i32.const -2)) (i32.const 4))))
+    (local.set $j (i32.load offset=112 (local.get $prm)))
+    (call $join (local.get $p) (i32.add (local.get $p) (i32.const 16)) (local.get $j) (i32.load offset=104 (local.get $prm)) (i32.load offset=108 (local.get $prm)))
+    (global.set $cw (i32.const 32))
+    (local.set $r (call $decode (local.get $j) (local.get $prm)))
+    (global.set $cw (i32.const 16))
+    (local.get $r))
+
   ;; decode_pixel(grid, index, prm): inflate one pixel into the output buffer
   (func (export "decode_pixel") (param $grid i32) (param $index i32) (param $prm i32) (result i32)
     (call $decode (i32.add (local.get $grid) (i32.shl (local.get $index) (i32.const 4))) (local.get $prm)))

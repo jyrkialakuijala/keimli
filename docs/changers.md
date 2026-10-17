@@ -75,9 +75,9 @@ the end of the dictionary. V = 1 reads no header bits, so every pixel starts
 at the offset; V = the dictionary size (the default) makes every byte a
 start position with a 13-bit header; the LZ examples above use V = 5, a
 3-bit header. The page starts in the codebook search's setting: a 128 × 128 grid,
-the codebook on concatenated pairs with the 512-byte "Codebook search 4"
-dictionary, no skipped bits, a cursor read of 256 (an 8-bit header), offset 0 and both
-entropy stages off; the LZ decompressor with the Declaration, 6 skipped
+the Brotli-like decoder on single cells with the 4,400-byte "Brotli search 9"
+dictionary, 6 skipped bits, a cursor read of 4096 (a 12-bit header), offset 0 and both
+entropy stages on; the LZ decompressor with the Declaration, 6 skipped
 bits and an offset of 50 is the setting the examples above describe.
 
 The "Skip bits" slider (0 to 16, `prm + 40`) makes the decoder skip that
@@ -209,14 +209,14 @@ dictionary bigrams, and reading those bigrams back as codes is the
 iterated map. `tools/ca-search.mjs` looks for dictionaries whose map has several
 attractors with balanced basins, short cycles and moderate transients.
 
-**Bit codebook (46)** is the codebook with entries of 10 or 11 bits,
+**Bit codebook (46)** is the codebook with entries of 11, 12 or 13 bits,
 decoded in place. The cell is copied to the output buffer and both read
 and written there: after the skip bits and the cursor header the reader
 takes 10-bit codes, and the writer, starting where the header ended, lays
 down each code's entry, the bits of the dictionary bytes at
-(window + code · L / 1024) mod L and the next, MSB-first, 11 of them when
-the first byte is odd and 10 when it is even. Every odd entry puts the
-writer one bit further ahead of the reader, so later codes are read from
+(window + code · L / 1024) mod L and the next, MSB-first, 11 + (first byte
+mod 3) of them. Every entry puts the writer one to three bits further
+ahead of the reader, so later codes are read from
 bits the decoder itself has just written, and the stream wraps round the
 end of the cell: the last bits land over the header, so the next decoding
 starts from a window the previous one chose. Decoding stops when the
@@ -320,6 +320,18 @@ All four are permutations of the 256 bits, so the "do nothing" changer
 leaves both cells as they were, and the copy back is the exact inverse of
 the joining: the split de-interleaves what the join interleaved.
 
+The "Segment influence" statistic measures, each turn and before the
+changer runs, how much each half of a pair decides the other half's new
+content (`influence` in `decode.wat`): every pair is decoded as it is,
+then with the right pixel replaced by pseudo-random bits (its bits xor a
+hash of the pair index and the turn; an inversion would leave the
+codebook's parity folds unchanged), counting the bits of the left pixel's
+new content that differ (B → A), then with the left pixel replaced,
+counting the right pixel's differing bits (A → B). A is always
+the left pixel, whatever the roles that turn. The page shows the mean
+bits of 128 per pair and the share of pairs with any difference, for grids
+up to 256 × 256; the measurement costs three extra decodings per pair.
+
 The changers see the joint cell through the cell width `$cw` (16 or 32
 bytes): memory accesses wrap at it, Brainfuck's program and tape have that
 many cells, the simple transforms run over it, and the decompressor's bit
@@ -328,7 +340,9 @@ exactly 128 bits, the PDP-8, the UNIVAC 1101 and the CDC 6600, are handed
 the joint cell as two consecutive 16-byte cells. The inspector always
 decodes a single cell. A pair never crosses a row (the width is even), so
 the band pipeline is unaffected; `test/band.test.mjs` runs pair
-configurations through it.
+configurations through it. With pairs on, the inspector decodes the
+selected pixel's joint cell (`decode_pair`), so its bit counts are those
+of the 256-bit cell the changer sees, and it names the pixel's role.
 
 ## Links: a persistent CPU per pair of neighbours
 

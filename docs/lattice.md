@@ -69,7 +69,7 @@ mapped to the rate 2 p (1 − p) column by column, sampled at pixel centres
 frozen at exactly 0; a pair uses its first pixel's column. The position is
 shaped by the "Gradient power" slider: t is taken to u = 2t − 1 in
 [−1, 1], |u| raised to the power and the sign put back (`Band.shape`), so
-below 1 (0.07 by default; the slider runs 0 to 1) the gradient is steep at
+below 1 (0.2 by default; the slider runs 0 to 1) the gradient is steep at
 the centre and flat towards the edges, more of the lattice sitting near the
 edge values; 1 is linear and 0 two flat halves. `Band.gradient` builds the table, shared with the tests; the
 smoothing gradient along y stays linear. The kernel

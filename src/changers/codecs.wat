@@ -19,7 +19,7 @@
   ;;   39 WebP's VP8 boolean decoder: the bits arithmetic-decoded against an order-1 model of the dictionary's bytes
   ;;   40 Rice-coded residuals of a first-order predictor, as in FLAC: a 3-bit parameter, then unary quotient and remainder
   ;;   45 codebook: the second half folded into the first two bytes, then 10-bit codes each giving two dictionary bytes
-  ;;   46 bit codebook: 10-bit codes each giving 10 or 11 dictionary bits, written in place over the cell and wrapping
+  ;;   46 bit codebook: 10-bit codes each giving 11, 12 or 13 dictionary bits, written in place over the cell and wrapping
   ;; Tables at $DT, written by Codec.install: 0 Deflate length bases (i16 x 29), 64 their extra bits, 96 distance bases
   ;; (i32 x 30), 224 their extra bits, 256 the Morse alphabet by path, 384 the JPEG DC code (16 counts, 12 values),
   ;; 416 the AC code (16 counts, 162 values), 608 the 4x4 quantiser in zigzag order, 624 the zigzag, 1024.. scratch
@@ -460,12 +460,12 @@
       (call $oput (i32.load8_u (i32.add (local.get $base) (local.get $pos))))
       (br $l))))
 
-  ;; 46: the bit codebook, the codebook with entries of 10 or 11 bits decoded in place. The cell is copied to the output
+  ;; 46: the bit codebook, the codebook with entries of 11, 12 or 13 bits decoded in place. The cell is copied to the output
   ;; and both read and written there: after the skip bits and the cursor header (MSB-first, the window start) the reader
   ;; takes 10-bit codes and the writer, starting where the header ended, lays down each code's entry: the bits of the
-  ;; dictionary bytes at position (window + (c L >> 10)) mod L and the next, MSB-first, 11 of them when the first byte
-  ;; is odd and 10 when it is even. Every odd entry puts the writer one bit further ahead of the reader, so later codes
-  ;; are read from bits the decoder itself has just written, and the stream wraps round the end of the cell: the last
+  ;; dictionary bytes at position (window + (c L >> 10)) mod L and the next, MSB-first, 11 + (first byte mod 3) of
+  ;; them. Every entry puts the writer one to three bits further ahead of the reader, so later codes are read from bits
+  ;; the decoder itself has just written, and the stream wraps round the end of the cell: the last
   ;; bits land over the header, so the next decoding starts from a window the previous one chose. Decoding stops when the
   ;; reader has been once round the cell (skip and header included). No fold: the wrap is the feedback.
   (func $dec_bitbook
@@ -480,7 +480,7 @@
       (local.set $c (call $bitsM (i32.const 10)))
       (local.set $pos (i32.rem_u (i32.add (global.get $dwin) (i32.shr_u (i32.mul (local.get $c) (local.get $tl)) (i32.const 10))) (local.get $tl)))
       (local.set $w (i32.load8_u (i32.add (local.get $base) (local.get $pos))))
-      (local.set $len (i32.add (i32.const 10) (i32.and (local.get $w) (i32.const 1))))
+      (local.set $len (i32.add (i32.const 11) (i32.rem_u (local.get $w) (i32.const 3))))
       (local.set $pos (i32.add (local.get $pos) (i32.const 1)))
       (if (i32.ge_u (local.get $pos) (local.get $tl)) (then (local.set $pos (i32.const 0))))
       (local.set $w (i32.or (i32.shl (local.get $w) (i32.const 8)) (i32.load8_u (i32.add (local.get $base) (local.get $pos)))))

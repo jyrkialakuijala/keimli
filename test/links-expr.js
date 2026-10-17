@@ -9,7 +9,7 @@
     window.__l = { stage: 'start' };
     set('threads', '4');
     setTimeout(() => {
-      set('changer', 'cpu'); set('cpu', '6'); set('pair', '1'); set('rounds', '16'); const nv = document.getElementById('lnever'); nv.checked = false; nv.dispatchEvent(new Event('change')); set('lreset', '4');
+      set('size', '128x128'); set('changer', 'cpu'); set('cpu', '6'); set('pair', '1'); set('rounds', '16'); const nv = document.getElementById('lnever'); nv.checked = false; nv.dispatchEvent(new Event('change')); set('lreset', '4'); document.getElementById('random').click();   // fresh random bits: the lattice may hold a decoder's text, whose bytes are Z80 loads and jumps that never write
       setTimeout(() => {
         const t0 = T();
         setTimeout(() => {
