@@ -48,7 +48,7 @@
              (i32.sub (i32.shl (i32.const 1) (local.get $n)) (i32.const 1))))
 
   ;; decode(p, prm): expand the 128 bits at p into exactly outLen bytes.
-  ;; After prm.skipBits skipped bits, the next prm.headerBits bits (ceil log2 of the cursor read range V) set a byte cursor into the dictionary: the value mod V
+  ;; After prm.skipBits skipped bits, the next prm.headerBits bits (ceil log2 of the cursor read range V) set a byte cursor into the dictionary: the value, wrapped round once when it is V or more,
   ;; (times prm.offsetUnit, 1), plus the constant prm.cursorOffset, mod textLen, so values past the end wrap to the start.
   ;; Every command is a prefix-coded copy length (2..N bytes) followed by a 3-bit skip:
   ;; the cursor first skips that many bytes, then the copy is taken from the dictionary
@@ -80,9 +80,11 @@
   (func $halfkind (param $k i32) (result i32)
     (i32.or (i32.or (i32.or (i32.eq (local.get $k) (i32.const 19)) (i32.eq (local.get $k) (i32.const 30))) (i32.or (i32.eq (local.get $k) (i32.const 22)) (i32.eq (local.get $k) (i32.const 24)))) (i32.eq (local.get $k) (i32.const 38))))
 
-  ;; lz_cursor(h, prm): the start cursor from a header value h: (h mod cursorRead) * offsetUnit + cursorOffset, mod textLen
+  ;; lz_cursor(h, prm): the start cursor from a header value h: h less cursorRead when h is cursorRead or more (the header is
+  ;; ceil log2 V bits, so one subtraction wraps it: 6 and 7 of 3 bits with V = 5 are 0 and 1), times offsetUnit, plus cursorOffset, mod textLen
   (func $lz_cursor (param $h i32) (param $prm i32) (result i32)
-    (if (i32.load offset=52 (local.get $prm)) (then (local.set $h (i32.rem_u (local.get $h) (i32.load offset=52 (local.get $prm))))))
+    (if (i32.ge_u (local.get $h) (i32.load offset=52 (local.get $prm))) (then   ;; V or more wraps round once: with V = 5 the 3-bit values 6 and 7 read as 0 and 1 (never with V = 0, no limit)
+      (if (i32.load offset=52 (local.get $prm)) (then (local.set $h (i32.sub (local.get $h) (i32.load offset=52 (local.get $prm))))))))
     (i32.rem_u (i32.add (i32.mul (local.get $h) (i32.load offset=44 (local.get $prm))) (i32.load offset=100 (local.get $prm))) (i32.load offset=32 (local.get $prm))))
   (func $decode (param $p i32) (param $prm i32) (result i32)
     (local $w0 i64) (local $w1 i64) (local $bp i32)

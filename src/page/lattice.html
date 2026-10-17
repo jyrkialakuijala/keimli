@@ -260,7 +260,7 @@
     <div class="group" id="decGroup" hidden>
       <label for="dec">Decoder</label>
       <select id="dec">
-        <option value="0" selected>LZ decompressor: copies from the Declaration (no literals, no distances)</option>
+        <option value="0" selected>LZ decompressor: copies from the dictionary (no literals, no distances)</option>
         <option value="33">Deflate, fixed Huffman block (gzip's static block)</option>
         <option value="34">LZ4 block format</option>
         <option value="35">Snappy</option>
@@ -320,19 +320,23 @@
       <label class="chk" for="lnever" title="keep the registers for good: the machines are never reset"><input id="lnever" type="checkbox" checked> never</label>
     </div>
     <div class="group">
-      <label for="skip" title="bits of the pixel the LZ decompressor skips before it reads the cursor header: shifts which bits are the header and which the commands">LZ skip bits</label>
-      <input id="skip" type="range" min="0" max="16" value="0" step="1">
-      <span id="skipVal" class="mono val">0</span>
+      <label for="dict" title="the static dictionary the LZ decompressor copies from and the LZ77 decoders and the VP8 model draw on, as UTF-8 bytes">Dictionary</label>
+      <select id="dict"></select>
     </div>
     <div class="group">
-      <label for="cread" title="the cursor read range V: the decompressor reads ceil(log2 V) bits of the pixel as a start position among V bytes of the dictionary (the value mod V); V = 1 reads no bits, the dictionary size makes every byte a start position">LZ cursor read</label>
+      <label for="skip" title="bits of the pixel every decoder skips before it starts reading (the LZ decompressor before its cursor header); a byte-oriented format then reads its bytes from that bit on. Not used by the CPUs or the transforms">Skip bits</label>
+      <input id="skip" type="range" min="0" max="16" value="6" step="1">
+      <span id="skipVal" class="mono val">6</span>
+    </div>
+    <div class="group">
+      <label for="cread" title="the cursor read range V: the LZ decompressor, and Deflate, LZ4, Snappy and the Brotli-like decoder for their preset dictionary, read ceil(log2 V) bits of the pixel first as a position among V bytes of the dictionary (a value of V or more wraps round: with V = 5, 6 and 7 read as 0 and 1); V = 1 reads no bits, the dictionary size makes every byte a start position">LZ cursor read</label>
       <input id="cread" type="range" min="0" max="60" value="60" step="1">
       <span id="creadVal" class="mono val">8,122 → 13 bits</span>
     </div>
     <div class="group">
       <label for="coff" title="a constant added to the start cursor, not read from the pixel">LZ cursor offset</label>
-      <input id="coff" type="range" min="0" max="8122" value="610" step="1">
-      <span id="coffVal" class="mono val">+610</span>
+      <input id="coff" type="range" min="0" max="8122" value="50" step="1">
+      <span id="coffVal" class="mono val">+50</span>
     </div>
     <div class="group">
       <label for="maxlen" title="the longest copy the LZ decompressor can make, 2 to 16 bytes; the length code adapts to it">Max copy length</label>
@@ -436,8 +440,8 @@
   whose half-time is 200 ms or 4 turns, whichever is longer at the current turn rate, and a second buffer integrates
   the output of the first in the same way (two stages in cascade), so flicker is damped and the slower
   dynamics carry more weight. With a temporal sharpening s other than 0 one more buffer integrates the last stage's output (the frame itself when averaging is off) at twice the half-time and the frame shown is (1 + s) × the last stage − s × the slow one (s = 1 by default: the average plus what the slow stage has not yet followed; 0 the average alone, −1 the slow stage itself, 5 a strong sharpening). The accumulators are f32x4 vectors, one per pixel and stage. The averaged image can then be sharpened spatially: each channel becomes the pixel plus p × (the pixel − the mean of its four 4-connected neighbours), clamped to 0–255, with p from the Sharpening slider (0 by default, off; 1 the classic 2 × pixel − mean; −1 the mean itself, a blur). Neither step feeds back into the lattice.
-  Each pixel's bits are also read as a stream of copy commands against a static dictionary, the Declaration of
-  Independence, and expanded to exactly 128 bits. The first ⌈log₂ N⌉ bits (13 for this dictionary of N = 8,122 bytes) select a start byte, the "LZ cursor offset" (0 to N) is added, and the cursor wraps at the end of the text. Every command is
+  Each pixel's bits are also read as a stream of copy commands against a static dictionary (by default the Declaration of
+  Independence; the Dictionary box offers short public-domain texts in many scripts, each as UTF-8 bytes), and expanded to exactly 128 bits. The first ⌈log₂ V⌉ bits (the "LZ cursor read" range V, the whole dictionary by default: 13 bits for the Declaration's 8,122 bytes) select a start byte, the "LZ cursor offset" is added, and the cursor wraps at the end of the text. Every command is
   a prefix-coded copy length of 2 to N bytes followed by a 3-bit skip: the cursor skips that many bytes, the copy is
   taken from the dictionary at the cursor, and the cursor moves past it. Copies are the only way to make output; there
   are no literals and no distances, and neither the image nor the output is ever read back. The decompression slider
@@ -460,6 +464,7 @@
 </div>
 
 <script type="text/plain" id="decl">__DECL_TEXT__</script>
+<script type="application/json" id="dicts">__DICTS_JSON__</script>
 <script id="codec-src">
 __CODEC_JS__
 </script>
@@ -526,7 +531,7 @@ function workerMain() {
           lut = d.lut; built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut); io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); if (d.cread) io.setCursorRead(d.cread); io.setCursorOffset(d.coff); io.setSkipBits(d.skip || 0);
           break;
         }
-        case 'setN': built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut); io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); if (d.cread) io.setCursorRead(d.cread); io.setCursorOffset(d.coff); io.setSkipBits(d.skip || 0); break;
+        case 'setN': if (d.text) text = d.text; built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut); io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); if (d.cread) io.setCursorRead(d.cread); io.setCursorOffset(d.coff); io.setSkipBits(d.skip || 0); break;
         case 'hbits': io.setHeaderBits(d.hbits); break;
         case 'cread': io.setCursorRead(d.cread); break;
         case 'coff': io.setCursorOffset(d.coff); break;
@@ -627,23 +632,36 @@ function workerMain() {
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const LAYOUT = Codec.LAYOUT, PRM = LAYOUT.PRM;
   const declText = $('decl').textContent.trim();
+  // the dictionaries: the manifest embedded by the build (id, title, language, text), the Declaration first
+  const DICTS = (() => { try { const d = JSON.parse($('dicts').textContent); if (Array.isArray(d) && d.length) return d; } catch (e) {} return [{ id: 'declaration', titleLatin: 'US Declaration of Independence', language: 'English', text: declText }]; })();
+  for (const d of DICTS) { const o = document.createElement('option'); o.value = d.id; o.textContent = `${d.titleLatin} (${d.language}${d.script && d.script !== 'Latin' ? ', ' + d.script : ''})`; $('dict').appendChild(o); }
+  const dictEntry = () => DICTS.find(d => d.id === $('dict').value) || DICTS[0];
+  const dictText = () => dictEntry().text;
   const codecSrc = $('codec-src').textContent, bandSrc = $('band-src').textContent;
 
   let W = 0, H = 0, N = 0;
   let turn = 0, running = !reduceMotion, moved = 0, smoothed = 0, rewritten = 0, mutated = 0, totalBits = 0, sel = -1;
   let seed = (Date.now() ^ 0x2545f491) >>> 0;
   let acc = 0, lastT = 0, timeSum = 0, timed = 0;
-  let built = Codec.build(declText, 3);
-  const TEXT_LEN = built.bytes.length;
+  let built = Codec.build(dictText(), 3);
+  let TEXT_LEN = built.bytes.length;
   let HB = built.headerBits;   // cursor header: ceil(log2 V) bits for the cursor read range V (V = TEXT_LEN by default: every byte of the dictionary a start position)
   $('coff').max = TEXT_LEN;   // the cursor offset runs over the whole dictionary and wraps
   // the cursor read slider is semi-logarithmic: positions 0..7 are V = 1..8, then quarter octaves (about 19 % a step) up to the dictionary size
   const creadOf = pos => pos < 8 ? pos + 1 : Math.min(TEXT_LEN, Math.round(8 * 2 ** ((pos - 7) / 4)));
   const creadPos = V => V <= 8 ? Math.max(0, Math.round(V) - 1) : Math.min(CREAD_MAX, Math.round(7 + 4 * Math.log2(V / 8)));
-  const CREAD_MAX = 7 + Math.ceil(4 * Math.log2(TEXT_LEN / 8));   // the first position that reaches the dictionary size
-  $('cread').max = CREAD_MAX; $('cread').value = CREAD_MAX;
+  let CREAD_MAX = 7 + Math.ceil(4 * Math.log2(Math.max(8, TEXT_LEN) / 8));   // the first position that reaches the dictionary size
+  $('cread').max = CREAD_MAX; $('cread').value = 4;   // the default cursor read range is 5 (position 4), a 3-bit header
   const cursorRead = () => creadOf(Math.max(0, Math.min(CREAD_MAX, Math.floor(Number($('cread').value)) || 0)));
   const showCread = () => { HB = Codec.rangeBits(cursorRead()); $('creadVal').textContent = `${cursorRead().toLocaleString()} → ${HB} bit${HB === 1 ? '' : 's'}`; };
+  // a dictionary change: the code tables, the text length and the sliders that run over it
+  const applyDict = () => {
+    built = Codec.build(dictText(), Number($('maxlen').value), HB); TEXT_LEN = built.bytes.length;
+    $('coff').max = TEXT_LEN; if (Number($('coff').value) > TEXT_LEN) $('coff').value = TEXT_LEN;
+    const atMax = Number($('cread').value) >= Number($('cread').max);
+    CREAD_MAX = 7 + Math.ceil(4 * Math.log2(Math.max(8, TEXT_LEN) / 8)); $('cread').max = CREAD_MAX; if (atMax || Number($('cread').value) > CREAD_MAX) $('cread').value = CREAD_MAX;
+    showCread(); $('coffVal').textContent = '+' + $('coff').value;
+  };
   let engine = null;
   const LUT = Codec.byteLut(built.bytes);
   { const lc = $('lutLegend').getContext('2d'), img = lc.createImageData(256, 1);
@@ -709,8 +727,8 @@ function workerMain() {
     const settings = () => { io.setChanger(changerId()); io.setSteps(Number($('steps').value)); io.setHeaderBits(HB); io.setCursorRead(cursorRead()); io.setCursorOffset(Number($('coff').value)); io.setSkipBits(skipBits()); };
     return {
       threads: 1,
-      async init(Nmax) { io = Codec.install(wasm.memory, Codec.build(declText, Nmax), LUT); settings(); },
-      async setN(Nmax) { io = Codec.install(wasm.memory, Codec.build(declText, Nmax), LUT); settings(); },
+      async init(Nmax) { io = Codec.install(wasm.memory, Codec.build(dictText(), Nmax), LUT); settings(); },
+      async setN(Nmax) { io = Codec.install(wasm.memory, Codec.build(dictText(), Nmax), LUT); settings(); },   // also after a dictionary change
       async setChanger(m) { io.setChanger(m); },
       async setSteps(n) { io.setSteps(n); },
       async setHeaderBits(n) { io.setHeaderBits(n); },
@@ -785,8 +803,8 @@ function workerMain() {
     const edgesFrom = (r, k) => { bands[k].top = r.top; bands[k].bottom = r.bottom; bandBits[k] = r.bits; };
     return {
       threads: K,
-      async init(Nmax) { await linked; await all(() => ({ type: 'init', wasm: wasmBytes.slice(), text: declText, N: Nmax, lut: LUT, changer: changerId(), steps: Number($('steps').value), hbits: HB, cread: cursorRead(), coff: Number($('coff').value), skip: skipBits() })); },
-      async setN(Nmax) { await all(() => ({ type: 'setN', N: Nmax, changer: changerId(), steps: Number($('steps').value), hbits: HB, cread: cursorRead(), coff: Number($('coff').value), skip: skipBits() })); },
+      async init(Nmax) { await linked; await all(() => ({ type: 'init', wasm: wasmBytes.slice(), text: dictText(), N: Nmax, lut: LUT, changer: changerId(), steps: Number($('steps').value), hbits: HB, cread: cursorRead(), coff: Number($('coff').value), skip: skipBits() })); },
+      async setN(Nmax) { await all(() => ({ type: 'setN', N: Nmax, text: dictText(), changer: changerId(), steps: Number($('steps').value), hbits: HB, cread: cursorRead(), coff: Number($('coff').value), skip: skipBits() })); },
       async setChanger(m) { await all(() => ({ type: 'changer', changer: m })); },
       async setSteps(n) { await all(() => ({ type: 'steps', steps: n })); },
       async setHeaderBits(n) { await all(() => ({ type: 'hbits', hbits: n })); },
@@ -859,7 +877,7 @@ function workerMain() {
   // ---- decoder note ----
   function codeNote() {
     const Nmax = Number($('maxlen').value), hb = HB;
-    built = Codec.build(declText, Nmax, HB);
+    built = Codec.build(dictText(), Nmax, HB);
     $('maxlenVal').textContent = 'N = ' + Nmax;
     $('coffVal').textContent = '+' + $('coff').value; $('skipVal').textContent = skipBits();
     if (changerId() === 7) {
@@ -877,13 +895,13 @@ function workerMain() {
       $('codeNote').textContent = {
         31: 'prefix code: the first 48 bits are 16 code lengths of 3 bits (1 to 8) for the nibbles 0 to F, assigned canonically as in Deflate; the rest is decoded nibble by nibble (a code that matches nothing within 8 bits reads as 0) and packed two to a byte, high nibble first. The bits wrap at the end of the cell and reading stops after 1024.',
         32: 'Morse: the bits are a telegraph key, most significant bit of each byte first. A run of one 1 is a dot, two or more a dash; one 0 separates elements, two end the letter, three or more end the word (a space). Letters, digits and punctuation come out in lower case, unknown patterns as ?, and the rest of the cell is silence (spaces). A to Z are the hue circle in the byte colours, so the pixel shows what it spells.',
-        33: 'Deflate (gzip\'s fixed Huffman block, BTYPE 01, no header or checksum): literal/length codes of 7 to 9 bits, length symbols 257 to 285 with their extra bits, 5-bit distance codes with theirs. A distance past the start of the output reads the preset dictionary, the Declaration ending at the LZ cursor offset, as zlib does with a preset dictionary. End of block continues with the next; the bits wrap and reading stops after 1024.',
-        34: 'LZ4 block format: a token (literal length in the high nibble, match length minus 4 in the low, 15 meaning more bytes follow), the literals, a 2-byte little-endian offset and the match, copied byte by byte so an offset shorter than the match repeats. Offsets past the output read the preset dictionary, the Declaration ending at the LZ cursor offset. Bytes wrap at the end of the cell.',
-        35: 'Snappy: a varint length (ignored) and then tags: literal (length in the top 6 bits, 60 to 63 meaning 1 to 4 length bytes follow), copy with a 1-byte offset (length 4 to 11, 11-bit offset), copy with a 2-byte and with a 4-byte offset. Offsets past the output read the preset dictionary, the Declaration ending at the LZ cursor offset.',
-        36: 'Brotli-like (a small cousin of the format, not Brotli itself): a command is an insert length (2-bit code 0, 1, 2 + 1 bit, 4 + 2 bits) with that many 8-bit literals, a copy length (2, 3, 4 + 1 bit, 6 + 3 bits) and a distance, either one of Brotli\'s 16 short codes on the ring of the last four distances (which starts at 4 11 15 16) or an explicit 1 + 6 bits. A distance reaching past the output is a word of the dictionary, the Declaration ending at the LZ cursor offset, with 2 bits of transform: as is, first letter upper case, upper case, lower case.',
+        33: 'Deflate (gzip\'s fixed Huffman block, BTYPE 01, no header or checksum): literal/length codes of 7 to 9 bits, length symbols 257 to 285 with their extra bits, 5-bit distance codes with theirs. A distance past the start of the output reads the preset dictionary, the dictionary ending at a window read first from the stream (the LZ cursor read header, LSB-first here) plus the LZ cursor offset, as zlib does with a preset dictionary. End of block continues with the next; the bits wrap and reading stops after 1024.',
+        34: 'LZ4 block format: a token (literal length in the high nibble, match length minus 4 in the low, 15 meaning more bytes follow), the literals, a 2-byte little-endian offset and the match, copied byte by byte so an offset shorter than the match repeats. Offsets past the output read the preset dictionary, the dictionary ending at a window read first from the stream (the LZ cursor read header, MSB-first) plus the LZ cursor offset. Bytes wrap at the end of the cell.',
+        35: 'Snappy: a varint length (ignored) and then tags: literal (length in the top 6 bits, 60 to 63 meaning 1 to 4 length bytes follow), copy with a 1-byte offset (length 4 to 11, 11-bit offset), copy with a 2-byte and with a 4-byte offset. Offsets past the output read the preset dictionary, the dictionary ending at a window read first from the stream (the LZ cursor read header, MSB-first) plus the LZ cursor offset.',
+        36: 'Brotli-like (a small cousin of the format, not Brotli itself): a command is an insert length (2-bit code 0, 1, 2 + 1 bit, 4 + 2 bits) with that many 8-bit literals, a copy length (2, 3, 4 + 1 bit, 6 + 3 bits) and a distance, either one of Brotli\'s 16 short codes on the ring of the last four distances (which starts at 4 11 15 16) or an explicit 1 + 6 bits. A distance reaching past the output is a word of the dictionary, the dictionary ending at a window read first from the stream (the LZ cursor read header) plus the LZ cursor offset, with 2 bits of transform: as is, first letter upper case, upper case, lower case.',
         37: 'PNG filters: the 16 bytes are 4 rows of a filter byte (low 3 bits mod 5: None, Sub, Up, Average, Paeth) and 3 one-byte samples, reconstructed as the PNG decoder does from the sample to the left, above and above-left (zero outside). The filter bytes are kept, so the cell integrates itself turn after turn: Sub makes running sums along a row, Up down the columns, Paeth something in between.',
         38: 'JPEG: the bits are the entropy-coded data of one 4×4 block with a restart before it (DC predictor 0): the DC category and bits, then run/size pairs for the 15 AC coefficients in zigzag order, with the standard luminance Huffman tables of Annex K, read most significant bit first; EOB ends the block. The coefficients are dequantised with the top-left 4×4 of the standard luminance quantiser, inverse-transformed and level-shifted into 16 samples, row by row. On a pair, two blocks.',
-        39: 'VP8 boolean decoder (WebP\'s arithmetic coder, RFC 6386): the cell\'s bytes feed the decoder and each output byte is eight binary decisions down a tree whose probabilities are an order-1 model of the Declaration (the previous output byte is the context, smoothed towards the byte frequencies). So the 128 bits are read as the arithmetic code of text in the dictionary\'s statistics, and random bits decode to text-like bytes.',
+        39: 'VP8 boolean decoder (WebP\'s arithmetic coder, RFC 6386): the cell\'s bytes feed the decoder and each output byte is eight binary decisions down a tree whose probabilities are an order-1 model of the dictionary (the previous output byte is the context, smoothed towards the byte frequencies). So the 128 bits are read as the arithmetic code of text in the dictionary\'s statistics, and random bits decode to text-like bytes.',
         40: 'Rice-coded residuals, as in a FLAC subframe with a first-order fixed predictor: a 3-bit Rice parameter k, then per sample a unary quotient (zeros ended by a 1, at most 32) and k remainder bits; the folded value becomes a signed residual added to the previous sample (128 before the first). Smooth signals cost few bits.',
       }[changerId()];
       return;
@@ -935,9 +953,9 @@ function workerMain() {
       return;
     }
     $('codeNote').textContent =
-      `copies of 2 to ${Nmax} bytes from the ${built.bytes.length.toLocaleString()}-byte Declaration; a command is a ${Math.min(...built.lenLengths)}–${Math.max(...built.lenLengths)}-bit ` +
+      `copies of 2 to ${Nmax} bytes from the ${built.bytes.length.toLocaleString()}-byte dictionary (${dictEntry().titleLatin}${built.bytes.some(b => b >= 128) ? ', UTF-8' : ''}); a command is a ${Math.min(...built.lenLengths)}–${Math.max(...built.lenLengths)}-bit ` +
       `length code plus a 3-bit skip (${built.meanCommandBits.toFixed(2)} bits on average for ${built.meanCopyBytes.toFixed(2)} bytes); ` +
-      `expected rate 1 : ${built.rate.toFixed(2)} including the ${hb}-bit cursor header (ceil log2 of the cursor read range ${cursorRead().toLocaleString()}: the value mod that range is a start position among that many bytes of the dictionary, plus the constant cursor offset, wrapping at the end)${skipBits() ? `, read after ${skipBits()} skipped bits` : ''}, about ${Math.round(built.expectedConsumed) + skipBits()} of a pixel's 128 bits are read`;
+      `expected rate 1 : ${built.rate.toFixed(2)} including the ${hb}-bit cursor header (ceil log2 of the cursor read range ${cursorRead().toLocaleString()}: the value, wrapped round once when it is V or more, is a start position among that many bytes of the dictionary, plus the constant cursor offset, wrapping at the end)${skipBits() ? `, read after ${skipBits()} skipped bits` : ''}, about ${Math.round(built.expectedConsumed) + skipBits()} of a pixel's 128 bits are read`;
   }
 
   // ---- thresholds as a per-bit probability p (linear sliders 0..1), thr = p * 2^64.
@@ -1116,14 +1134,14 @@ function workerMain() {
       const frag = document.createDocumentFragment();
       r.out.forEach((b, i) => { const s = document.createElement('span'); s.className = r.flags[i] ? 'c' : ''; s.textContent = b.toString(16).padStart(2, '0') + ' '; frag.appendChild(s); });
       const asText = document.createElement('div');
-      asText.textContent = 'as text: ' + Array.from(r.out, b => (b >= 32 && b < 127) ? String.fromCharCode(b) : (b === 10 ? '⏎' : '·')).join('');
+      asText.textContent = 'as text: ' + (built.bytes.some(b => b >= 128) ? new TextDecoder().decode(Uint8Array.from(r.out)).replace(/\n/g, '⏎') : Array.from(r.out, b => (b >= 32 && b < 127) ? String.fromCharCode(b) : (b === 10 ? '⏎' : '·')).join(''));
       frag.appendChild(asText);
       $('selWindow').textContent = { 31: 'nibbles decoded with the cell\'s own 16 code lengths, two to a byte', 32: 'the letters the bits key out in Morse, then silence',
-        33: 'Deflate fixed-Huffman literals and matches (preset dictionary: the Declaration before the LZ cursor offset)', 34: 'LZ4 literals and matches (preset dictionary: the Declaration before the LZ cursor offset)',
-        35: 'Snappy literals and copies (preset dictionary: the Declaration before the LZ cursor offset)', 36: 'Brotli-like inserts and copies, dictionary words transformed',
-        37: 'the 4 rows reconstructed through their filter bytes (kept)', 38: 'the 16 samples of the 4×4 JPEG block, row by row', 39: 'bytes arithmetic-decoded against the Declaration\'s bigram model', 40: 'samples from the Rice-coded residuals' }[ch];
+        33: 'Deflate fixed-Huffman literals and matches (preset dictionary: the text before the cursor read from the stream)', 34: 'LZ4 literals and matches (preset dictionary: the text before the cursor read from the stream)',
+        35: 'Snappy literals and copies (preset dictionary: the text before the cursor read from the stream)', 36: 'Brotli-like inserts and copies, dictionary words transformed',
+        37: 'the 4 rows reconstructed through their filter bytes (kept)', 38: 'the 16 samples of the 4×4 JPEG block, row by row', 39: 'bytes arithmetic-decoded against the dictionary\'s bigram model', 40: 'samples from the Rice-coded residuals' }[ch];
       $('selText').replaceChildren(frag);
-      $('selNote').textContent = `${r.consumed} input bits read${r.consumed >= 1024 ? ' (the cap: the rest of the cell keeps its bytes)' : ''}; ${r.copied} of 16 bytes differ from the input; ` +
+      $('selNote').textContent = `${r.consumed} input bits read${skipBits() ? ` after ${skipBits()} skipped bits` : ''}${ch >= 33 && ch <= 36 ? ` (${hb} of them the dictionary cursor: the preset window ends at ${r.offset.toLocaleString()} of ${textLen.toLocaleString()})` : ''}${r.consumed >= 1024 ? ' (the cap: the rest of the cell keeps its bytes)' : ''}; ${r.copied} of 16 bytes differ from the input; ` +
         (ch === 37 || ch === 38 ? 'changed bytes highlighted' : 'alternate commands highlighted (a nibble, letter, literal run, match or sample each)') + (r.consumed < 1024 && r.out.length ? '' : '');
       return;
     }
@@ -1144,7 +1162,7 @@ function workerMain() {
       $('selNote').textContent = `tape after ${r.consumed} steps${r.consumed >= 1024 ? ' (step limit reached)' : ''}: ${r.copied} of 16 cells changed, pointer at cell ${r.offset}`;
       return;
     }
-    const before = Array.from({ length: 36 }, (_, k) => built.bytes[(r.offset - 36 + k + textLen) % textLen]).map(b => b === 10 ? ' ' : String.fromCharCode(b)).join('');
+    const before = new TextDecoder().decode(Uint8Array.from({ length: 36 }, (_, k) => built.bytes[(r.offset - 36 + k + textLen) % textLen])).replace(/^\uFFFD+/, '').replace(/\n/g, ' ');
     $('selWindow').textContent = `cursor starts at ${r.offset.toLocaleString()} of ${textLen.toLocaleString()} (header value ${((r.offset - coff) % textLen + textLen) % textLen} of ${cursorRead().toLocaleString()} in ${hb} bits, plus the offset ${coff}), after …${before}`;
     const frag = document.createDocumentFragment();
     let i = 0;
@@ -1156,6 +1174,7 @@ function workerMain() {
       span.textContent = s;
       frag.appendChild(span);
     }
+    if (built.bytes.some(b => b >= 128)) { const t = document.createElement('div'); t.textContent = 'as text: ' + new TextDecoder().decode(Uint8Array.from(r.out)).replace(/\n/g, '⏎'); frag.appendChild(t); }   // a UTF-8 dictionary: the 16 bytes as text, partial characters as U+FFFD
     $('selText').replaceChildren(frag);
     $('selNote').textContent = `${r.consumed} of 128 input bits consumed (${skipBits() ? `${skipBits()} skipped + ` : ''}${hb} header + ${r.consumed - hb - skipBits()} command bits) for 128 output bits (1 : ${(128 / r.consumed).toFixed(2)}); ` +
       `${r.copied} copy commands, shown as alternating fragments` +
@@ -1300,6 +1319,7 @@ function workerMain() {
   for (const id of ['iters', 'nbr']) $(id).addEventListener('change', () => { if (engine && engine.threads > 1) run(() => rebuild($('pattern').value, true)); });   // the halo depth depends on the pass count and the neighbourhood
   $('steps').addEventListener('change', () => run(async () => { await engine.setSteps(Number($('steps').value)); await draw(); }));
   for (const id of ['rounds', 'lreset', 'lnever']) $(id).addEventListener('change', () => { $('rounds').value = linkRoundCount(); if (!$('lnever').checked) $('lreset').value = linkResetEvery(); $('lreset').disabled = $('lnever').checked; run(draw); });   // read at each turn; redraw refreshes the statistics line
+  $('dict').addEventListener('change', () => { applyDict(); codeNote(); run(async () => { await engine.setN(Number($('maxlen').value)); await draw(); }); });
   $('cread').addEventListener('input', () => { showCread(); codeNote(); run(async () => { await engine.setCursorRead(cursorRead()); await draw(); }); });
   $('skip').addEventListener('input', () => { $('skipVal').textContent = skipBits(); codeNote(); run(async () => { await engine.setSkipBits(skipBits()); await draw(); }); });
   $('coff').addEventListener('input', () => { $('coffVal').textContent = '+' + $('coff').value; run(async () => { await engine.setCursorOffset(Number($('coff').value)); await draw(); }); });
@@ -1335,11 +1355,13 @@ function workerMain() {
     const selftest = location.hash === '#selftest' || location.hash === '#selftest-workers';
     if (saved && saved.w) {
       for (const [id, key, dflt] of [['size', 'size', '512x512'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'],
-            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['mut', 'mut', '0.001'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '0'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '610'], ['skip', 'skip', '0'], ['pair', 'pair', '0']])
+            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['mut', 'mut', '0.001'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'declaration'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '0'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '50'], ['skip', 'skip', '6'], ['pair', 'pair', '0']])
         $(id).value = saved[key] ?? dflt;
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
       if ($('changer').value === '') { $('changer').value = 'dec'; $('dec').value = '0'; }   // the former "LZ decompressor" mode: the decoder menu's first entry
-      $('cread').value = creadPos(Number(saved.cread) || TEXT_LEN);   // saved as the range V, the slider holds a position
+      if ($('dict').value === '') $('dict').value = DICTS[0].id;
+      applyDict();
+      $('cread').value = creadPos(Number(saved.cread) || 5);   // saved as the range V, the slider holds a position (default 5)
       if ($('pair').value === '') $('pair').value = saved.pair === '6' ? '1' : '0';   // the former "Links" entry: concatenated pairs
       if ($('avg').value === '') $('avg').value = '2';   // the former three-stage entry: two stages, the slow stage comes with the sharpening
       $('lnever').checked = saved.lnever === undefined ? true : saved.lnever === true || saved.lnever === 'true' || String(saved.lreset) === '0';   // a saved 0 meant never; older states take the default
@@ -1363,7 +1385,7 @@ function workerMain() {
   window.claude?.hot?.snapshot?.(() => ({
     w: W, h: H, turn, running, sel,
     size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, ts: $('tw').value, sp: $('sp').value, thrL: $('thrL').value, thrR: $('thrR').value, mut: $('mut').value,
-    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, dec: $('dec').value, steps: $('steps').value, rounds: $('rounds').value, lreset: $('lreset').value, lnever: $('lnever').checked, coff: $('coff').value, cread: cursorRead(), skip: $('skip').value, pair: $('pair').value,
+    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, dict: $('dict').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, dec: $('dec').value, steps: $('steps').value, rounds: $('rounds').value, lreset: $('lreset').value, lnever: $('lnever').checked, coff: $('coff').value, cread: cursorRead(), skip: $('skip').value, pair: $('pair').value,
     cells: engine && engine.cellsSync() ? Array.from(engine.cellsSync()) : null,   // the worker pool keeps no copy on the main thread
   }));
   window.claude?.hot?.ready ? window.claude.hot.ready(d => run(() => start(d))) : run(() => start(window.claude?.hot?.data ?? null));

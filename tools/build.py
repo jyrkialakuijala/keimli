@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Inline a compiled wasm module (and optional helper files) into a page template.
 
-usage: build.py TEMPLATE WASM OUTPUT [--artifact] [--codec FILE] [--text FILE]
+usage: build.py TEMPLATE WASM OUTPUT [--artifact] [--codec FILE] [--text FILE] [--dicts MANIFEST]
 
-Placeholders: __WASM_BASE64__, __WASM_SIZE__, __CODEC_JS__, __BAND_JS__, __DECL_TEXT__.
+Placeholders: __WASM_BASE64__, __WASM_SIZE__, __CODEC_JS__, __BAND_JS__, __DECL_TEXT__, __DICTS_JSON__ (the dictionaries of a manifest with their texts).
 Without --artifact the output is wrapped in a full HTML document skeleton so it
 works from file://; with --artifact the fragment is emitted as-is.
 """
@@ -12,7 +12,7 @@ import argparse, base64, pathlib
 ap = argparse.ArgumentParser()
 ap.add_argument('template'); ap.add_argument('wasm'); ap.add_argument('output')
 ap.add_argument('--artifact', action='store_true')
-ap.add_argument('--codec'); ap.add_argument('--text'); ap.add_argument('--band')
+ap.add_argument('--codec'); ap.add_argument('--text'); ap.add_argument('--band'); ap.add_argument('--dicts')
 a = ap.parse_args()
 
 wasm = pathlib.Path(a.wasm).read_bytes()
@@ -22,6 +22,12 @@ if a.codec:
     page = page.replace('__CODEC_JS__', pathlib.Path(a.codec).read_text())
 if a.text:
     page = page.replace('__DECL_TEXT__', pathlib.Path(a.text).read_text())
+if a.dicts:
+    import json, unicodedata
+    man = pathlib.Path(a.dicts); entries = json.loads(man.read_text(encoding='utf-8'))
+    for e in entries:
+        e['text'] = unicodedata.normalize('NFC', (man.parent / e['file']).read_text(encoding='utf-8')).strip('\n') + '\n'
+    page = page.replace('__DICTS_JSON__', json.dumps(entries, ensure_ascii=False).replace('</', '<\\/'))
 if a.band:
     page = page.replace('__BAND_JS__', pathlib.Path(a.band).read_text())
 if not a.artifact:

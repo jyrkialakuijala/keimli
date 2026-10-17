@@ -54,8 +54,8 @@ PARTS="
 wat2wasm build/keimli.wat -o build/keimli.wasm
 wat2wasm src/life/life.wat -o build/life.wasm
 python3 tools/build.py src/life/life.html build/life.wasm life.html
-python3 tools/build.py src/page/lattice.html build/keimli.wasm index.html --codec src/changers/codec.js --band src/lattice/band.js --text src/changers/declaration.txt
+python3 tools/build.py src/page/lattice.html build/keimli.wasm index.html --codec src/changers/codec.js --band src/lattice/band.js --text src/changers/declaration.txt --dicts src/changers/dict/manifest.json
 if [ -n "$1" ]; then
   python3 tools/build.py src/life/life.html build/life.wasm "$1/life-wasm.html" --artifact
-  python3 tools/build.py src/page/lattice.html build/keimli.wasm "$1/bit-swap-lattice.html" --artifact --codec src/changers/codec.js --band src/lattice/band.js --text src/changers/declaration.txt
+  python3 tools/build.py src/page/lattice.html build/keimli.wasm "$1/bit-swap-lattice.html" --artifact --codec src/changers/codec.js --band src/lattice/band.js --text src/changers/declaration.txt --dicts src/changers/dict/manifest.json
 fi

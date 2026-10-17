@@ -36,7 +36,7 @@ static dictionary, the Declaration of Independence, which is not part of
 the image. The first ⌈log₂ N⌉ leading bits, 13 for the Declaration's
 N = 8,122 bytes, are read as the start cursor, so every byte of the
 dictionary is a start position (values past the end wrap to its start), and
-the "LZ cursor offset" slider (0 to N, default 610) is added to that cursor,
+the "LZ cursor offset" slider (0 to N, default 50) is added to that cursor,
 again wrapping at the end of the text, so the start positions can be
 shifted away from the dictionary's opening.
 
@@ -65,16 +65,21 @@ reads the start cursor from the leading header bits.
 The "LZ cursor read" slider (1 to the dictionary size on a semi-logarithmic
 scale: 1 to 8 one by one, then quarter octaves; `prm + 52`) sets the
 range V the header is read over: the header is ceil(log₂ V) bits wide and
-its value mod V is the start position, to which the constant "LZ cursor
+its value is the start position, wrapped round once when it is V or more
+(with V = 5 the 3-bit values 6 and 7 read as 0 and 1), to which the constant "LZ cursor
 offset" (`prm + 100`, never read from the pixel) is added before wrapping at
 the end of the dictionary. V = 1 reads no header bits, so every pixel starts
 at the offset; V = the dictionary size (the default) makes every byte a
-start position with a 13-bit header.
+start position with a 13-bit header; the page's default is V = 5, a 3-bit
+header, with 6 skipped bits before it and an offset of 50.
 
-The "LZ skip bits" slider (0 to 16, `prm + 40`) makes the decoder skip that
+The "Skip bits" slider (0 to 16, `prm + 40`) makes the decoder skip that
 many bits of the pixel before it reads the cursor header, so the header and
 the commands move along the pixel; the link machine's first step skips them
-too.
+too. The ten decoders of kinds 31 to 40 start reading after the same skip
+(a byte-oriented format reads its bytes from that bit on, so a skip that is
+not a multiple of 8 shifts its byte frame; the PNG decoder sees the cell
+from the skip on). The CPUs and the transforms ignore it.
 
 ## Brainfuck
 
@@ -128,12 +133,20 @@ transform runs over the sum and difference halves.
 
 Kinds 31 to 40 (`src/changers/codecs.wat`) read the cell as a coded signal
 rather than as a program: the information-centric changers. Every one of
-them reads the `$cw`-byte cell as a bitstream or byte stream that wraps at
-the end of the cell (reads are capped at 1024 bits), writes its output from
+them reads the `$cw`-byte cell as a bitstream or byte stream that starts
+after the "Skip bits" and wraps at the end of the cell (reads are capped at
+1024 bits), writes its output from
 byte 0, and leaves the cell's own bytes where its output falls short. The
-LZ77 formats among them take a *preset dictionary*, the way zlib, LZ4 and
-Snappy accept one: a back-reference reaching past the start of the output
-reads the Declaration text ending at the LZ cursor offset (`prm + 100`). The
+LZ77 formats among them (Deflate, LZ4, Snappy, the Brotli-like) take a
+*preset dictionary*, the way zlib, LZ4 and Snappy accept one: a
+back-reference reaching past the start of the output reads the Declaration
+text ending at a window position that the decoder reads from the stream
+first, as the LZ decompressor reads its start cursor: ceil(log₂ V) bits for
+the "LZ cursor read" range V (LSB-first for Deflate and the Brotli-like,
+MSB-first for LZ4 and Snappy), the value (wrapped round once when V or
+more) plus the constant "LZ cursor
+offset" (`prm + 100`), wrapping at the end of the text; V = 1 reads no bits
+and the window ends at the offset. `prm + 48` holds the window for them. The
 output flags carry the parity of the command that produced each byte (a
 nibble, letter, literal run, match or sample), or for the two image
 decoders whether the byte changed, and `prm + 48` holds the bits consumed.
@@ -169,6 +182,65 @@ cell itself (prefix), run lengths as symbols (Morse), prediction with coded
 residuals (Rice, PNG), a transform code (JPEG) and an arithmetic code
 against a language model (VP8), under which every bit string is a valid
 code and decodes to text-like bytes.
+
+## Dictionaries
+
+The LZ decompressor copies from a static dictionary, the four LZ77 decoders
+take it as their preset dictionary, and the VP8 boolean decoder's order-1
+model is built from it. The "Dictionary" box chooses it among short
+public-domain texts in many scripts (`src/changers/dict/`, listed in
+`manifest.json`, embedded into the page by `tools/build.py --dicts`). A
+dictionary is its UTF-8 bytes: the text length, the cursor read range, the
+cursor offset and the preset-dictionary windows are byte counts, and every
+decoder treats the bytes as bytes; only the inspector decodes a window or an
+output back to text for display. Changing the dictionary rebuilds the code
+tables and the VP8 model and re-installs them in every worker; the sliders
+that run over the text are clamped to the new length. The byte colours
+stay those of the Declaration's alphabet, so a non-Latin text shows in the
+darker opcode colours of the bytes above 127.
+
+| id | bytes | text | author | language |
+|---|---|---|---|---|
+| declaration | 8,123 | US Declaration of Independence | Thomas Jefferson and the Second Continental Congress | English, Latin script, 1776 |
+| nam-quoc-son-ha-han | 88 | Nam quốc sơn hà | anonymous (traditionally attributed to Lý Thường Kiệt) | Classical Chinese (Vietnamese Chữ Hán), Han script, 1077 |
+| nam-quoc-son-ha-viet | 165 | Nam quoc son ha | anonymous (traditionally attributed to Lý Thường Kiệt) | Vietnamese (Sino-Vietnamese reading), Latin (Vietnamese alphabet) script, 1077 |
+| azatutyun | 1,648 | Azatutyun (Liberty) | Mikael Nalbandian | Armenian, Armenian script, 1859 |
+| nocturne | 955 | Nocturne | Eino Leino | Finnish, Latin script, 1903 |
+| kalevala-1 | 2,486 | Kalevala, first poem (opening) | Elias Lönnrot (compiler), Finnish oral tradition | Finnish, Latin script, 1849 |
+| qaro-kozum | 779 | Qaro ko'zum (Kara Ko'zum) | Alisher Navoiy | Uzbek (Chagatai Turkic), Latin (Uzbek Latin alphabet) script, 15th century |
+| catullus-5 | 442 | Catullus 5 (Vivamus, mea Lesbia) | Gaius Valerius Catullus | Latin, Latin script, c. 55 BC |
+| iroha | 275 | Iroha-uta | anonymous | Japanese (Classical), Hiragana (second stanza kanji and kana) script, c. 1000 (10th–11th century) |
+| ya-vas-lyubil | 489 | Ya vas lyubil (I loved you) | Alexander Pushkin | Russian, Cyrillic script, 1829 |
+| iliad-1 | 1,755 | Iliad, Book 1, lines 1–21 | Homer | Ancient Greek, Greek (polytonic) script, 8th century BC |
+| psalm-23 | 1,027 | Tehillim 23 (Psalm 23) | traditional (attributed to David) | Biblical Hebrew, Hebrew (with vowel points and cantillation) script, antiquity (Masoretic text, c. 10th century AD) |
+| hunminjeongeum | 707 | Hunminjeongeum eonhae, preface | King Sejong the Great | Middle Korean, Hangul (15th-century Old Hangul with tone marks and some Hanja) script, 1446 (eonhae edition 1459) |
+| vepkhistqaosani | 3,062 | Vepkhistqaosani (The Knight in the Panther's Skin), prologue 1–6 | Shota Rustaveli | Georgian, Georgian (Mkhedruli) script, c. 1200 |
+| don-quijote | 2,336 | Don Quixote, Part I, chapter I (opening) | Miguel de Cervantes | Spanish, Latin script, 1605 |
+| bhagavad-gita-2 | 1,411 | Bhagavad Gita 2.45–2.50 | traditional (attributed to Vyasa) | Sanskrit, Devanagari script, c. 2nd century BC – 2nd century AD |
+| voluspa | 1,502 | Voluspa, stanzas 1–10 | anonymous | Old Norse, Latin (Old Norse orthography) script, 10th century (Codex Regius c. 1270) |
+| muallaqa | 1,622 | Mu'allaqa of Imru' al-Qais, verses 1–10 | Imru' al-Qais | Classical Arabic, Arabic (vocalized) script, 6th century |
+
+Provenance (all public domain; the texts were fetched from the sources
+given, not typed from memory):
+
+- declaration: The full text; public domain as a US government work of 1776.
+- nam-quoc-son-ha-han: The complete four-line poem in the original Chinese characters (the typographic spaces between characters in the Wikisource table were removed; the main reading 定分 is used); an 11th-century anonymous text, public domain. Source: <https://vi.wikisource.org/w/index.php?title=Nam_quốc_sơn_hà&action=raw>
+- nam-quoc-son-ha-viet: Only the four-line Sino-Vietnamese reading: the verse translation 'Sông núi nước Nam vua Nam ở' is attributed to Trần Trọng Kim (d. 1953) in secondary web sources but could not be found in any public-domain edition read (his Việt Nam sử lược on Wikisource quotes only the Sino-Vietnamese reading), so it was omitted; the reading of an 11th-century text is public domain. Source: <https://vi.wikisource.org/w/index.php?title=Nam_quốc_sơn_hà&action=raw>
+- azatutyun: The complete poem in six eight-line stanzas; Nalbandian died in 1866, so the text is public domain. Source: <https://hy.wikisource.org/w/index.php?title=Ազատություն_(Միքայել_Նալբանդյան)&action=raw>
+- nocturne: The complete poem (three ten-line stanzas) from Talvi-yö; Leino died in 1926, so the text is public domain. Source: <https://fi.wikisource.org/w/index.php?title=Nocturne&action=raw>
+- kalevala-1: The opening of the first poem of the 1849 Kalevala, 51 lines (Mieleni minun tekevi ... uuen aamun alkeheksi); Lönnrot died in 1884, public domain. Source: <https://fi.wikisource.org/w/index.php?title=Kalevala_-_Ensimm%C3%A4inen_runo&action=raw>
+- qaro-kozum: The complete ghazal of eight couplets ('Qaro ko‘zum, kel-u, mardumliq emdi fan qilg‘il', radif 'qilg‘il', takhallus Navoiy in the last couplet) in Uzbek Latin script from the multilingual Wikisource; Navoiy died in 1501, so the text is public domain. Source: <https://wikisource.org/w/index.php?title=Qaro_ko‘zum...&action=raw>
+- catullus-5: The complete 13-line poem from the F. W. Cornish edition (1904, Cornish d. 1916) with marginal line numbers removed; an ancient text, public domain. Source: <https://la.wikisource.org/w/index.php?title=Carmina_(Catullus,_ed._Cornish)/5&action=render>
+- iroha: The complete 47-kana pangram in historical kana spelling, followed after a blank line by its traditional kanji-and-kana rendering as given on the same page; an anonymous Heian-period text, public domain. Source: <https://ja.wikipedia.org/w/index.php?title=いろは歌&action=raw>
+- ya-vas-lyubil: The complete eight-line poem; Pushkin died in 1837, so the text is public domain. Source: <https://ru.wikisource.org/w/index.php?title=Я_вас_любил:_любовь_ещё,_быть_может_(Пушкин)&action=raw>
+- iliad-1: The opening 21 lines (proem and the priest Chryses' plea) from the Monro–Allen Oxford text (1920, Allen d. 1950) with marginal line numbers removed; an ancient text, public domain. Source: <https://el.wikisource.org/w/index.php?title=Ιλιάς/Α&action=render>
+- psalm-23: The complete six-verse psalm in the Masoretic text with niqqud and te'amim, verse numerals removed and each verse as a stanza; an ancient text, public domain. Source: <https://he.wikisource.org/w/index.php?title=תהלים_כג&action=render>
+- hunminjeongeum: The eight-clause Korean preface of the Hunminjeongeum eonhae (Worin seokbo edition of 1459) in its original Old Hangul with side-dot tone marks, excluding the interlinear glosses; a 15th-century text, public domain. Source: <https://ko.wikisource.org/w/index.php?title=훈민정음언해&action=render>
+- vepkhistqaosani: The first six quatrains of the prologue, stanza numbers removed; a 12th-century text, public domain. Source: <https://ka.wikisource.org/w/index.php?title=ვეფხისტყაოსანი/დასაწყისი&action=raw>
+- don-quijote: The first paragraph of chapter I from the 1905 edition (with its orthography, e.g. 'á'); Cervantes died in 1616, so the text is public domain. Source: <https://es.wikisource.org/w/index.php?title=El_ingenioso_hidalgo_Don_Quijote_de_la_Mancha_(1905)/Tomo_I/Capítulo_I&action=render>
+- bhagavad-gita-2: Verses 2.45 to 2.50 (including 2.47 karmaṇy evādhikāras te), each verse a two-line stanza with verse numerals removed; an ancient text, public domain. Source: <https://sa.wikisource.org/w/index.php?title=भगवद्गीता/साङ्ख्ययोगः&action=raw>
+- voluspa: The first ten stanzas in Sophus Bugge's 1867 text in normalized spelling, stanza numbers removed; a medieval anonymous text, public domain. Source: <https://is.wikisource.org/w/index.php?title=Völuspá&action=raw>
+- muallaqa: The first ten verses (qifā nabki), each verse a two-line stanza with the two hemistichs on separate lines; a pre-Islamic text, public domain. Source: <https://ar.wikisource.org/w/index.php?title=معلقة_امرئ_القيس&action=raw>
 
 ## Pairs: two cells changed together
 

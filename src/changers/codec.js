@@ -10,11 +10,12 @@ const Codec = (() => {
   const OUT_BYTES = 16;                      // decoded output is always 128 bits
   const cursorBits = textLen => Math.max(1, Math.ceil(Math.log2(textLen)));   // start-cursor header width: ceil(log2 of the dictionary size), every byte a start position
   const rangeBits = V => V <= 1 ? 0 : Math.ceil(Math.log2(V));                 // header width for a cursor read range V (V = 1: no header bits)
-  const CURSOR_OFFSET = 610;   // bytes added to the LZ start cursor (the dictionary's opening is a dull start)
+  const CURSOR_OFFSET = 50;   // bytes added to the LZ start cursor by default
   const pixelRate = (rSym, hb) => 8 * OUT_BYTES / (hb + 8 * OUT_BYTES / rSym);  // command-level rate -> whole-pixel rate
 
   // Fixed memory map (bytes). The grid starts after the static region.
-  const LAYOUT = { PRM: 0, COS: 512, LIT: 1024, DEC: 1024 + (4 << LIT_BITS), TEXT: 1024 + (4 << LIT_BITS) + 4096, LUT: 31744, THR: 32768, THRY: 49152, VP8: 65536, GRID: 131072 };
+  const LAYOUT = { PRM: 0, COS: 512, LIT: 1024, DEC: 1024 + (4 << LIT_BITS), LUT: 31744, THR: 32768, THRY: 49152, VP8: 65536, TEXT: 131072, GRID: 196608 };
+  // TEXT: the dictionary (UTF-8 bytes, up to about 64 KB), then the decoder's output buffer and flags; GRID: the lattice
   // LUT: 256 x i32 byte colours; THR: per-column swap thresholds (i64, up to 2048 columns); THRY: per-row smoothing thresholds (i64, up to 2048 rows)
   // DEC: the decoders' tables (codecs.wat); VP8: the order-1 model for the boolean decoder, 256 contexts x 256 tree nodes
 
@@ -123,7 +124,7 @@ const Codec = (() => {
   // equally, so the canonical code gives the shorter copies the shorter codes.
   function build(text, maxMatch, headerBits) {
     maxMatch = Math.max(MIN_MATCH, Math.min(MAX_MATCH_LIMIT, maxMatch | 0));
-    const bytes = Uint8Array.from(text, ch => { const c = ch.charCodeAt(0); return c < 128 ? c : 63; });
+    const bytes = new TextEncoder().encode(text);   // the dictionary as UTF-8 bytes
     headerBits ??= cursorBits(bytes.length);
     const n = maxMatch - MIN_MATCH + 1;
     const lenLengths = n === 1 ? [0] : huffmanLengths(new Array(n).fill(1), LIT_BITS);   // one length needs no code bits
@@ -151,7 +152,7 @@ const Codec = (() => {
     const freq = new Float64Array(256); for (const b of built.bytes) freq[b]++;
     const meanRaw = lutMean(lut, new Float64Array(256).fill(1)), meanDec = lutMean(lut, freq);
     const textLen = built.bytes.length, OUT = LAYOUT.TEXT + textLen, FLAGS = OUT + 256;
-    if (FLAGS + 256 > LAYOUT.LUT) throw new Error('dictionary too long for the static region');
+    if (FLAGS + 256 > LAYOUT.GRID) throw new Error('dictionary too long for the static region');
     m8.set(built.bytes, LAYOUT.TEXT);
     decoderTables(memory, built.bytes);
     const headerBits = built.headerBits ?? cursorBits(textLen), offsetUnit = Math.ceil(textLen / 2 ** headerBits);
@@ -162,7 +163,7 @@ const Codec = (() => {
              // cursor header width: 2^bits start positions, ceil(textLen / 2^bits) bytes apart
              setHeaderBits: bits => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 25); io.headerBits = bits; io.offsetUnit = Math.ceil(textLen / 2 ** bits); a[11] = io.offsetUnit; a[24] = bits; },
              setCursorOffset: n => { io.cursorOffset = n; new Int32Array(memory.buffer, LAYOUT.PRM, 26)[25] = n; },
-             // cursor read range V: the header is ceil(log2 V) bits and its value is taken mod V (V = textLen: every byte a start position; V = 1: no header)
+             // cursor read range V: the header is ceil(log2 V) bits and its value wraps round once when it is V or more (V = textLen: every byte a start position; V = 1: no header)
              setCursorRead: V => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 25); io.cursorRead = V; io.headerBits = rangeBits(V); io.offsetUnit = 1; a[11] = 1; a[13] = V; a[24] = io.headerBits; },
              // bits of the pixel skipped before the LZ header, 0..16
              setSkipBits: n => { io.skipBits = n; new Int32Array(memory.buffer, LAYOUT.PRM, 11)[10] = n; },

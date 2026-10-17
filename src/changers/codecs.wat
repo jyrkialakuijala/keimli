@@ -1,9 +1,13 @@
   ;; ------------------------------------------------------------------------
   ;; Decoders (kinds 31..40): the cell read as a coded signal and replaced by what a decoder makes of it.
-  ;; Every decoder reads the $cw-byte cell as a bitstream or byte stream that wraps at the end (reads are capped at
-  ;; 1024 bits), writes its output from byte 0, and when the output runs short the remaining bytes keep the cell's own
-  ;; bytes. Back-references past the start of the output read a preset dictionary: the Declaration text ending at the
-  ;; LZ cursor offset (prm + 100), the way zlib, LZ4 and Snappy accept a preset dictionary.
+  ;; Every decoder reads the $cw-byte cell as a bitstream or byte stream that starts prm.skipBits (prm + 40) into the
+  ;; cell and wraps at the end (reads are capped at 1024 bits; a byte is 8 bits from the current bit position, so a
+  ;; skip that is not a multiple of 8 shifts the byte frame), writes its output from byte 0, and when the output runs
+  ;; short the remaining bytes keep the cell's own bytes. Back-references past the start of the output read a preset dictionary
+  ;; the way zlib, LZ4 and Snappy accept one: the Declaration text ending at a window position that the LZ77 formats (33..36)
+  ;; read from the stream first, as the LZ decompressor reads its start cursor: prm.headerBits bits (ceil log2 of the cursor read
+  ;; range V), LSB-first for Deflate and the Brotli-like, MSB-first for LZ4 and Snappy, the value (wrapped round once when V or more) plus the cursor offset
+  ;; (prm + 100), mod the text length ($lz_cursor). With V = 1 there is no header and the window ends at the cursor offset.
   ;;   31 prefix code: 16 nibble symbols with 3-bit code lengths (1..8), canonical as in Deflate, then nibbles
   ;;   32 Morse: a run of 1 bit is a dot, a longer run a dash; a gap of 2 bits ends a letter, of 3 or more a word
   ;;   33 Deflate with the fixed Huffman code (BTYPE 01, gzip's static block), the usual length and distance codes
@@ -16,7 +20,8 @@
   ;;   40 Rice-coded residuals of a first-order predictor, as in FLAC: a 3-bit parameter, then unary quotient and remainder
   ;; Tables at $DT, written by Codec.install: 0 Deflate length bases (i16 x 29), 64 their extra bits, 96 distance bases
   ;; (i32 x 30), 224 their extra bits, 256 the Morse alphabet by path, 384 the JPEG DC code (16 counts, 12 values),
-  ;; 416 the AC code (16 counts, 162 values), 608 the 4x4 quantiser in zigzag order, 624 the zigzag, 1024.. scratch.
+  ;; 416 the AC code (16 counts, 162 values), 608 the 4x4 quantiser in zigzag order, 624 the zigzag, 1024.. scratch
+  ;; (1024 the prefix code's tables, 1152 the JPEG coefficients, 1216 the PNG decoder's shifted copy of the cell).
   ;; The VP8 model at $VP: 256 contexts x 256 nodes, the probability (1..255 of 256) that the next bit is 0.
   (global $DT i32 (i32.const 17408))
   (global $VP i32 (i32.const 65536))
@@ -24,11 +29,11 @@
   (global $cprm (mut i32) (i32.const 0))
   (global $cbp (mut i32) (i32.const 0))    ;; bit position in the cell (wraps)
   (global $cused (mut i32) (i32.const 0))  ;; bits consumed
-  (global $cby (mut i32) (i32.const 0))    ;; byte position for the byte-oriented formats
   (global $opos (mut i32) (i32.const 0))   ;; output position
   (global $ocmd (mut i32) (i32.const 0))   ;; commands so far (the parity marks the fragments)
   (global $oout (mut i32) (i32.const 0))
   (global $oflg (mut i32) (i32.const 0))
+  (global $dwin (mut i32) (i32.const 0))   ;; the preset dictionary window's end position in the text
 
   (func $nbits (result i32) (i32.shl (global.get $cw) (i32.const 3)))
   (func $bitM (result i32)   ;; next bit, most significant bit of each byte first
@@ -61,12 +66,7 @@
       (local.set $v (i32.or (i32.shl (local.get $v) (i32.const 1)) (call $bitL)))
       (local.set $n (i32.sub (local.get $n) (i32.const 1))) (br $l)))
     (local.get $v))
-  (func $rbyte (result i32)   ;; next byte of the cell, wrapping
-    (local $v i32)
-    (local.set $v (i32.load8_u (i32.add (global.get $cp) (i32.and (global.get $cby) (i32.sub (global.get $cw) (i32.const 1))))))
-    (global.set $cby (i32.add (global.get $cby) (i32.const 1)))
-    (global.set $cused (i32.add (global.get $cused) (i32.const 8)))
-    (local.get $v))
+  (func $rbyte (result i32) (call $bitsM (i32.const 8)))   ;; next byte: 8 bits from the bit position, wrapping
   (func $cap (result i32) (i32.ge_u (global.get $cused) (i32.const 1024)))
   (func $full (result i32) (i32.ge_u (global.get $opos) (global.get $cw)))
   (func $stop (result i32) (i32.or (call $cap) (call $full)))
@@ -81,7 +81,7 @@
       (return (i32.load8_u (i32.add (global.get $oout) (i32.sub (global.get $opos) (local.get $d)))))))
     (local.set $tl (i32.load offset=32 (global.get $cprm)))
     (local.set $k (i32.rem_u (i32.sub (local.get $d) (global.get $opos)) (local.get $tl)))   ;; 1.. bytes before the end of the dictionary window
-    (local.set $k (i32.add (i32.sub (i32.rem_u (i32.load offset=100 (global.get $cprm)) (local.get $tl)) (local.get $k)) (local.get $tl)))
+    (local.set $k (i32.add (i32.sub (global.get $dwin) (local.get $k)) (local.get $tl)))
     (if (i32.ge_u (local.get $k) (local.get $tl)) (then (local.set $k (i32.sub (local.get $k) (local.get $tl)))))
     (i32.load8_u (i32.add (i32.sub (i32.load (global.get $cprm)) (local.get $tl)) (local.get $k))))
   (func $ocopy (param $d i32) (param $len i32)
@@ -443,7 +443,19 @@
   (func $codec (param $p i32) (param $prm i32) (param $kind i32) (result i32)
     (local $i i32) (local $changed i32)
     (global.set $cp (local.get $p)) (global.set $cprm (local.get $prm))
-    (global.set $cbp (i32.const 0)) (global.set $cused (i32.const 0)) (global.set $cby (i32.const 0))
+    (global.set $cbp (i32.load offset=40 (local.get $prm))) (global.set $cused (i32.const 0))   ;; the decoders start after the skipped bits
+    (global.set $dwin (i32.rem_u (i32.load offset=100 (local.get $prm)) (i32.load offset=32 (local.get $prm))))
+    (if (i32.and (i32.ge_u (local.get $kind) (i32.const 33)) (i32.le_u (local.get $kind) (i32.const 36))) (then   ;; the LZ77 formats read the dictionary cursor first
+      (if (i32.or (i32.eq (local.get $kind) (i32.const 33)) (i32.eq (local.get $kind) (i32.const 36)))
+        (then (local.set $i (call $bitsL (i32.load offset=96 (local.get $prm)))))
+        (else (local.set $i (call $bitsM (i32.load offset=96 (local.get $prm))))))
+      (global.set $dwin (call $lz_cursor (local.get $i) (local.get $prm))) (local.set $i (i32.const 0))))
+    (if (i32.and (i32.eq (local.get $kind) (i32.const 37)) (i32.ne (global.get $cbp) (i32.const 0))) (then   ;; PNG reads bytes in place: give it the cell as seen from the skip
+      (local.set $i (i32.const 0))
+      (block $pe (loop $pl (br_if $pe (i32.ge_u (local.get $i) (global.get $cw)))
+        (i32.store8 (i32.add (global.get $DT) (i32.add (i32.const 1216) (local.get $i))) (call $bitsM (i32.const 8)))
+        (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $pl)))
+      (global.set $cp (i32.add (global.get $DT) (i32.const 1216))) (local.set $i (i32.const 0))))
     (global.set $opos (i32.const 0)) (global.set $ocmd (i32.const 0))
     (global.set $oout (i32.load (local.get $prm))) (global.set $oflg (i32.load offset=36 (local.get $prm)))
     (memory.fill (global.get $oflg) (i32.const 0) (global.get $cw))
@@ -460,5 +472,5 @@
         (local.set $changed (i32.add (local.get $changed) (i32.const 1)))
         (if (i32.or (i32.eq (local.get $kind) (i32.const 37)) (i32.eq (local.get $kind) (i32.const 38))) (then (i32.store8 (i32.add (global.get $oflg) (local.get $i)) (i32.const 1))))))
       (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $cl)))
-    (i32.store offset=48 (local.get $prm) (global.get $cused))
+    (i32.store offset=48 (local.get $prm) (select (global.get $dwin) (global.get $cused) (i32.and (i32.ge_u (local.get $kind) (i32.const 33)) (i32.le_u (local.get $kind) (i32.const 36)))))   ;; lastOffset: the window for the LZ77 formats, else the bits read
     (i32.or (i32.shl (global.get $cused) (i32.const 8)) (local.get $changed)))

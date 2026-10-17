@@ -9,7 +9,9 @@ Brotli, Zopfli and Guetzli.
 Every cell of the lattice is a 128-bit string. Each turn the cells swap
 bits with their neighbours under a hash rule (a uniform crossover), smooth themselves bit
 plane by bit plane, and then inflate their own content: the 16 bytes are
-run through an LZ decompressor against a fixed dictionary, a DCT, a
+run through an LZ decompressor against a fixed dictionary (the US
+Declaration of Independence or one of seventeen short public-domain texts in
+many scripts, as UTF-8 bytes), a DCT, a
 Brainfuck interpreter, one of twenty-two emulated CPUs, or one of ten
 decoders (Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse,
 Rice residuals, WebP's boolean decoder, PNG filters, a JPEG block), and
@@ -52,7 +54,8 @@ src/
                   band.js       a turn, the swap order, bands for worker threads
   changers/       decode.wat    byte-changer entry point and the LZ decoder
                   codec.js      length codes, memory layout (LAYOUT), installer, byte colour LUT
-                  declaration.txt   the dictionary
+                  declaration.txt   the default dictionary
+                  dict/         seventeen more dictionaries in many scripts and their manifest.json (title, author, language, source)
                   brainfuck.wat, simple.wat, dct.wat
                   codecs.wat    the decoders: Deflate, LZ4, Snappy, Brotli-like, prefix code, Morse, Rice, VP8, PNG filters, JPEG
     cpu/          common.wat    register file and pixel memory helpers shared by all cores

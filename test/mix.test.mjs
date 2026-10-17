@@ -63,7 +63,9 @@ check('skip 7 then copy 4 yields dictionary bytes 7..10', [0, 1, 2, 3].every(k =
 { io.setCursorRead(100); check('cursor read 100: a 7-bit header', io.headerBits === 7);
   words.fill(0n); words[0] = 37n; decode_pixel(GRID, 0, PRM); const c37 = io.lastOffset();
   words[0] = 100n; decode_pixel(GRID, 0, PRM); const c100 = io.lastOffset();
-  check(`header 37 -> cursor 37, header 100 -> cursor 0 (mod 100): ${c37}, ${c100}`, c37 === 37 && c100 === 0);
+  check(`header 37 -> cursor 37, header 100 -> cursor 0 (wrapped once): ${c37}, ${c100}`, c37 === 37 && c100 === 0);
+  io.setCursorRead(5); const w5 = [0n, 4n, 5n, 6n, 7n].map(h => { words[0] = h; decode_pixel(GRID, 0, PRM); return io.lastOffset(); });
+  check(`cursor read 5 (3 bits): headers 0 4 5 6 7 -> cursors ${w5.join(' ')} (5, 6 and 7 wrap to 0, 1 and 2)`, io.headerBits === 3 && w5.join() === '0,4,0,1,2');
   io.setCursorRead(1); words[0] = 0xffffn; const v1 = decode_pixel(GRID, 0, PRM);
   check(`cursor read 1: no header bits, the cursor is the offset alone (${io.lastOffset()}, header ${io.headerBits} bits)`, io.headerBits === 0 && io.lastOffset() === 0 && (v1 >> 8) < 64);
   io.setCursorRead(text.length); check('cursor read = the dictionary size restores the 13-bit header', io.headerBits === built.headerBits); }
@@ -723,7 +725,7 @@ check('leftover row, offset 0: 4 pairs, the bits stay in the last row (' + sw + 
 // LZ cursor offset is a parameter (default 600), added to the header cursor and wrapped
 {
   io.setCursorOffset(0);
-  check(`default cursor offset is ${Codec.CURSOR_OFFSET}`, Codec.CURSOR_OFFSET === 610);
+  check(`default cursor offset is ${Codec.CURSOR_OFFSET}`, Codec.CURSOR_OFFSET === 50);
   io.setCursorOffset(600); words[0] = 0n; words[1] = 0n; decode_pixel(GRID, 0, PRM);
   check('offset 600, header 0: cursor 600 and the output is the text from 600 on', io.lastOffset() === 600 && out().every((b, k) => b === txt(600 + k)));
   words[0] = 3n; decode_pixel(GRID, 0, PRM);
@@ -1185,6 +1187,17 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
     io.setPair(0, 0);
   }
 }
+// ---- a UTF-8 dictionary: the text is installed as UTF-8 bytes and the LZ decompressor copies those bytes
+{
+  const utf = 'Ազատություն αβγ 南國山河 sông núi\n', ub = new TextEncoder().encode(utf);
+  const b2 = Codec.build(utf, 4), io2 = Codec.install(memory, b2, Codec.byteLut(b2.bytes), 1);
+  io2.setCursorOffset(0); io2.setCursorRead(1); io2.setChanger(0); io2.setSkipBits(0);
+  words.fill(0n); decode_pixel(GRID, 0, PRM);
+  const got = Array.from(m8.subarray(io2.OUT, io2.OUT + 16));
+  check(`UTF-8 dictionary: ${utf.length} characters are ${ub.length} bytes (header ${b2.headerBits} bits), and a zero pixel copies its first 16 bytes: ${new TextDecoder().decode(Uint8Array.from(got)).replace(/\uFFFD/g, '?')}`, ub.length > utf.length && b2.bytes.length === ub.length && got.every((b, k) => b === ub[k]) && io2.textLen === ub.length);
+  // back to the Declaration for the rest
+  Codec.install(memory, built, Codec.byteLut(built.bytes), 1); io.setCursorOffset(0); io.setCursorRead(text.length); io.setChanger(0);
+}
 // ---- sorts (41 ascending, 42 primes first)
 {
   io.setPair(0, 0); io.setChanger(41);
@@ -1198,7 +1211,7 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
 }
 // ---- decoders (changers 31..40): hand-made cells with known decodings
 {
-  io.setPair(0, 0); io.setCursorOffset(0);   // the preset dictionary window ends at the cursor offset: at 0, the text's end
+  io.setPair(0, 0); io.setCursorOffset(0); io.setCursorRead(1);   // no dictionary cursor header: the preset window ends at the cursor offset, at 0 the text's end
   const cell = (kind, bytes) => { io.setChanger(kind); m8.fill(0, GRID, GRID + 16); m8.set(bytes.slice(0, 16), GRID); const r = decode_pixel(GRID, 0, PRM); return { out: out(), flags: flags(), used: r >> 8, changed: r & 255 }; };
   const msb = bits => { const b = new Uint8Array(16); [...bits].forEach((c, i) => { if (c === '1') b[i >> 3] |= 128 >> (i & 7); }); return b; };
   const lsb = bits => { const b = new Uint8Array(16); [...bits].forEach((c, i) => { if (c === '1') b[i >> 3] |= 1 << (i & 7); }); return b; };
@@ -1250,10 +1263,23 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
     for (let i = 0; i < N; i++) { const v = decode_pixel(GRID, i, PRM); ch += v & 255; used = Math.max(used, v >> 8); }
     check(`decoder ${k} on ${N} random cells: ${(ch / N).toFixed(1)} bytes changed a cell on average, at most ${used} bits read`, ch > N && used <= 1024 + 32);
   }
+  // skip bits: every decoder starts reading after them; a byte format shifts its byte frame
+  io.setSkipBits(8); r = cell(34, Uint8Array.from([0xff, 0x54, 104, 101, 108, 108, 111, 5, 0]));
+  check(`LZ4 after 8 skipped bits: the first byte is ignored, "${str(r.out).slice(0, 13)}"`, str(r.out).startsWith('hellohellohel'));
+  io.setSkipBits(3); r = cell(32, msb('000' + '10101' + '00' + '11011011' + '00' + '10101' + '000'));
+  check(`Morse after 3 skipped bits: "${str(r.out)}"`, str(r.out).startsWith('sos sos'));
+  io.setSkipBits(4); r = cell(34, Uint8Array.from([0x05, 0x46, 0x86, 0x56, 0xc6, 0xc6, 0xf0, 0x50, 0x00]));   // the LZ4 stream shifted by a nibble
+  check(`LZ4 after 4 skipped bits reads a nibble-shifted byte frame: "${str(r.out).slice(0, 13)}"`, str(r.out).startsWith('hellohellohel'));
+  io.setSkipBits(0);
   // on a concatenated pair the decoder sees 32 bytes: Morse spells 32 characters over both cells
   io.setChanger(32); io.setPair(1, 0); randomize(8, GRID, 5); change(2, GRID, PRM);
   const both = Array.from(m8.subarray(GRID, GRID + 32));
   check(`Morse on a concatenated pair writes letters and spaces into both cells: "${str(both).replace(/[^ -~]/g, '·')}"`, both.every(b => b === 32 || b === 63 || (b >= 97 && b <= 122) || (b >= 48 && b <= 57) || '.,\'!/()&:;=+-_"@'.includes(String.fromCharCode(b))));
+  // the LZ77 formats read the dictionary cursor first: cursor read 128 is a 7-bit header; LZ4 (MSB-first) with header 20, then a
+  // match of 8 at offset 20 from an empty output reads the text from position 20 - 20 = 0
+  io.setCursorRead(128); r = cell(34, msb(bin(20, 7) + [0x04, 0x14, 0x00].map(b => bin(b, 8)).join('')));
+  check(`LZ4 with a 7-bit dictionary cursor of 20: a match into the preset dictionary gives the text's first bytes "${str(r.out).slice(0, 8)}" (window ${io.lastOffset()})`, str(r.out).slice(0, 8) === text.slice(0, 8) && io.lastOffset() === 20);
+  io.setCursorRead(text.length);
   io.setPair(0, 0); io.setChanger(0);
 }
 console.log(fails ? fails + ' failures' : 'all passed'); process.exit(fails ? 1 : 0);
