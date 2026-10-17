@@ -9,12 +9,67 @@ const Codec = (() => {
   const LIT_BITS = 12;                       // lookup table width for the length code
   const OUT_BYTES = 16;                      // decoded output is always 128 bits
   const cursorBits = textLen => Math.max(1, Math.ceil(Math.log2(textLen)));   // start-cursor header width: ceil(log2 of the dictionary size), every byte a start position
+  const rangeBits = V => V <= 1 ? 0 : Math.ceil(Math.log2(V));                 // header width for a cursor read range V (V = 1: no header bits)
   const CURSOR_OFFSET = 610;   // bytes added to the LZ start cursor (the dictionary's opening is a dull start)
   const pixelRate = (rSym, hb) => 8 * OUT_BYTES / (hb + 8 * OUT_BYTES / rSym);  // command-level rate -> whole-pixel rate
 
   // Fixed memory map (bytes). The grid starts after the static region.
-  const LAYOUT = { PRM: 0, COS: 512, LIT: 1024, TEXT: 1024 + (4 << LIT_BITS) + 4096, LUT: 31744, THR: 32768, THRY: 49152, GRID: 65536 };
+  const LAYOUT = { PRM: 0, COS: 512, LIT: 1024, DEC: 1024 + (4 << LIT_BITS), TEXT: 1024 + (4 << LIT_BITS) + 4096, LUT: 31744, THR: 32768, THRY: 49152, VP8: 65536, GRID: 131072 };
   // LUT: 256 x i32 byte colours; THR: per-column swap thresholds (i64, up to 2048 columns); THRY: per-row smoothing thresholds (i64, up to 2048 rows)
+  // DEC: the decoders' tables (codecs.wat); VP8: the order-1 model for the boolean decoder, 256 contexts x 256 tree nodes
+
+  // ---- tables for the decoders (changers 31..40), see src/changers/codecs.wat ----
+  const MORSE = { a: '.-', b: '-...', c: '-.-.', d: '-..', e: '.', f: '..-.', g: '--.', h: '....', i: '..', j: '.---', k: '-.-', l: '.-..', m: '--', n: '-.', o: '---', p: '.--.', q: '--.-', r: '.-.', s: '...', t: '-', u: '..-', v: '...-', w: '.--', x: '-..-', y: '-.--', z: '--..',
+    0: '-----', 1: '.----', 2: '..---', 3: '...--', 4: '....-', 5: '.....', 6: '-....', 7: '--...', 8: '---..', 9: '----.',
+    '.': '.-.-.-', ',': '--..--', '?': '..--..', "'": '.----.', '!': '-.-.--', '/': '-..-.', '(': '-.--.', ')': '-.--.-', '&': '.-...', ':': '---...', ';': '-.-.-.', '=': '-...-', '+': '.-.-.', '-': '-....-', '_': '..--.-', '"': '.-..-.', '@': '.--.-.' };
+  const JPEG_DC_BITS = [0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0], JPEG_DC_VAL = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];   // Annex K.3, luminance DC
+  const JPEG_AC_BITS = [0, 2, 1, 3, 3, 2, 4, 3, 5, 5, 4, 4, 0, 0, 1, 0x7d];   // K.5, luminance AC
+  const JPEG_AC_VAL = [0x01, 0x02, 0x03, 0x00, 0x04, 0x11, 0x05, 0x12, 0x21, 0x31, 0x41, 0x06, 0x13, 0x51, 0x61, 0x07, 0x22, 0x71, 0x14, 0x32, 0x81, 0x91, 0xa1, 0x08, 0x23, 0x42, 0xb1, 0xc1, 0x15, 0x52, 0xd1, 0xf0,
+    0x24, 0x33, 0x62, 0x72, 0x82, 0x09, 0x0a, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a,
+    0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a,
+    0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6,
+    0xc7, 0xc8, 0xc9, 0xca, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa];
+  const JPEG_Q4 = [16, 11, 10, 16, 12, 12, 14, 19, 14, 13, 16, 24, 14, 17, 22, 29];   // the top-left 4x4 of the K.1 luminance quantiser, raster order
+  const ZIGZAG4 = [0, 1, 4, 8, 5, 2, 3, 6, 9, 12, 13, 10, 7, 11, 14, 15];             // zigzag position -> raster index in a 4x4 block
+  const DEFLATE_LEN_BASE = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258];
+  const DEFLATE_LEN_EXTRA = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0];
+  const DEFLATE_DIST_BASE = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577];
+  const DEFLATE_DIST_EXTRA = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13];
+  // The Morse table by path: 1 followed by the elements, dot 0 and dash 1, indexes the letter; unknown patterns read '?'.
+  function morseTable() {
+    const t = new Uint8Array(128).fill(63);
+    for (const [ch, code] of Object.entries(MORSE)) if (code.length <= 6) t[parseInt('1' + code.replace(/\./g, '0').replace(/-/g, '1'), 2)] = ch.charCodeAt(0);
+    return t;
+  }
+  // The boolean decoder's model: for each context (the previous byte) and each node of the binary tree over the next
+  // byte, the probability (1..255 out of 256) that the next bit is 0, from the dictionary's bigram counts smoothed
+  // towards its byte frequencies (16 pseudo-counts) so that every byte stays decodable in every context.
+  function vp8Model(bytes) {
+    const n = new Float64Array(256), big = new Float64Array(65536);
+    for (let i = 0; i < bytes.length; i++) { n[bytes[i]]++; if (i) big[(bytes[i - 1] << 8) | bytes[i]]++; }
+    const total = bytes.length, p0 = Array.from(n, c => (c + 0.5) / (total + 128));
+    const model = new Uint8Array(65536), w = new Float64Array(257);
+    for (let ctx = 0; ctx < 256; ctx++) {
+      w[0] = 0;
+      for (let s = 0; s < 256; s++) w[s + 1] = w[s] + big[(ctx << 8) | s] + 16 * p0[s];   // prefix sums of the weights
+      for (let d = 0; d < 8; d++) for (let pre = 0; pre < (1 << d); pre++) {
+        const lo = pre << (8 - d), mid = lo + (1 << (7 - d)), hi = lo + (1 << (8 - d));
+        const p = Math.round(256 * (w[mid] - w[lo]) / (w[hi] - w[lo]));
+        model[(ctx << 8) | (1 << d) | pre] = Math.max(1, Math.min(255, p));
+      }
+    }
+    return model;
+  }
+  function decoderTables(memory, bytes) {
+    const m8 = new Uint8Array(memory.buffer), D = LAYOUT.DEC;
+    m8.fill(0, D, D + 4096);
+    new Int16Array(memory.buffer, D, 29).set(DEFLATE_LEN_BASE); m8.set(DEFLATE_LEN_EXTRA, D + 64);
+    new Int32Array(memory.buffer, D + 96, 30).set(DEFLATE_DIST_BASE); m8.set(DEFLATE_DIST_EXTRA, D + 224);
+    m8.set(morseTable(), D + 256);
+    m8.set(JPEG_DC_BITS, D + 384); m8.set(JPEG_DC_VAL, D + 400); m8.set(JPEG_AC_BITS, D + 416); m8.set(JPEG_AC_VAL, D + 432);
+    m8.set(ZIGZAG4.map(z => JPEG_Q4[z]), D + 608); m8.set(ZIGZAG4, D + 624);
+    m8.set(vp8Model(bytes), LAYOUT.VP8);
+  }
 
   // Huffman code lengths limited to `limit` bits; the result is always a complete code.
   function huffmanLengths(freq, limit) {
@@ -98,14 +153,19 @@ const Codec = (() => {
     const textLen = built.bytes.length, OUT = LAYOUT.TEXT + textLen, FLAGS = OUT + 256;
     if (FLAGS + 256 > LAYOUT.LUT) throw new Error('dictionary too long for the static region');
     m8.set(built.bytes, LAYOUT.TEXT);
+    decoderTables(memory, built.bytes);
     const headerBits = built.headerBits ?? cursorBits(textLen), offsetUnit = Math.ceil(textLen / 2 ** headerBits);
     put(LAYOUT.PRM, [OUT, OUT_BYTES, LAYOUT.LIT, 0, 0, 0, 0, 0, textLen, FLAGS, 0, offsetUnit, 0, 0, LAYOUT.LUT, meanRaw, meanDec, gain, 0, 0, 0, 0, 0, 256, headerBits, CURSOR_OFFSET, 0, 0, FLAGS + 128]);   // ..., pairMode, pairFlip, pairBuf
     const cosTab = new Float64Array(memory.buffer, LAYOUT.COS, 33);   // cos(pi m / 64), m = 0..32, for the DCT processors (16 and 32 points, the rest by symmetry)
     for (let m = 0; m <= 32; m++) cosTab[m] = Math.cos(Math.PI * m / 64);
-    const io = { OUT, FLAGS, textLen, OUT_BYTES, offsetUnit, headerBits, cursorOffset: CURSOR_OFFSET, meanRaw, meanDec, gain, lastOffset: () => new Int32Array(memory.buffer, LAYOUT.PRM, 13)[12],
+    const io = { OUT, FLAGS, textLen, OUT_BYTES, offsetUnit, headerBits, cursorOffset: CURSOR_OFFSET, skipBits: 0, cursorRead: 0, meanRaw, meanDec, gain, lastOffset: () => new Int32Array(memory.buffer, LAYOUT.PRM, 13)[12],
              // cursor header width: 2^bits start positions, ceil(textLen / 2^bits) bytes apart
              setHeaderBits: bits => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 25); io.headerBits = bits; io.offsetUnit = Math.ceil(textLen / 2 ** bits); a[11] = io.offsetUnit; a[24] = bits; },
              setCursorOffset: n => { io.cursorOffset = n; new Int32Array(memory.buffer, LAYOUT.PRM, 26)[25] = n; },
+             // cursor read range V: the header is ceil(log2 V) bits and its value is taken mod V (V = textLen: every byte a start position; V = 1: no header)
+             setCursorRead: V => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 25); io.cursorRead = V; io.headerBits = rangeBits(V); io.offsetUnit = 1; a[11] = 1; a[13] = V; a[24] = io.headerBits; },
+             // bits of the pixel skipped before the LZ header, 0..16
+             setSkipBits: n => { io.skipBits = n; new Int32Array(memory.buffer, LAYOUT.PRM, 11)[10] = n; },
              // pairs: mode 0 single cells, 1 concatenated, 2 bit-interleaved, 3 xor then add, 4 add then subtract, 5 byte-interleaved; flip swaps the roles of the two cells (alternate it per turn)
              setPair: (mode, flip) => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 28); a[26] = mode | 0; a[27] = flip ? 1 : 0; },
              setChanger: m => { new Int32Array(memory.buffer, LAYOUT.PRM, 19)[18] = m; },
@@ -152,6 +212,6 @@ const Codec = (() => {
   }
 
   // Mean LUT colour (packed 8-bit channels) under a byte distribution given as 256 weights.
-  return { MIN_MATCH, MAX_MATCH_LIMIT, SKIP_BITS, LIT_BITS, OUT_BYTES, cursorBits, CURSOR_OFFSET, pixelRate, LAYOUT,
-           huffmanLengths, canonicalTable, build, install, reverseBits, byteLut, lutMean };
+  return { MIN_MATCH, MAX_MATCH_LIMIT, SKIP_BITS, LIT_BITS, OUT_BYTES, cursorBits, rangeBits, CURSOR_OFFSET, pixelRate, LAYOUT,
+           huffmanLengths, canonicalTable, build, install, reverseBits, byteLut, lutMean, vp8Model, morseTable, decoderTables, MORSE, ZIGZAG4, JPEG_Q4 };
 })();

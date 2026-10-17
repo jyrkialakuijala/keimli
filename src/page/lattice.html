@@ -82,6 +82,7 @@
   }
   button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; min-width: 84px; }
   input[type=range] { width: 110px; accent-color: var(--accent); }
+  .group .chk { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted, inherit); white-space: nowrap; }
   input[type=number] { font: 500 14px var(--font-mono); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 9ch; }
   .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   .val { min-width: 7ch; font-size: 13px; }
@@ -187,7 +188,7 @@
     </div>
     <div class="group">
       <label for="mut">Mutation, % of bits flipped per turn</label>
-      <input id="mut" type="number" min="0" max="100" step="any" value="0.001" class="mono">
+      <input id="mut" type="number" min="0" max="100" step="0.01" value="0.001" class="mono" title="per cent of all bits flipped per turn; the arrows step by 0.01 %, any value can be typed">
     </div>
   </div>
   <div class="section" role="group" aria-labelledby="sec-smooth">
@@ -227,8 +228,8 @@
       <label for="changer">Changer</label>
       <select id="changer">
         <option value="none">None (view only)</option>
-        <option value="lz" selected>LZ decompressor</option>
         <option value="xf">Transform</option>
+        <option value="dec" selected>Decoder</option>
         <option value="cpu">CPU</option>
       </select>
     </div>
@@ -249,9 +250,27 @@
         <option value="3">Do nothing</option>
         <option value="4" selected>Invert</option>
         <option value="5">Reverse bytes</option>
-        <option value="16">Add 17 (1 to the smallest byte, 17 next, 5 previous)</option>
+        <option value="16">Extremes ±23 (the largest byte −23, its next +11, its previous +13; the smallest the opposite)</option>
         <option value="17">DCT (signed samples; 16-point, 32 on a pair)</option>
         <option value="18">Inverse DCT</option>
+        <option value="41">Sort bytes (ascending)</option>
+        <option value="42">Primes first, then the rest (each ascending)</option>
+      </select>
+    </div>
+    <div class="group" id="decGroup" hidden>
+      <label for="dec">Decoder</label>
+      <select id="dec">
+        <option value="0" selected>LZ decompressor: copies from the Declaration (no literals, no distances)</option>
+        <option value="33">Deflate, fixed Huffman block (gzip's static block)</option>
+        <option value="34">LZ4 block format</option>
+        <option value="35">Snappy</option>
+        <option value="36">Brotli-like: insert-and-copy, distance ring, dictionary words with transforms</option>
+        <option value="31">Prefix code over nibbles (canonical, 3-bit code lengths)</option>
+        <option value="32">Morse code</option>
+        <option value="40">Rice-coded residuals of a predictor (FLAC-style)</option>
+        <option value="39">VP8 boolean decoder against the dictionary's bigrams (WebP)</option>
+        <option value="37">PNG filters (rows of a filter byte and 3 samples)</option>
+        <option value="38">JPEG 4×4 block (standard Huffman and quantiser tables)</option>
       </select>
     </div>
     <div class="group" id="cpuGroup" hidden>
@@ -271,6 +290,12 @@
         <option value="19">DEC PDP-8 (8 words of 12 bits)</option>
         <option value="20">DEC PDP-11</option>
         <option value="21">Motorola 68000</option>
+        <option value="25">Motorola 68020</option>
+        <option value="26">Intel 8086</option>
+        <option value="27">Intel 80286</option>
+        <option value="28">Intel 80386</option>
+        <option value="29">Intel i860</option>
+        <option value="30">General Instrument PIC1640 (12-bit words)</option>
         <option value="22">ERA / UNIVAC 1101 (5 words of 24 bits)</option>
         <option value="23">DEC VAX-11/780</option>
         <option value="24">CDC 6600 (2 words of 60 bits)</option>
@@ -286,33 +311,31 @@
       </select>
     </div>
     <div class="group" id="roundsGroup" hidden>
-      <label for="rounds">Link rounds</label>
-      <select id="rounds">
-        <option value="1">1 per turn</option>
-        <option value="4">4 per turn</option>
-        <option value="16">16 per turn</option>
-        <option value="64">64 per turn</option>
-        <option value="128" selected>128 per turn</option>
-        <option value="256">256 per turn</option>
-      </select>
+      <label for="rounds">CPU cycles per frame</label>
+      <input id="rounds" type="number" min="0" step="1" value="2" class="mono" title="instructions each link machine runs in a frame (one per round of the four phases): any whole number, 0 leaves the machines idle">
     </div>
     <div class="group" id="lresetGroup" hidden>
-      <label for="lreset">Link reset</label>
-      <select id="lreset">
-        <option value="1" selected>every turn</option>
-        <option value="4">every 4 turns</option>
-        <option value="16">every 16 turns</option>
-        <option value="64">every 64 turns</option>
-        <option value="0">never</option>
-      </select>
+      <label for="lreset">CPU reset</label>
+      <input id="lreset" type="number" min="1" step="1" value="1" class="mono" disabled title="fresh link machines (PC 0, registers 0) at the start of every nth frame: any whole number">
+      <label class="chk" for="lnever" title="keep the registers for good: the machines are never reset"><input id="lnever" type="checkbox" checked> never</label>
     </div>
     <div class="group">
-      <label for="coff">LZ cursor offset</label>
+      <label for="skip" title="bits of the pixel the LZ decompressor skips before it reads the cursor header: shifts which bits are the header and which the commands">LZ skip bits</label>
+      <input id="skip" type="range" min="0" max="16" value="0" step="1">
+      <span id="skipVal" class="mono val">0</span>
+    </div>
+    <div class="group">
+      <label for="cread" title="the cursor read range V: the decompressor reads ceil(log2 V) bits of the pixel as a start position among V bytes of the dictionary (the value mod V); V = 1 reads no bits, the dictionary size makes every byte a start position">LZ cursor read</label>
+      <input id="cread" type="range" min="0" max="60" value="60" step="1">
+      <span id="creadVal" class="mono val">8,122 → 13 bits</span>
+    </div>
+    <div class="group">
+      <label for="coff" title="a constant added to the start cursor, not read from the pixel">LZ cursor offset</label>
       <input id="coff" type="range" min="0" max="8122" value="610" step="1">
       <span id="coffVal" class="mono val">+610</span>
     </div>
     <div class="group">
-      <label for="maxlen">Decompression</label>
+      <label for="maxlen" title="the longest copy the LZ decompressor can make, 2 to 16 bytes; the length code adapts to it">Max copy length</label>
       <input id="maxlen" type="range" min="2" max="16" value="3" step="1">
       <span id="maxlenVal" class="mono val">N = 3</span>
     </div>
@@ -345,21 +368,15 @@
         <option value="2" selected>Two stages in cascade, same half-time each</option>
       </select>
     </div>
-    <div class="group">
-      <label for="flat">Flat neighbourhoods</label>
-      <select id="flat">
-        <option value="1">Same half-time</option>
-        <option value="2" selected>8-connected flat: 2 × longer</option>
-        <option value="4">8-connected flat: 4 × longer</option>
-        <option value="24">4-connected flat 2 ×, 8-connected flat 4 × longer</option>
-      </select>
+    <div class="group" id="twGroup">
+      <label for="tw" title="the sharpening s: when it is not 0 one more stage integrates the last averaging stage (the frame itself with averaging off) at twice the half-time, and the frame shown is (1 + s) × the last stage − s × the slow one; 0 shows the averaging alone and computes nothing more, −1 the slow stage itself, positive values sharpen in time">Temporal sharpening</label>
+      <input id="tw" type="range" min="-1" max="5" value="1" step="0.05">
+      <span id="twVal" class="mono val">1.00</span>
     </div>
     <div class="group">
-      <label for="sharp">Sharpening</label>
-      <select id="sharp">
-        <option value="0">Off</option>
-        <option value="1" selected>2 × pixel − mean of its 4 neighbours</option>
-      </select>
+      <label for="sp" title="spatial sharpening p: each channel becomes the pixel + p × (the pixel − the mean of its 4 neighbours); 0 is off, 1 the classic 2 × pixel − mean, −1 the mean itself (a blur)">Sharpening</label>
+      <input id="sp" type="range" min="-1" max="5" value="0" step="0.05">
+      <span id="spVal" class="mono val">0.00</span>
     </div>
   </div>
 </div>
@@ -374,7 +391,6 @@
   <div><dt>Swap order</dt><dd id="phase">UD0 LR0 UD1 LR1</dd></div>
   <div><dt>Bits median-filtered last turn</dt><dd id="smoothed">0</dd></div>
   <div><dt>Render half-time</dt><dd id="halfT">–</dd></div>
-  <div><dt>Flat neighbourhoods in the frame</dt><dd id="flatN">–</dd></div>
   <div><dt>Bits moved last turn</dt><dd id="moved">0</dd></div>
   <div><dt>Bits mutated last turn</dt><dd id="mutated">0</dd></div>
   <div><dt>Pixels rewritten last turn</dt><dd id="rewritten">0</dd></div>
@@ -400,11 +416,11 @@
   Every pixel holds a 128-bit string on a plane with edges (no wrap-around). Each turn runs the four swap phases in the fixed order UD0, LR0, UD1, LR1; the edge column or row that a phase's brick pattern leaves out pairs along the edge instead, with a brick offset that alternates by turn, so every pixel takes part in four exchanges a turn (a corner in three).
   Then comes a block of bit-plane median filtering passes (entropy decrease), then the local changer: every pixel's 16
   bytes are replaced by what the changer makes of them, so the decompressed text or the Brainfuck tape becomes the
-  pixel's new content. With Cells set to pairs, the transforms and Brainfuck see the two cells of a column pair joined into one 32-byte
+  pixel's new content. A Decoder changer reads the 16 bytes as a coded stream instead, Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse, Rice-coded residuals, WebP's boolean decoder, PNG filters or a JPEG block, and writes what it decodes back over the pixel. With Cells set to pairs, the transforms and Brainfuck see the two cells of a column pair joined into one 32-byte
   cell, the roles alternating by turn; a CPU changer or the LZ decompressor instead gives every pair of neighbouring pixels (left–right and up–down) two persistent machines of its own,
-  one per direction, each of which runs one instruction (one copy command for the decompressor) per phase on the two pixels joined as the Cells box says, its own pixel in the first role, as its 32-byte memory; a turn makes 128 such rounds of the four
-  phases (the Link rounds box) before the lattice is drawn, and the machines start each turn fresh, PC 0 and registers 0,
-  unless the Link reset box lets them keep their registers for several turns or for good.
+  one per direction, each of which runs one instruction (one copy command for the decompressor) per phase on the two pixels joined as the Cells box says, its own pixel in the first role, as its 32-byte memory; a turn makes 2 such rounds of the four
+  phases by default (the CPU cycles per frame box) before the lattice is drawn, and the machines keep their registers from frame to frame (the never box),
+  unless the CPU reset box starts them fresh, PC 0 and registers 0, every n frames.
   Last, mutation flips a random share of all bits (0.001 % by default, about 335 bits a turn on a
   512 × 512 grid).
   A swap phase pairs every pixel with one neighbour, left–right (LR) or up–down (UD), at an even (0) or odd (1)
@@ -417,11 +433,9 @@
   pixel's 32 bits around that position, and if the hash is below the smoothing threshold the bit takes the majority
   value. The median filtering probability is a linear gradient along the y axis from the top-edge value to the bottom-edge value.
   The image is drawn through a render buffer: each pixel's colour is an exponential average of the rendered frames
-  whose half-time is 200 ms or 4 turns, whichever is longer at the current turn rate, and by default a second buffer integrates
+  whose half-time is 200 ms or 4 turns, whichever is longer at the current turn rate, and a second buffer integrates
   the output of the first in the same way (two stages in cascade), so flicker is damped and the slower
-  dynamics carry more weight. Where a pixel's whole 3 × 3 neighbourhood in the new frame has exactly its colour (8-connected
-  flat) the half-time is 2 × longer by default (4 × selectable, or the same, or 2 × for 4-connected flat and 4 × for 8-connected flat). The averaged image is then sharpened a little: each channel becomes
-  2 × the pixel minus the mean of its four 4-connected neighbours, clamped to 0–255 (switchable). Neither step feeds back into the lattice.
+  dynamics carry more weight. With a temporal sharpening s other than 0 one more buffer integrates the last stage's output (the frame itself when averaging is off) at twice the half-time and the frame shown is (1 + s) × the last stage − s × the slow one (s = 1 by default: the average plus what the slow stage has not yet followed; 0 the average alone, −1 the slow stage itself, 5 a strong sharpening). The accumulators are f32x4 vectors, one per pixel and stage. The averaged image can then be sharpened spatially: each channel becomes the pixel plus p × (the pixel − the mean of its four 4-connected neighbours), clamped to 0–255, with p from the Sharpening slider (0 by default, off; 1 the classic 2 × pixel − mean; −1 the mean itself, a blur). Neither step feeds back into the lattice.
   Each pixel's bits are also read as a stream of copy commands against a static dictionary, the Declaration of
   Independence, and expanded to exactly 128 bits. The first ⌈log₂ N⌉ bits (13 for this dictionary of N = 8,122 bytes) select a start byte, the "LZ cursor offset" (0 to N) is added, and the cursor wraps at the end of the text. Every command is
   a prefix-coded copy length of 2 to N bytes followed by a 3-bit skip: the cursor skips that many bytes, the copy is
@@ -433,7 +447,7 @@
   decompressor 256 input bits and 32 output bytes), and the result is split back by the same mapping in reverse. The changers defined
   on exactly 128 bits (PDP-8, UNIVAC 1101, CDC 6600) see the joint cell as two consecutive 16-byte cells; the DCT becomes a 32-point transform over it. The local changer can instead be a Brainfuck interpreter: the 16 bytes are a program (values 0–7
   are the eight commands, anything else a comment) run on a 16-cell tape, and the tape afterwards is the new content; the
-  "Random bytes 0–7" start fills the field with programs. Simpler processors are available too: do nothing, invert, reverse bytes, add 17 (1 to the smallest byte, 17 to the byte after it, 5 to the byte before it), a DCT and its inverse (16-point on a cell, 32-point on a pair). And sixteen machines, a Zilog Z80, MOS 6502, Intel 8080, Subleq, CHIP-8, Intel 4004, Game Boy SM83, Intel 8051, Motorola 6809,
+  "Random bytes 0–7" start fills the field with programs. Simpler processors are available too: do nothing, invert, reverse bytes, the extremes rule, 17 to the byte after it, 5 to the byte before it), a DCT and its inverse (16-point on a cell, 32-point on a pair). And sixteen machines, a Zilog Z80, MOS 6502, Intel 8080, Subleq, CHIP-8, Intel 4004, Game Boy SM83, Intel 8051, Motorola 6809,
   RISC-V RV32EC, DEC PDP-8 (8 words of 12 bits), DEC PDP-11 and Motorola 68000: the 16 bytes are the whole memory, the selected number of instructions run, the memory is written
   back, and halting instructions are NOPs.
   Threads splits the grid into horizontal bands, one Web Worker with its own wasm instance per band; each band receives a
@@ -509,12 +523,14 @@ function workerMain() {
         case 'init': {
           const { instance } = await WebAssembly.instantiate(d.wasm);
           wasm = instance.exports; text = d.text;
-          lut = d.lut; built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut); io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); io.setCursorOffset(d.coff);
+          lut = d.lut; built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut); io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); if (d.cread) io.setCursorRead(d.cread); io.setCursorOffset(d.coff); io.setSkipBits(d.skip || 0);
           break;
         }
-        case 'setN': built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut); io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); io.setCursorOffset(d.coff); break;
+        case 'setN': built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut); io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); if (d.cread) io.setCursorRead(d.cread); io.setCursorOffset(d.coff); io.setSkipBits(d.skip || 0); break;
         case 'hbits': io.setHeaderBits(d.hbits); break;
+        case 'cread': io.setCursorRead(d.cread); break;
         case 'coff': io.setCursorOffset(d.coff); break;
+        case 'skip': io.setSkipBits(d.skip); break;
         case 'changer': io.setChanger(d.changer); break;
         case 'steps': io.setSteps(d.steps); break;
         case 'resize': {
@@ -618,8 +634,16 @@ function workerMain() {
   let seed = (Date.now() ^ 0x2545f491) >>> 0;
   let acc = 0, lastT = 0, timeSum = 0, timed = 0;
   let built = Codec.build(declText, 3);
-  const TEXT_LEN = built.bytes.length, HB = built.headerBits;   // cursor header: ceil(log2 TEXT_LEN) bits, every byte of the dictionary a start position
+  const TEXT_LEN = built.bytes.length;
+  let HB = built.headerBits;   // cursor header: ceil(log2 V) bits for the cursor read range V (V = TEXT_LEN by default: every byte of the dictionary a start position)
   $('coff').max = TEXT_LEN;   // the cursor offset runs over the whole dictionary and wraps
+  // the cursor read slider is semi-logarithmic: positions 0..7 are V = 1..8, then quarter octaves (about 19 % a step) up to the dictionary size
+  const creadOf = pos => pos < 8 ? pos + 1 : Math.min(TEXT_LEN, Math.round(8 * 2 ** ((pos - 7) / 4)));
+  const creadPos = V => V <= 8 ? Math.max(0, Math.round(V) - 1) : Math.min(CREAD_MAX, Math.round(7 + 4 * Math.log2(V / 8)));
+  const CREAD_MAX = 7 + Math.ceil(4 * Math.log2(TEXT_LEN / 8));   // the first position that reaches the dictionary size
+  $('cread').max = CREAD_MAX; $('cread').value = CREAD_MAX;
+  const cursorRead = () => creadOf(Math.max(0, Math.min(CREAD_MAX, Math.floor(Number($('cread').value)) || 0)));
+  const showCread = () => { HB = Codec.rangeBits(cursorRead()); $('creadVal').textContent = `${cursorRead().toLocaleString()} → ${HB} bit${HB === 1 ? '' : 's'}`; };
   let engine = null;
   const LUT = Codec.byteLut(built.bytes);
   { const lc = $('lutLegend').getContext('2d'), img = lc.createImageData(256, 1);
@@ -650,19 +674,22 @@ function workerMain() {
   }
 
   // local changer: 'none' keeps the LZ decompressor for the views but skips the rewrite phase
-  // The local changer is chosen in two steps: a mode (none / LZ / transform / CPU) and, for the last two,
+  // The local changer is chosen in two steps: a mode (none / transform / decoder / CPU) and, for the last three,
   // the processor in its own box. changerId() is the wasm processor number (0 LZ, 1..21 as listed in the boxes).
-  const CPU_IDS = [2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24], XF_IDS = [3, 4, 5, 16, 17, 18];
-  const changerId = () => { const m = $('changer').value; return m === 'cpu' ? Number($('cpu').value) : m === 'xf' ? Number($('xf').value) : 0; };
+  const CPU_IDS = [2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30], XF_IDS = [3, 4, 5, 16, 17, 18, 41, 42], DEC_IDS = [0, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40];
+  const changerId = () => { const m = $('changer').value; return m === 'cpu' ? Number($('cpu').value) : m === 'xf' ? Number($('xf').value) : m === 'dec' ? Number($('dec').value) : 0; };
   const changerActive = () => $('changer').value !== 'none';
   // links: with Cells set to any pair joining and a CPU changer, every pair of neighbouring pixels gets two persistent CPUs whose memory is the joined pair
-  const linkKind = k => k === 0 || (k >= 6 && k <= 24 && (k < 16 || k > 18));   // the CPUs and the LZ decompressor, which runs one copy command a step
+  const linkKind = k => k === 0 || (k >= 6 && k <= 30 && (k < 16 || k > 18));   // the CPUs and the LZ decompressor, which runs one copy command a step
   const linkMode = () => Number($('pair').value) > 0;
   const linksActive = () => linkMode() && changerActive() && linkKind(changerId());
-  const linkResetDue = () => { const n = Number($('lreset').value); return n > 0 && turn % n === 0; };   // fresh machines (PC 0, registers 0) at the start of every nth turn
-  const showChangerBoxes = () => { const m = $('changer').value; $('cpuGroup').hidden = m !== 'cpu'; $('stepsGroup').hidden = m !== 'cpu' || changerId() < 6 || linkMode(); $('roundsGroup').hidden = $('lresetGroup').hidden = !(linkMode() && linkKind(changerId())); $('xfGroup').hidden = m !== 'xf'; };
+  const skipBits = () => Math.max(0, Math.min(16, Math.floor(Number($('skip').value)) || 0));   // bits skipped before the LZ header
+  const linkRoundCount = () => { const v = Math.floor(Number($('rounds').value)); return Number.isFinite(v) && v >= 0 ? v : 2; };   // the CPU cycles per frame box: any whole number
+  const linkResetEvery = () => { if ($('lnever').checked) return 0; const v = Math.floor(Number($('lreset').value)); return Number.isFinite(v) && v >= 1 ? v : 1; };   // the CPU reset box: every nth frame, 0 never (the checkbox)
+  const linkResetDue = () => { const n = linkResetEvery(); return n > 0 && turn % n === 0; };   // fresh machines (PC 0, registers 0) at the start of every nth turn
+  const showChangerBoxes = () => { const m = $('changer').value; $('cpuGroup').hidden = m !== 'cpu'; $('stepsGroup').hidden = m !== 'cpu' || changerId() < 6 || linkMode(); $('roundsGroup').hidden = $('lresetGroup').hidden = !(linkMode() && linkKind(changerId())); $('xfGroup').hidden = m !== 'xf'; $('decGroup').hidden = m !== 'dec'; };
   // a processor number from an older saved state (the single 0..21 menu) -> mode and box
-  const setChangerId = id => { id = Number(id); if (id === 1) id = 2;   /* the empty-tape Brainfuck, no longer offered */ if (CPU_IDS.includes(id)) { $('changer').value = 'cpu'; $('cpu').value = id; } else if (XF_IDS.includes(id)) { $('changer').value = 'xf'; $('xf').value = id; } else $('changer').value = 'lz'; };
+  const setChangerId = id => { id = Number(id); if (id === 1) id = 2;   /* the empty-tape Brainfuck, no longer offered */ if (CPU_IDS.includes(id)) { $('changer').value = 'cpu'; $('cpu').value = id; } else if (XF_IDS.includes(id)) { $('changer').value = 'xf'; $('xf').value = id; } else if (DEC_IDS.includes(id)) { $('changer').value = 'dec'; $('dec').value = id; } else { $('changer').value = 'dec'; $('dec').value = '0'; } };
 
   // packed 8-bit mean colour from frame sums (the LUT views stretch the next frame around it)
   const packMean = s => Math.round(s.r / s.n) | (Math.round(s.g / s.n) << 8) | (Math.round(s.b / s.n) << 16);
@@ -679,7 +706,7 @@ function workerMain() {
     };
     const views = () => { m8 = new Uint8Array(wasm.memory.buffer); image = new ImageData(new Uint8ClampedArray(wasm.memory.buffer, PIX, 4 * N), W, H); };
     const histLocal = () => { wasm.hist(N, GRID, HIST); return new Uint32Array(wasm.memory.buffer, HIST, 256).slice(); };
-    const settings = () => { io.setChanger(changerId()); io.setSteps(Number($('steps').value)); io.setHeaderBits(HB); io.setCursorOffset(Number($('coff').value)); };
+    const settings = () => { io.setChanger(changerId()); io.setSteps(Number($('steps').value)); io.setHeaderBits(HB); io.setCursorRead(cursorRead()); io.setCursorOffset(Number($('coff').value)); io.setSkipBits(skipBits()); };
     return {
       threads: 1,
       async init(Nmax) { io = Codec.install(wasm.memory, Codec.build(declText, Nmax), LUT); settings(); },
@@ -687,7 +714,9 @@ function workerMain() {
       async setChanger(m) { io.setChanger(m); },
       async setSteps(n) { io.setSteps(n); },
       async setHeaderBits(n) { io.setHeaderBits(n); },
+      async setCursorRead(v) { io.setCursorRead(v); },
       async setCursorOffset(n) { io.setCursorOffset(n); },
+      async setSkipBits(n) { io.setSkipBits(n); },
       async resize(pal) {
         PIX = GRID + 16 * N; PAL = PIX + 4 * N; GRID2 = PAL + 129 * 4 + 12; HIST = GRID2 + 16 * N; LINKS = HIST + 1024; linkKey = null;   // HIST: 256 byte counts
         const need = HIST + 1024, have = wasm.memory.buffer.byteLength;
@@ -756,12 +785,14 @@ function workerMain() {
     const edgesFrom = (r, k) => { bands[k].top = r.top; bands[k].bottom = r.bottom; bandBits[k] = r.bits; };
     return {
       threads: K,
-      async init(Nmax) { await linked; await all(() => ({ type: 'init', wasm: wasmBytes.slice(), text: declText, N: Nmax, lut: LUT, changer: changerId(), steps: Number($('steps').value), hbits: HB, coff: Number($('coff').value) })); },
-      async setN(Nmax) { await all(() => ({ type: 'setN', N: Nmax, changer: changerId(), steps: Number($('steps').value), hbits: HB, coff: Number($('coff').value) })); },
+      async init(Nmax) { await linked; await all(() => ({ type: 'init', wasm: wasmBytes.slice(), text: declText, N: Nmax, lut: LUT, changer: changerId(), steps: Number($('steps').value), hbits: HB, cread: cursorRead(), coff: Number($('coff').value), skip: skipBits() })); },
+      async setN(Nmax) { await all(() => ({ type: 'setN', N: Nmax, changer: changerId(), steps: Number($('steps').value), hbits: HB, cread: cursorRead(), coff: Number($('coff').value), skip: skipBits() })); },
       async setChanger(m) { await all(() => ({ type: 'changer', changer: m })); },
       async setSteps(n) { await all(() => ({ type: 'steps', steps: n })); },
       async setHeaderBits(n) { await all(() => ({ type: 'hbits', hbits: n })); },
+      async setCursorRead(v) { await all(() => ({ type: 'cread', cread: v })); },
       async setCursorOffset(n) { await all(() => ({ type: 'coff', coff: n })); },
+      async setSkipBits(n) { await all(() => ({ type: 'skip', skip: n })); },
       async resize(pal) {
         image = new ImageData(W, H); bandBits = new Array(K).fill(0);
         await all(k => ({ type: 'resize', W, H, y0: bands[k].y0, rows: bands[k].rows, D, palette: pal }));
@@ -787,7 +818,7 @@ function workerMain() {
           haloTop: k > 0 && bands[k - 1].bottom ? bands[k - 1].bottom.slice(bands[k - 1].bottom.length - R * S) : null,
           haloBottom: k + 1 < K && bands[k + 1].top ? bands[k + 1].top.slice(0, R * S) : null }));
         rs.forEach((r, k) => image.data.set(new Uint8ClampedArray(r.pixels), 4 * W * bands[k].y0));
-        this.lastFlat = post && post.stages ? rs.reduce((a, r) => ({ n4: a.n4 + r.flat.n4, n8: a.n8 + r.flat.n8 }), { n4: 0, n8: 0 }) : null;
+        this.lastFlat = post && (post.stages || post.ts) ? rs.reduce((a, r) => ({ n4: a.n4 + r.flat.n4, n8: a.n8 + r.flat.n8 }), { n4: 0, n8: 0 }) : null;
         if (mode >= 4) { const tot = rs.reduce((a, r) => ({ r: a.r + r.sums.r, g: a.g + r.sums.g, b: a.b + r.sums.b, n: a.n + r.sums.n }), { r: 0, g: 0, b: 0, n: 0 }); if (tot.n) frameMean[mode] = packMean(tot); }
         return image;
       },
@@ -828,9 +859,9 @@ function workerMain() {
   // ---- decoder note ----
   function codeNote() {
     const Nmax = Number($('maxlen').value), hb = HB;
-    built = Codec.build(declText, Nmax);
+    built = Codec.build(declText, Nmax, HB);
     $('maxlenVal').textContent = 'N = ' + Nmax;
-    $('coffVal').textContent = '+' + $('coff').value;
+    $('coffVal').textContent = '+' + $('coff').value; $('skipVal').textContent = skipBits();
     if (changerId() === 7) {
       $('codeNote').textContent = 'MOS 6502: each pixel\'s 16 bytes are the whole address space (addresses wrap mod 16; the stack at $0100+S wraps into the same bytes); ' +
         'registers start at zero, 256 instructions run from PC = 0 and the memory afterwards is the pixel\'s new content. All 151 documented opcodes with decimal mode; ' +
@@ -842,7 +873,22 @@ function workerMain() {
         '256 instructions run from PC = 0 and the memory afterwards is the pixel\'s new content. Full instruction set with 8080 flags (S Z AC P CY); HLT, DI, EI, IN and OUT are NOPs.';
       return;
     }
-    if (changerId() >= 9) {
+    if (changerId() >= 31 && changerId() <= 40) {
+      $('codeNote').textContent = {
+        31: 'prefix code: the first 48 bits are 16 code lengths of 3 bits (1 to 8) for the nibbles 0 to F, assigned canonically as in Deflate; the rest is decoded nibble by nibble (a code that matches nothing within 8 bits reads as 0) and packed two to a byte, high nibble first. The bits wrap at the end of the cell and reading stops after 1024.',
+        32: 'Morse: the bits are a telegraph key, most significant bit of each byte first. A run of one 1 is a dot, two or more a dash; one 0 separates elements, two end the letter, three or more end the word (a space). Letters, digits and punctuation come out in lower case, unknown patterns as ?, and the rest of the cell is silence (spaces). A to Z are the hue circle in the byte colours, so the pixel shows what it spells.',
+        33: 'Deflate (gzip\'s fixed Huffman block, BTYPE 01, no header or checksum): literal/length codes of 7 to 9 bits, length symbols 257 to 285 with their extra bits, 5-bit distance codes with theirs. A distance past the start of the output reads the preset dictionary, the Declaration ending at the LZ cursor offset, as zlib does with a preset dictionary. End of block continues with the next; the bits wrap and reading stops after 1024.',
+        34: 'LZ4 block format: a token (literal length in the high nibble, match length minus 4 in the low, 15 meaning more bytes follow), the literals, a 2-byte little-endian offset and the match, copied byte by byte so an offset shorter than the match repeats. Offsets past the output read the preset dictionary, the Declaration ending at the LZ cursor offset. Bytes wrap at the end of the cell.',
+        35: 'Snappy: a varint length (ignored) and then tags: literal (length in the top 6 bits, 60 to 63 meaning 1 to 4 length bytes follow), copy with a 1-byte offset (length 4 to 11, 11-bit offset), copy with a 2-byte and with a 4-byte offset. Offsets past the output read the preset dictionary, the Declaration ending at the LZ cursor offset.',
+        36: 'Brotli-like (a small cousin of the format, not Brotli itself): a command is an insert length (2-bit code 0, 1, 2 + 1 bit, 4 + 2 bits) with that many 8-bit literals, a copy length (2, 3, 4 + 1 bit, 6 + 3 bits) and a distance, either one of Brotli\'s 16 short codes on the ring of the last four distances (which starts at 4 11 15 16) or an explicit 1 + 6 bits. A distance reaching past the output is a word of the dictionary, the Declaration ending at the LZ cursor offset, with 2 bits of transform: as is, first letter upper case, upper case, lower case.',
+        37: 'PNG filters: the 16 bytes are 4 rows of a filter byte (low 3 bits mod 5: None, Sub, Up, Average, Paeth) and 3 one-byte samples, reconstructed as the PNG decoder does from the sample to the left, above and above-left (zero outside). The filter bytes are kept, so the cell integrates itself turn after turn: Sub makes running sums along a row, Up down the columns, Paeth something in between.',
+        38: 'JPEG: the bits are the entropy-coded data of one 4×4 block with a restart before it (DC predictor 0): the DC category and bits, then run/size pairs for the 15 AC coefficients in zigzag order, with the standard luminance Huffman tables of Annex K, read most significant bit first; EOB ends the block. The coefficients are dequantised with the top-left 4×4 of the standard luminance quantiser, inverse-transformed and level-shifted into 16 samples, row by row. On a pair, two blocks.',
+        39: 'VP8 boolean decoder (WebP\'s arithmetic coder, RFC 6386): the cell\'s bytes feed the decoder and each output byte is eight binary decisions down a tree whose probabilities are an order-1 model of the Declaration (the previous output byte is the context, smoothed towards the byte frequencies). So the 128 bits are read as the arithmetic code of text in the dictionary\'s statistics, and random bits decode to text-like bytes.',
+        40: 'Rice-coded residuals, as in a FLAC subframe with a first-order fixed predictor: a 3-bit Rice parameter k, then per sample a unary quotient (zeros ended by a 1, at most 32) and k remainder bits; the folded value becomes a signed residual added to the previous sample (128 before the first). Smooth signals cost few bits.',
+      }[changerId()];
+      return;
+    }
+    if (changerId() >= 9 && changerId() <= 30 && !XF_IDS.includes(changerId())) {   // the CPUs (16..18 are transforms)
       $('codeNote').textContent = {
         9: 'Subleq: one instruction, three byte operands a b c; mem[b] -= mem[a] and PC jumps to c when the result is <= 0, else advances by 3. Every instruction rewrites memory.',
         10: 'CHIP-8: 2-byte big-endian instructions, 16 V registers, I, a 16-level stack and timers in the register file; the 16 bytes are the whole memory. V0..VF are loaded from the 16 bytes at the start and written back over them at the end, so the registers live in the pixel. No display or keypad: DXYN only clears VF, EX9E never skips, EXA1 always skips, FX0A is a NOP.',
@@ -854,6 +900,12 @@ function workerMain() {
         19: 'DEC PDP-8: the pixel is 8 words of 12 bits (word k = bits 12k..12k+11); AC, L, PC and MQ live in bits 96..123 and are loaded at the start and written back at the end. Addresses are taken mod 8, indirect through a word also mod 8, no auto-index; the OPR groups are complete, IOT, OSR and HLT are NOPs.',
         20: 'DEC PDP-11: 8 little-endian words, byte addressed, with all eight addressing modes including the PC forms; the basic set plus EIS (MUL DIV ASH ASHC), XOR, SOB, SXT, MFPS/MTPS, JSR/RTS, RTI/RTT. HALT, WAIT, RESET, BPT, IOT, EMT, TRAP and the MMU and floating-point groups are NOPs.',
         21: 'Motorola 68000: D0..D7, A0..A7 (A7 = SP) and SR; 16 big-endian bytes with every 68000 addressing mode. MOVE, the ADD/SUB/CMP/AND/OR/EOR families with their immediate, quick, address and extended forms, shifts and rotates, bit instructions, MULU/MULS/DIVU/DIVS, Bcc/DBcc/Scc, JSR/RTS, LEA/PEA, LINK/UNLK, MOVEM, EXG, MOVE to/from SR/CCR. ABCD/SBCD/NBCD, CHK, TRAP, STOP, RESET and lines A/F are NOPs.',
+        26: 'Intel 8086: AX BX CX DX SP BP SI DI, the segment registers (kept and moved, but the one tiny memory is flat, so they take no part in addressing), FLAGS and IP; 16 little-endian bytes, real mode. The whole 8086 instruction set with all addressing modes, string instructions with REP (one iteration a step), the decimal adjusts, MUL/IMUL/DIV/IDIV, far calls and jumps; IN/OUT, HLT, WAIT, LOCK, INT and the 8087 escapes are NOPs. Opcodes 60–6F are the Jcc aliases and C0/C1, C8/C9 the RET aliases, as on the chip.',
+        27: 'Intel 80286: the 8086 set plus the 186/286 instructions PUSHA/POPA, PUSH imm, IMUL r,rm,imm, shifts and rotates by an immediate (counts masked to 31), ENTER/LEAVE, BOUND and INS/OUTS; the protected-mode instructions of the 0F page (LGDT family, LAR/LSL, CLTS, ARPL) are NOPs. Real mode, one flat memory.',
+        28: 'Intel 80386: EAX..EDI, 32-bit operands and addresses by the 66/67 prefixes with SIB addressing and FS/GS, CWDE/CDQ, MOVZX/MOVSX, SETcc, Jcc rel32, BT/BTS/BTR/BTC, BSF/BSR, SHLD/SHRD, IMUL r,rm, LSS/LFS/LGS, PUSH/POP FS/GS on top of the 80286 set; MOV to and from the control, debug and test registers are NOPs. Real mode, 16-bit stack pointer, one flat memory.',
+        29: 'Intel i860: r1..r15 (r16..r31 alias them, r0 is zero), f2..f15 (f16..f31 alias them, f0 and f1 are zero), CC and LCC, PC; 32-bit little-endian instructions, four to a cell. The core integer set (ld/st .b .s .l, addu adds subu subs, the shifts, the logical ops with their h forms, bte/btne, br/call/bri/calli, bc/bnc and the .t forms, bla, ixfr/fxfr, fld/fst) with delayed branches, and the scalar floating-point core in single and double precision (fadd fsub fmul famov fix ftrunc frcp frsqr pfgt pfeq fiadd fisub; pipelined forms run unpipelined, dual operations are NOPs). trap, flush, lock/unlock, st.c, pfld and pst.d are NOPs.',
+        30: 'General Instrument PIC1640: the first PIC, 12-bit instructions, the baseline set of 33 (MOVWF CLRW CLRF SUBWF DECF IORWF ANDWF XORWF ADDWF MOVF COMF INCF DECFSZ RRF RLF SWAPF INCFSZ BCF BSF BTFSC BTFSS RETLW CALL GOTO MOVLW IORLW ANDLW XORLW; OPTION TRIS SLEEP CLRWDT are NOPs). The 16 bytes are both memories: the program is ten 12-bit words at bit offsets 12k, the file registers are the bytes (f mod 16), with INDF through FSR = byte 4, PCL = f 2 (a write is a jump), STATUS = byte 3 (C, DC, Z). W and a two-level stack in the register file.',
+        25: 'Motorola 68020: the 68000 core with the 68020 additions. The full extension word (16- and 32-bit base displacements, index scaled by 1, 2, 4 or 8, suppressed base or index, memory indirect pre- and post-indexed with an outer displacement), MULU.L/MULS.L and DIVU.L/DIVS.L with their 64-bit forms, the bit field instructions (BFTST BFEXTU BFEXTS BFCHG BFCLR BFSET BFFFO BFINS on registers and memory), EXTB.L, LINK.L, Bcc.L, RTD, CAS, CMP2/CHK2. TRAPcc, PACK/UNPK, CAS2, CALLM/RTM, MOVEC/MOVES, BKPT and the coprocessor line are NOPs.',
         22: 'ERA / UNIVAC 1101: the pixel is 5 words of 24 bits (word k = bits 24k..24k+23); A (48 bits), Q and X start at zero. The 38 operations of the January 1950 ERA list by their octal codes: clear/hold add and subtract, the absolute, split (multiple precision) and Q forms, fill Q, substitute digits and execution address, circular shifts of A and Q, store A and Q, the four jumps, logical multiply, multiply, multiply-add and divide; print and the three stops are NOPs. Operands and jumps take y mod 5 and the skip field chooses the next word.',
         23: 'DEC VAX-11/780: R0..R14 (AP, FP, SP), PC and the PSL condition codes; 16 little-endian bytes with every operand specifier (literal, register, deferred, autoincrement/decrement, displacement, indexed, PC relative, immediate, absolute). The integer and address instruction set: MOV/MOVZ/CVT/MNEG/MCOM/CLR/TST/INC/DEC, ADD/SUB/MUL/DIV/BIS/BIC/XOR in the 2- and 3-operand forms, CMP/BIT, ASHL/ROTL, ADWC/SBWC, MOVA/PUSHA/PUSHL/PUSHR/POPR, MOVQ/CLRQ, branches, JMP/JSB/RSB/BSB, SOB/AOB/ACB/CASE, the bit-field group (EXTV/EXTZV/INSV/CMPV/FFS/FFC, BBS/BBC and relatives, BLBS/BLBC), BISPSW/BICPSW/MOVPSL. CALLS/CALLG push the argument and the PC without a frame, RET pops; HALT, floating point, EMUL/EDIV, packed decimal, strings, queues and the privileged instructions are NOPs.',
         24: 'CDC 6600: the pixel is 2 words of 60 bits (word w = bits 60w..60w+59), each four 15-bit parcels executed from the high end; X0..X7 (60 bits), A0..A7 and B0..B7 (18 bits) start at zero. The whole central processor set: PS, RJ, JP, the Xj and Bi Bj branches, the boolean BX forms, LX/AX shifts, NX/ZX/UX/PX, FX/DX/RX add, subtract, multiply and divide in the 6600 floating format (RX is not rounded), IX add and subtract, MX and CX, and the SA/SB/SX address arithmetic with the A1..A5 loads and A6/A7 stores. Memory addresses are taken mod 2.',
@@ -869,9 +921,11 @@ function workerMain() {
     if (changerId() >= 3) {
       $('codeNote').textContent = { 3: 'do nothing: each pixel is rewritten with itself', 4: 'invert: each pixel is rewritten with all 128 bits flipped',
                                     5: 'reverse: each pixel is rewritten with its 16 bytes in reverse order',
-                                    16: 'add 17: the smallest of the 16 bytes (the first one on ties) gains 1, the byte after it gains 17 and the byte before it gains 5, each wrapping at 256 and the index wrapping around the 16 bytes; the other 13 bytes are kept',
+                                    16: 'extremes: the largest of the 16 bytes (the first one on ties) loses 23, the byte after it gains 11 and the byte before it gains 13; the smallest (the first on ties) gains 23, the byte after it loses 11 and the byte before it loses 13; the two add where they overlap, each wrapping at 256 and the index wrapping around the 16 bytes. A flat cell is a fixed point, since its largest and smallest byte are the same',
                                     17: 'DCT: the 16 bytes are taken as signed samples (byte - 128) and replaced by their 16-point DCT-II coefficients at half the orthonormal scale, offset by 128 and clamped to 0..255. Byte 0 becomes the mean, the rest the frequencies in rising order. On a pair the transform has 32 points over the joint cell (the inspector shows the single-cell transform).',
-                                    18: 'inverse DCT: the 16 bytes are taken as DCT coefficients (byte - 128, doubled) and replaced by the 16 samples they describe, offset by 128 and clamped to 0..255. DCT followed by inverse DCT returns the pixel to within rounding unless coefficients clipped.' }[changerId()];
+                                    18: 'inverse DCT: the 16 bytes are taken as DCT coefficients (byte - 128, doubled) and replaced by the 16 samples they describe, offset by 128 and clamped to 0..255. DCT followed by inverse DCT returns the pixel to within rounding unless coefficients clipped.',
+                                    41: 'sort: the 16 bytes are rewritten in ascending order (on a pair, the 32 bytes of the joint cell). A fixed point after one turn; swapping and mutation keep disturbing it, so the cell is a histogram of what it receives.',
+                                    42: 'primes first: the bytes whose value is a prime number (2, 3, 5, 7, 11, ... 251) come first in ascending order, then the other values in ascending order. The 54 primes below 256 are a fifth of the byte values.' }[changerId()];
       return;
     }
     if (changerId() !== 0) {
@@ -883,7 +937,7 @@ function workerMain() {
     $('codeNote').textContent =
       `copies of 2 to ${Nmax} bytes from the ${built.bytes.length.toLocaleString()}-byte Declaration; a command is a ${Math.min(...built.lenLengths)}–${Math.max(...built.lenLengths)}-bit ` +
       `length code plus a 3-bit skip (${built.meanCommandBits.toFixed(2)} bits on average for ${built.meanCopyBytes.toFixed(2)} bytes); ` +
-      `expected rate 1 : ${built.rate.toFixed(2)} including the ${hb}-bit cursor header (ceil log2 of the dictionary size: every byte is a start position, values past the end wrap, plus the cursor offset), about ${built.expectedConsumed.toFixed(0)} of a pixel's 128 bits are read`;
+      `expected rate 1 : ${built.rate.toFixed(2)} including the ${hb}-bit cursor header (ceil log2 of the cursor read range ${cursorRead().toLocaleString()}: the value mod that range is a start position among that many bytes of the dictionary, plus the constant cursor offset, wrapping at the end)${skipBits() ? `, read after ${skipBits()} skipped bits` : ''}, about ${Math.round(built.expectedConsumed) + skipBits()} of a pixel's 128 bits are read`;
   }
 
   // ---- thresholds as a per-bit probability p (linear sliders 0..1), thr = p * 2^64.
@@ -918,23 +972,29 @@ function workerMain() {
   // spatial sharpening. The main thread decides the per-frame constants (postParams); the work is Band.postFrame,
   // run here in a second wasm instance for the single-thread engine, or inside each band worker for the pool.
   const BPIX = LAYOUT.GRID;   // in the blender's memory: the frame, then its accumulators and scratch (Band.POST_BYTES a pixel)
-  const FLAT_TIERS = { 1: [1, 1], 2: [1, 2], 4: [1, 4], 24: [2, 4] };   // half-time factors for 4-connected / 8-connected flat pixels
-  let blendReset = true, blendMode = -1, blendN = 0, blendTurn = 0, blendMs = 0, flatCount = null, halfTurns = 0;
+  let blendReset = true, blendMode = -1, blendN = 0, blendTurn = 0, blendMs = 0, flatCount = null, halfTurns = 0, slowWas = false;   // slowWas: the slow stage ran last frame
+  const sharpS = () => { const v = Number($('tw').value); return Number.isFinite(v) ? Math.max(-1, Math.min(5, v)) : 1; };   // s, the slider: the temporal sharpening
+  const thirdWeight = () => -sharpS();   // w, the third stage's weight in the frame shown: (1 - w) s2 + w s3 = (1 + s) s2 - s s3
+  const fmtW = v => (v < 0 ? '−' : '') + Math.abs(v).toFixed(2);
+  const sharpP = () => { const v = Number($('sp').value); return Number.isFinite(v) ? Math.max(-1, Math.min(5, v)) : 0; };   // p, the spatial sharpening
+  const showAvgBoxes = () => { $('twVal').textContent = fmtW(sharpS()); $('spVal').textContent = fmtW(sharpP()); };
   function postParams(mode) {
-    const stages = Number($('avg').value) || 0, sharp = $('sharp').value === '1';
-    if (!stages) { blendReset = true; return { stages: 0, sharp }; }
-    const [f4, f8] = FLAT_TIERS[$('flat').value] || [1, 2];
+    const stages = Number($('avg').value) || 0, sp = sharpP(), ts = sharpS();   // ts: the temporal sharpening, the frame = (1 + ts) last stage - ts slow stage
+    if (!stages && !ts) { blendReset = true; slowWas = false; return { stages: 0, sp }; }   // nothing to integrate: every frame as it is
+    const f4 = 1, f8 = 1;   // one half-time for every pixel (the kernel's flat tiers are not used)
     const now = performance.now(), reset = blendReset || mode !== blendMode || N !== blendN;
     const dt = turn - blendTurn, ms = now - blendMs;   // turns and wall time since the last blended frame
     // the half-time is 200 ms or 4 turns, whichever is longer: keep the larger remaining fraction of the two
     const rem = Math.max(2 ** (-ms / 200), 2 ** (-dt / 4));
     halfTurns = dt > 0 ? Math.max(4, 200 * dt / Math.max(ms, 1e-6)) : halfTurns;
     const kOf = f => reset ? 65536 : Math.round(65536 * (1 - rem ** (1 / f)));   // k = 65536 copies the frame
-    blendReset = false; blendMode = mode; blendN = N; blendTurn = turn; blendMs = now;
-    return { stages, sharp, reset, k0: kOf(1), k4: kOf(f4), k8: kOf(f8) };
+    const slowReset = reset || !slowWas;   // the slow stage starts from the current picture when the sharpening is switched on
+    const kSlow = f => slowReset ? 65536 : kOf(f);
+    blendReset = false; blendMode = mode; blendN = N; blendTurn = turn; blendMs = now; slowWas = ts !== 0;
+    return { stages, sp, reset, k0: kOf(1), k4: kOf(f4), k8: kOf(f8), ts, k0s: kSlow(2), k4s: kSlow(2 * f4), k8s: kSlow(2 * f8) };   // the slow stage's constants: twice the half-time
   }
   function postLocal(image, p) {   // single-thread engine: the whole frame through the blender instance
-    if (!p.stages && !p.sharp) return null;
+    if (!p.stages && !p.ts && !p.sp) return null;
     const need = BPIX + Band.POST_BYTES * N, have = blender.memory.buffer.byteLength;
     if (need > have) blender.memory.grow(Math.ceil((need - have) / 65536));
     const mem = new Uint8Array(blender.memory.buffer);
@@ -958,21 +1018,20 @@ function workerMain() {
     }
     $('turn').textContent = turn.toLocaleString();
     $('phase').textContent = Band.orderName(turn);
-    $('flatN').textContent = flatCount ? `${flatCount.n4.toLocaleString()} 4-connected, ${flatCount.n8.toLocaleString()} 8-connected of ${N.toLocaleString()}` : 'off';
-    $('halfT').textContent = flatCount ? `${halfTurns.toFixed(1)} turns${$('avg').value === '2' ? ' × 2 stages' : ''}` : 'off';
+    $('halfT').textContent = !flatCount ? 'off' : Number($('avg').value) ? `${halfTurns.toFixed(1)} turns${$('avg').value === '2' ? ' × 2 stages' : ''}${sharpS() ? `, sharpening ${fmtW(sharpS())} against ${(2 * halfTurns).toFixed(1)}` : ''}` : `no averaging, sharpening ${fmtW(sharpS())} against ${(2 * halfTurns).toFixed(1)} turns`;
     $('moved').textContent = moved.toLocaleString();
     $('mutated').textContent = mutated.toLocaleString();
     $('smoothed').textContent = smoothed.toLocaleString();
     $('rewritten').textContent = rewritten.toLocaleString();
-    $('linkN').textContent = linksActive() ? `${(2 * (2 * N - W - H)).toLocaleString()} × ${Number($('rounds').value)} instructions a turn, ${Number($('lreset').value) === 1 ? 'reset every turn' : Number($('lreset').value) > 1 ? `reset every ${$('lreset').value} turns` : 'never reset'}` : linkMode() ? 'off (needs a CPU changer)' : 'off';
+    $('linkN').textContent = linksActive() ? `${(2 * (2 * N - W - H)).toLocaleString()} × ${linkRoundCount().toLocaleString()} instructions a turn, ${linkResetEvery() === 1 ? 'reset every turn' : linkResetEvery() > 1 ? `reset every ${linkResetEvery().toLocaleString()} turns` : 'never reset'}` : linkMode() ? 'off (needs a CPU changer)' : 'off';
     $('total').textContent = totalBits.toLocaleString();
     drawCharts();
     await inspect();
   }
   async function inspect() {
     if (sel < 0) return;
-    const r = await engine.inspect(sel), textLen = built.bytes.length, hb = HB, unit = Math.ceil(textLen / 2 ** hb);
-    const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18), z80 = (ch >= 6 && ch <= 15) || ch >= 19 || (ch === 0 && linksActive());
+    const r = await engine.inspect(sel), textLen = built.bytes.length, hb = HB, coff = Number($('coff').value);
+    const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18) || ch === 41 || ch === 42, dec = ch >= 31 && ch <= 40, z80 = (ch >= 6 && ch <= 15) || (ch >= 19 && ch <= 30) || (ch === 0 && linksActive());
     $('selPos').textContent = `x ${sel % W}, y ${Math.floor(sel / W)}`;
     $('selHex').textContent = Array.from(r.bits, b => b.toString(16).padStart(2, '0')).join(' ');
     if (z80) {
@@ -1000,6 +1059,12 @@ function workerMain() {
         22: () => { const o = (lo, n, w) => { let v = 0n; for (let k = n - 1; k >= 0; k--) v = (v << 8n) | BigInt(g[lo + k]); return v.toString(8).padStart(w, '0'); }; return `A=${o(0, 6, 16)} Q=${o(8, 3, 8)} X=${o(12, 3, 8)} PC=${g[22]} (octal; words 0..4 are pixel bits 0..119)`; },
         23: () => `R0..R11=${Array.from({ length: 12 }, (_, k) => x32(k)).join(' ')} AP=${x32(12)} FP=${x32(13)} SP=${x32(14)} PC=${h4(22, 23)} PSL=${['N','Z','V','C'].filter((_, k) => g[20] & (8 >> k)).join('') || '-'}`,
         24: () => { const o = (lo, n, w) => { let v = 0n; for (let k = n - 1; k >= 0; k--) v = (v << 8n) | BigInt(g[lo + k]); return v.toString(8).padStart(w, '0'); }; return `X0..X7=${Array.from({ length: 8 }, (_, k) => o(64 + 8 * k, 8, 20)).join(' ')} A0..A7=${Array.from({ length: 8 }, (_, k) => o(24 + 4 * k, 4, 6)).join(' ')} B1..B7=${Array.from({ length: 7 }, (_, k) => o(3 * k, 3, 6)).join(' ')} P=${g[22] >> 2}.${g[22] & 3} (octal; words 0..1 are pixel bits 0..119)`; },
+        25: () => dumps[21](),
+        26: () => `AX=${h4(64, 65)} BX=${h4(76, 77)} CX=${h4(68, 69)} DX=${h4(72, 73)} SP=${h4(80, 81)} BP=${h4(84, 85)} SI=${h4(88, 89)} DI=${h4(92, 93)} FLAGS=${['C','','P','','A','','Z','S','','','D','O'].filter((f, k) => f && (g[20] | (g[21] << 8)) & (1 << k)).join('') || '-'} IP=${h4(22, 23)}`,
+        27: () => dumps[26](),
+        28: () => `EAX=${x32(0)} EBX=${x32(3)} ECX=${x32(1)} EDX=${x32(2)} ESP=${x32(4)} EBP=${x32(5)} ESI=${x32(6)} EDI=${x32(7)} FLAGS=${['C','','P','','A','','Z','S','','','D','O'].filter((f, k) => f && (g[20] | (g[21] << 8)) & (1 << k)).join('') || '-'} IP=${h4(22, 23)}`,
+        29: () => { const f = n => { const o = n <= 6 ? 4 * (n - 2) : 24 + 4 * (n - 7); return ((g[o] | (g[o + 1] << 8) | (g[o + 2] << 16) | (g[o + 3] << 24)) >>> 0).toString(16).padStart(8, '0'); }; return `r1..r15=${Array.from({ length: 15 }, (_, k) => x32(k)).join(' ')} f2..f15=${Array.from({ length: 14 }, (_, k) => f(k + 2)).join(' ')} CC=${g[20] & 1} LCC=${(g[20] >> 1) & 1} PC=${h4(22, 23)}${g[21] ? ' (branch pending)' : ''}`; },
+        30: () => `W=${h2(g[0])} PC=${g[22] | (g[23] << 8)} (word) stack=${h4(24, 25)} ${h4(26, 27)} (STATUS is byte 3 of the cell: C DC Z; FSR byte 4)`,
         21: () => `D0..D7=${Array.from({ length: 8 }, (_, k) => x32(k)).join(' ')} A0..A7=${Array.from({ length: 8 }, (_, k) => x32(8 + k)).join(' ')} SR=${['X','N','Z','V','C'].filter((_, k) => g[20] & (16 >> k)).join('') || '-'} PC=${h4(22, 23)}`,
       };
       return dumps[ch]();
@@ -1013,11 +1078,17 @@ function workerMain() {
         19: 'addresses mod 8, no auto-index; IOT, OSR and HLT are NOPs; AC, L, PC and MQ are loaded from and stored to pixel bits 96..123',
         20: 'little-endian words, all eight addressing modes, EIS included; HALT, WAIT, RESET, traps and the MMU/FPP groups are NOPs',
         21: 'big-endian, all addressing modes; the BCD instructions, CHK, TRAP, STOP, RESET and lines A/F are NOPs',
+        25: '68020: full extension words, 32-bit multiply and divide, bit fields, EXTB.L, LINK.L, Bcc.L, RTD, CAS, CMP2; TRAPcc, PACK/UNPK, CAS2, MOVEC and the coprocessor line are NOPs',
+        26: 'real mode, one flat 16-byte memory (segments kept but not used in addressing); IN/OUT, HLT, WAIT, INT and the 8087 escapes are NOPs; a REP string instruction runs one iteration a step',
+        27: 'real mode; the 186/286 instructions on top of the 8086; the protected-mode instructions are NOPs',
+        28: 'real mode with 32-bit operands and addresses by prefix, SIB addressing; MOV CRn/DRn are NOPs',
+        29: 'four 32-bit instructions a cell, delayed branches; r16..r31 and f16..f31 alias the lower registers; trap, flush, st.c, pfld, pst.d are NOPs',
+        30: 'ten 12-bit words of program in the 128 bits; the file registers are the same bytes; OPTION, TRIS, SLEEP, CLRWDT are NOPs',
         22: '5 words of 24 bits, addresses mod 5, the 1950 octal operation codes; print and the stops are NOPs',
         23: 'little-endian, every operand specifier; HALT, floating point, decimal, strings, queues and privileged instructions are NOPs',
         24: '2 words of 60 bits in 15-bit parcels; the full central processor set with 6600 floating point, addresses mod 2' };
       if (linksActive()) {   // the cell is changed by the link machines, not by a run over the cell alone: show the four whose code starts here
-        const x = sel % W, y = Math.floor(sel / W), rounds = Number($('rounds').value), n = Number($('lreset').value);
+        const x = sel % W, y = Math.floor(sel / W), rounds = linkRoundCount(), n = linkResetEvery();
         const own = [x + 1 < W && ['→', 'pair with the right neighbour, forward machine', engine.linkState(x, y, false, false)],
                      y + 1 < H && ['↓', 'pair with the neighbour below, forward machine', engine.linkState(x, y, true, false)],
                      x > 0 && ['←', 'pair with the left neighbour, backward machine', engine.linkState(x - 1, y, false, true)],
@@ -1041,10 +1112,25 @@ function workerMain() {
       $('selNote').textContent = `memory after the run (the 16 bytes are the whole address space, wrapping mod 16); ${r.copied} of 16 bytes changed; ` + notes[ch];
       return;
     }
+    if (dec) {
+      const frag = document.createDocumentFragment();
+      r.out.forEach((b, i) => { const s = document.createElement('span'); s.className = r.flags[i] ? 'c' : ''; s.textContent = b.toString(16).padStart(2, '0') + ' '; frag.appendChild(s); });
+      const asText = document.createElement('div');
+      asText.textContent = 'as text: ' + Array.from(r.out, b => (b >= 32 && b < 127) ? String.fromCharCode(b) : (b === 10 ? '⏎' : '·')).join('');
+      frag.appendChild(asText);
+      $('selWindow').textContent = { 31: 'nibbles decoded with the cell\'s own 16 code lengths, two to a byte', 32: 'the letters the bits key out in Morse, then silence',
+        33: 'Deflate fixed-Huffman literals and matches (preset dictionary: the Declaration before the LZ cursor offset)', 34: 'LZ4 literals and matches (preset dictionary: the Declaration before the LZ cursor offset)',
+        35: 'Snappy literals and copies (preset dictionary: the Declaration before the LZ cursor offset)', 36: 'Brotli-like inserts and copies, dictionary words transformed',
+        37: 'the 4 rows reconstructed through their filter bytes (kept)', 38: 'the 16 samples of the 4×4 JPEG block, row by row', 39: 'bytes arithmetic-decoded against the Declaration\'s bigram model', 40: 'samples from the Rice-coded residuals' }[ch];
+      $('selText').replaceChildren(frag);
+      $('selNote').textContent = `${r.consumed} input bits read${r.consumed >= 1024 ? ' (the cap: the rest of the cell keeps its bytes)' : ''}; ${r.copied} of 16 bytes differ from the input; ` +
+        (ch === 37 || ch === 38 ? 'changed bytes highlighted' : 'alternate commands highlighted (a nibble, letter, literal run, match or sample each)') + (r.consumed < 1024 && r.out.length ? '' : '');
+      return;
+    }
     if (simple) {
       const frag = document.createDocumentFragment();
       r.out.forEach((b, i) => { const s = document.createElement('span'); s.className = r.flags[i] ? 'c' : ''; s.textContent = b.toString(16).padStart(2, '0') + ' '; frag.appendChild(s); });
-      $('selWindow').textContent = { 3: 'do nothing: output = input', 4: 'invert: every bit flipped', 5: 'reverse: the 16 bytes in reverse order', 16: 'add 17: smallest byte (first on ties) +1, the next byte +17, the previous byte +5, mod 256, index wrapping', 17: 'DCT coefficients of the 16 samples (byte 0 = mean), 128 = zero', 18: 'samples reconstructed from the 16 DCT coefficients, 128 = zero' }[ch];
+      $('selWindow').textContent = { 3: 'do nothing: output = input', 4: 'invert: every bit flipped', 5: 'reverse: the 16 bytes in reverse order', 16: 'extremes: the largest byte −23, its next +11, its previous +13; the smallest byte +23, its next −11, its previous −13; mod 256, index wrapping', 17: 'DCT coefficients of the 16 samples (byte 0 = mean), 128 = zero', 18: 'samples reconstructed from the 16 DCT coefficients, 128 = zero', 41: 'the bytes sorted in ascending order', 42: 'the prime values first, then the rest, each in ascending order' }[ch];
       $('selText').replaceChildren(frag);
       $('selNote').textContent = `${r.copied} of 16 bytes differ from the input (highlighted)`;
       return;
@@ -1059,7 +1145,7 @@ function workerMain() {
       return;
     }
     const before = Array.from({ length: 36 }, (_, k) => built.bytes[(r.offset - 36 + k + textLen) % textLen]).map(b => b === 10 ? ' ' : String.fromCharCode(b)).join('');
-    $('selWindow').textContent = `cursor starts at ${r.offset.toLocaleString()} of ${textLen.toLocaleString()} (header value ${r.offset / unit}), after …${before}`;
+    $('selWindow').textContent = `cursor starts at ${r.offset.toLocaleString()} of ${textLen.toLocaleString()} (header value ${((r.offset - coff) % textLen + textLen) % textLen} of ${cursorRead().toLocaleString()} in ${hb} bits, plus the offset ${coff}), after …${before}`;
     const frag = document.createDocumentFragment();
     let i = 0;
     while (i < r.out.length) {
@@ -1071,7 +1157,7 @@ function workerMain() {
       frag.appendChild(span);
     }
     $('selText').replaceChildren(frag);
-    $('selNote').textContent = `${r.consumed} of 128 input bits consumed (${hb} header + ${r.consumed - hb} command bits) for 128 output bits (1 : ${(128 / r.consumed).toFixed(2)}); ` +
+    $('selNote').textContent = `${r.consumed} of 128 input bits consumed (${skipBits() ? `${skipBits()} skipped + ` : ''}${hb} header + ${r.consumed - hb - skipBits()} command bits) for 128 output bits (1 : ${(128 / r.consumed).toFixed(2)}); ` +
       `${r.copied} copy commands, shown as alternating fragments` +
       (r.consumed >= 1024 ? '; input consumption hit the cap, so the rest continued the dictionary from the cursor' : '');
   }
@@ -1134,7 +1220,7 @@ function workerMain() {
     const passes = Number($('iters').value);
     const salts = Array.from({ length: 4 + passes }, () => 0n);   // the swap and smoothing hashes see the neighbouring bits only, no turn salt
     const mut = { lam: mutationLam(), salt: BigInt(turn * 64 + 63) };   // mutation is always salted by the turn, or the same bits would flip every turn
-    const r = await engine.turn({ order: Band.order(turn), alt: turn & 1, passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, changer: changerActive(), pair: { mode: Number($('pair').value), flip: turn & 1 }, mut, links: linksActive() ? { kind: changerId(), rounds: Number($('rounds').value), reset: linkResetDue() } : null });
+    const r = await engine.turn({ order: Band.order(turn), alt: turn & 1, passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, changer: changerActive(), pair: { mode: Number($('pair').value), flip: turn & 1 }, mut, links: linksActive() ? { kind: changerId(), rounds: linkRoundCount(), reset: linkResetDue() } : null });
     moved = r.moved; smoothed = r.smoothed; rewritten = r.rewritten; mutated = r.mutated || 0; totalBits = r.bits; noteHist(r.hist);
     turn++;
     timeSum += performance.now() - t0; timed++;
@@ -1208,10 +1294,14 @@ function workerMain() {
   $('random').addEventListener('click', () => run(() => reset('random')));
   $('pattern').addEventListener('change', ev => run(() => reset(ev.target.value)));
   $('view').addEventListener('change', () => run(draw));
-  for (const id of ['avg', 'flat', 'sharp']) $(id).addEventListener('change', () => { blendReset = true; run(draw); });
+  for (const id of ['avg']) $(id).addEventListener('change', () => { showAvgBoxes(); blendReset = true; run(draw); });
+  $('sp').addEventListener('input', () => { showAvgBoxes(); run(draw); });   // the spatial sharpening acts on the next frame, no reset
+  $('tw').addEventListener('input', () => { showAvgBoxes(); run(draw); });   // the weight only changes how the frame is composed, no reset needed
   for (const id of ['iters', 'nbr']) $(id).addEventListener('change', () => { if (engine && engine.threads > 1) run(() => rebuild($('pattern').value, true)); });   // the halo depth depends on the pass count and the neighbourhood
   $('steps').addEventListener('change', () => run(async () => { await engine.setSteps(Number($('steps').value)); await draw(); }));
-  for (const id of ['rounds', 'lreset']) $(id).addEventListener('change', () => run(draw));   // read at each turn; redraw refreshes the statistics line
+  for (const id of ['rounds', 'lreset', 'lnever']) $(id).addEventListener('change', () => { $('rounds').value = linkRoundCount(); if (!$('lnever').checked) $('lreset').value = linkResetEvery(); $('lreset').disabled = $('lnever').checked; run(draw); });   // read at each turn; redraw refreshes the statistics line
+  $('cread').addEventListener('input', () => { showCread(); codeNote(); run(async () => { await engine.setCursorRead(cursorRead()); await draw(); }); });
+  $('skip').addEventListener('input', () => { $('skipVal').textContent = skipBits(); codeNote(); run(async () => { await engine.setSkipBits(skipBits()); await draw(); }); });
   $('coff').addEventListener('input', () => { $('coffVal').textContent = '+' + $('coff').value; run(async () => { await engine.setCursorOffset(Number($('coff').value)); await draw(); }); });
   $('scale').addEventListener('change', () => run(async () => { fitCanvas(); await draw(); }));
   $('size').addEventListener('change', () => { sel = -1; run(() => rebuild($('pattern').value)); });
@@ -1222,7 +1312,7 @@ function workerMain() {
   $('smoothT').addEventListener('input', showThreshold);
   $('smoothB').addEventListener('input', showThreshold);
   $('maxlen').addEventListener('input', () => { codeNote(); run(async () => { await engine.setN(Number($('maxlen').value)); await draw(); }); });
-  for (const id of ['changer', 'cpu', 'xf']) $(id).addEventListener('change', () => { showChangerBoxes(); codeNote(); run(async () => { await engine.setChanger(changerId()); await draw(); }); });
+  for (const id of ['changer', 'cpu', 'xf', 'dec']) $(id).addEventListener('change', () => { showChangerBoxes(); codeNote(); run(async () => { await engine.setChanger(changerId()); await draw(); }); });
   const showSpeed = () => { $('speedVal').textContent = SPEEDS[$('speed').value] + ' turns/s'; };
   $('speed').addEventListener('input', showSpeed);
   document.addEventListener('keydown', ev => {
@@ -1244,11 +1334,17 @@ function workerMain() {
   async function start(saved) {
     const selftest = location.hash === '#selftest' || location.hash === '#selftest-workers';
     if (saved && saved.w) {
-      for (const [id, key, dflt] of [['size', 'size', '512x512'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['flat', 'flat', '2'], ['sharp', 'sharp', '1'],
-            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['mut', 'mut', '0.001'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['changer', 'changer', 'lz'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['steps', 'steps', '256'], ['rounds', 'rounds', '128'], ['lreset', 'lreset', '1'], ['coff', 'coff', '610'], ['pair', 'pair', '0']])
+      for (const [id, key, dflt] of [['size', 'size', '512x512'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'],
+            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['mut', 'mut', '0.001'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '0'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '610'], ['skip', 'skip', '0'], ['pair', 'pair', '0']])
         $(id).value = saved[key] ?? dflt;
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
+      if ($('changer').value === '') { $('changer').value = 'dec'; $('dec').value = '0'; }   // the former "LZ decompressor" mode: the decoder menu's first entry
+      $('cread').value = creadPos(Number(saved.cread) || TEXT_LEN);   // saved as the range V, the slider holds a position
       if ($('pair').value === '') $('pair').value = saved.pair === '6' ? '1' : '0';   // the former "Links" entry: concatenated pairs
+      if ($('avg').value === '') $('avg').value = '2';   // the former three-stage entry: two stages, the slow stage comes with the sharpening
+      $('lnever').checked = saved.lnever === undefined ? true : saved.lnever === true || saved.lnever === 'true' || String(saved.lreset) === '0';   // a saved 0 meant never; older states take the default
+      if (Number($('lreset').value) < 1) $('lreset').value = '1';
+      $('lreset').disabled = $('lnever').checked;
       if (!$('size').value) { const w = parseInt(saved.size) || 512; $('size').value = [...$('size').options].some(o => o.value === `${w}x${w}`) ? `${w}x${w}` : '512x512'; }
       sel = saved.sel ?? -1; turn = saved.turn || 0;
       setRunning(saved.running ?? running);
@@ -1256,7 +1352,7 @@ function workerMain() {
       $('threads').value = selftest ? (location.hash === '#selftest-workers' ? 4 : 1) : defaultThreads();
       setRunning(running);
     }
-    showChangerBoxes(); codeNote(); showThreshold(); showSpeed();
+    showCread(); showChangerBoxes(); showAvgBoxes(); codeNote(); showThreshold(); showSpeed();
     await rebuild($('pattern').value);
     if (saved && saved.cells && engine.cells()) { await engine.setCells(saved.cells); totalBits = await engine.bits(); await restartLog(); turn = saved.turn || 0; blendReset = true; await draw(); }
     // #selftest: run 50 turns up front so a headless browser can check the page works
@@ -1266,8 +1362,8 @@ function workerMain() {
   }
   window.claude?.hot?.snapshot?.(() => ({
     w: W, h: H, turn, running, sel,
-    size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, flat: $('flat').value, sharp: $('sharp').value, thrL: $('thrL').value, thrR: $('thrR').value, mut: $('mut').value,
-    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, steps: $('steps').value, rounds: $('rounds').value, lreset: $('lreset').value, coff: $('coff').value, pair: $('pair').value,
+    size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, ts: $('tw').value, sp: $('sp').value, thrL: $('thrL').value, thrR: $('thrR').value, mut: $('mut').value,
+    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, dec: $('dec').value, steps: $('steps').value, rounds: $('rounds').value, lreset: $('lreset').value, lnever: $('lnever').checked, coff: $('coff').value, cread: cursorRead(), skip: $('skip').value, pair: $('pair').value,
     cells: engine && engine.cellsSync() ? Array.from(engine.cellsSync()) : null,   // the worker pool keeps no copy on the main thread
   }));
   window.claude?.hot?.ready ? window.claude.hot.ready(d => run(() => start(d))) : run(() => start(window.claude?.hot?.data ?? null));

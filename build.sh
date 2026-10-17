@@ -16,6 +16,7 @@ PARTS="
   src/changers/brainfuck.wat
   src/changers/simple.wat
   src/changers/dct.wat
+  src/changers/codecs.wat
   src/render/render.wat
   src/changers/cpu/common.wat
   src/changers/cpu/driver.wat
@@ -35,6 +36,9 @@ PARTS="
   src/changers/cpu/u1101.wat
   src/changers/cpu/vax.wat
   src/changers/cpu/cdc6600.wat
+  src/changers/cpu/x86.wat
+  src/changers/cpu/i860.wat
+  src/changers/cpu/pic1640.wat
 "
 {
   echo ";; Assembled by build.sh from the parts under src/; edit those, not this file."

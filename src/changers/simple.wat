@@ -2,17 +2,22 @@
   ;; 16 bytes, 5 = the 16 bytes in reverse order. flags[i] = 1 where the output byte differs
   ;; from the input byte. Returns the number of differing bytes (steps field 0).
   ;; simple(p, prm, kind): 3 = do nothing, 4 = invert, 5 = reverse bytes,
-  ;; 16 = add 17: the smallest byte (the first one on ties) gains 1, the byte after it 17 and the byte
-  ;; before it 5, all mod 256 with the index wrapping around the cell's $cw bytes (16, or 32 for a joint cell).
+  ;; 16 = extremes: the largest byte (the first one on ties) loses 23, the byte after it gains 11 and the byte before
+  ;; it 13; the smallest byte (the first one on ties) gains 23, the byte after it loses 11 and the byte before it 13;
+  ;; the two sets add where they overlap, all mod 256 with the index wrapping around the cell's $cw bytes.
+  (func $xdelta (param $d i32) (result i32)   ;; the largest byte's share by the distance d from it (mod $cw)
+    (select (i32.const -23) (select (i32.const 11) (select (i32.const 13) (i32.const 0) (i32.eq (local.get $d) (i32.sub (global.get $cw) (i32.const 1)))) (i32.eq (local.get $d) (i32.const 1))) (i32.eqz (local.get $d))))
   (func $simple (param $p i32) (param $prm i32) (param $kind i32) (result i32)
-    (local $out i32) (local $flags i32) (local $i i32) (local $v i32) (local $changed i32) (local $mi i32) (local $d i32)
+    (local $out i32) (local $flags i32) (local $i i32) (local $v i32) (local $changed i32) (local $mi i32) (local $d i32) (local $mn i32)
     (local.set $out (i32.load (local.get $prm)))
     (local.set $flags (i32.load offset=36 (local.get $prm)))
-    (if (i32.eq (local.get $kind) (i32.const 16)) (then   ;; index of the smallest byte
+    (if (i32.eq (local.get $kind) (i32.const 16)) (then   ;; indices of the largest and the smallest byte (the first on ties)
       (local.set $i (i32.const 1))
       (block $me (loop $ml (br_if $me (i32.ge_u (local.get $i) (global.get $cw)))
-        (if (i32.lt_u (i32.load8_u (i32.add (local.get $p) (local.get $i))) (i32.load8_u (i32.add (local.get $p) (local.get $mi))))
+        (if (i32.gt_u (i32.load8_u (i32.add (local.get $p) (local.get $i))) (i32.load8_u (i32.add (local.get $p) (local.get $mi))))
           (then (local.set $mi (local.get $i))))
+        (if (i32.lt_u (i32.load8_u (i32.add (local.get $p) (local.get $i))) (i32.load8_u (i32.add (local.get $p) (local.get $mn))))
+          (then (local.set $mn (local.get $i))))
         (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $ml)))
       (local.set $i (i32.const 0))))
     (block $exit (loop $loop
@@ -23,10 +28,10 @@
           (else (if (result i32) (i32.eq (local.get $kind) (i32.const 5))
             (then (i32.load8_u (i32.add (local.get $p) (i32.sub (i32.sub (global.get $cw) (i32.const 1)) (local.get $i)))))
             (else (if (result i32) (i32.eq (local.get $kind) (i32.const 16))
-              (then   ;; d = distance from the smallest byte, mod 16: 0 -> +1, 1 (next) -> +17, 15 (previous) -> +5, else +0
-                (local.set $d (i32.and (i32.sub (local.get $i) (local.get $mi)) (i32.sub (global.get $cw) (i32.const 1))))
+              (then   ;; the largest byte's share by the distance from it, minus the smallest byte's share by the distance from that
                 (i32.and (i32.add (i32.load8_u (i32.add (local.get $p) (local.get $i)))
-                  (select (i32.const 1) (select (i32.const 17) (select (i32.const 5) (i32.const 0) (i32.eq (local.get $d) (i32.sub (global.get $cw) (i32.const 1)))) (i32.eq (local.get $d) (i32.const 1))) (i32.eqz (local.get $d))))
+                  (i32.sub (call $xdelta (i32.and (i32.sub (local.get $i) (local.get $mi)) (i32.sub (global.get $cw) (i32.const 1))))
+                           (call $xdelta (i32.and (i32.sub (local.get $i) (local.get $mn)) (i32.sub (global.get $cw) (i32.const 1))))))
                   (i32.const 255)))
               (else (i32.load8_u (i32.add (local.get $p) (local.get $i))))))))))
       (i32.store8 (i32.add (local.get $out) (local.get $i)) (local.get $v))
@@ -34,5 +39,41 @@
       (local.set $changed (i32.add (local.get $changed) (i32.ne (local.get $v) (i32.load8_u (i32.add (local.get $p) (local.get $i))))))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $loop)))
+    (i32.store offset=48 (local.get $prm) (i32.const 0))
+    (local.get $changed))
+  ;; sortx(p, prm, primesFirst): the cell's $cw bytes in ascending order (kind 41), or (kind 42) the prime values
+  ;; first in ascending order and then the others in ascending order (0 and 1 are not prime). An insertion sort on
+  ;; the key value + 256 * (not prime, when primes go first). flags[i] = 1 where the output byte differs from the input.
+  (func $isprime (param $v i32) (result i32)
+    (local $d i32)
+    (if (i32.lt_u (local.get $v) (i32.const 2)) (then (return (i32.const 0))))
+    (local.set $d (i32.const 2))
+    (block $e (loop $l (br_if $e (i32.gt_u (i32.mul (local.get $d) (local.get $d)) (local.get $v)))
+      (if (i32.eqz (i32.rem_u (local.get $v) (local.get $d))) (then (return (i32.const 0))))
+      (local.set $d (i32.add (local.get $d) (i32.const 1))) (br $l)))
+    (i32.const 1))
+  (func $sortkey (param $v i32) (param $pf i32) (result i32)
+    (i32.add (local.get $v) (select (i32.shl (i32.eqz (call $isprime (local.get $v))) (i32.const 8)) (i32.const 0) (local.get $pf))))
+  (func $sortx (param $p i32) (param $prm i32) (param $pf i32) (result i32)
+    (local $out i32) (local $flags i32) (local $i i32) (local $j i32) (local $v i32) (local $k i32) (local $changed i32)
+    (local.set $out (i32.load (local.get $prm)))
+    (local.set $flags (i32.load offset=36 (local.get $prm)))
+    (local.set $i (i32.const 0))
+    (block $ie (loop $il (br_if $ie (i32.ge_u (local.get $i) (global.get $cw)))   ;; insertion sort of the input into out
+      (local.set $v (i32.load8_u (i32.add (local.get $p) (local.get $i))))
+      (local.set $k (call $sortkey (local.get $v) (local.get $pf)))
+      (local.set $j (local.get $i))
+      (block $je (loop $jl (br_if $je (i32.eqz (local.get $j)))
+        (br_if $je (i32.le_u (call $sortkey (i32.load8_u (i32.add (local.get $out) (i32.sub (local.get $j) (i32.const 1)))) (local.get $pf)) (local.get $k)))
+        (i32.store8 (i32.add (local.get $out) (local.get $j)) (i32.load8_u (i32.add (local.get $out) (i32.sub (local.get $j) (i32.const 1)))))
+        (local.set $j (i32.sub (local.get $j) (i32.const 1))) (br $jl)))
+      (i32.store8 (i32.add (local.get $out) (local.get $j)) (local.get $v))
+      (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $il)))
+    (local.set $i (i32.const 0))
+    (block $ce (loop $cl (br_if $ce (i32.ge_u (local.get $i) (global.get $cw)))
+      (local.set $v (i32.ne (i32.load8_u (i32.add (local.get $out) (local.get $i))) (i32.load8_u (i32.add (local.get $p) (local.get $i)))))
+      (i32.store8 (i32.add (local.get $flags) (local.get $i)) (local.get $v))
+      (local.set $changed (i32.add (local.get $changed) (local.get $v)))
+      (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $cl)))
     (i32.store offset=48 (local.get $prm) (i32.const 0))
     (local.get $changed))

@@ -9,7 +9,7 @@
     window.__l = { stage: 'start' };
     set('threads', '4');
     setTimeout(() => {
-      set('changer', 'cpu'); set('cpu', '6'); set('pair', '1'); set('rounds', '16'); set('lreset', '4');
+      set('changer', 'cpu'); set('cpu', '6'); set('pair', '1'); set('rounds', '16'); const nv = document.getElementById('lnever'); nv.checked = false; nv.dispatchEvent(new Event('change')); set('lreset', '4');
       setTimeout(() => {
         const t0 = T();
         setTimeout(() => {

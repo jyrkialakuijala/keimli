@@ -13,16 +13,18 @@ pixel's new content: the decompressed text, the Brainfuck tape, the memory
 a CPU left behind. `decode_pixel` runs it on one pixel for the inspector and
 the views without writing back.
 
-The "Local changer" box picks a mode: none, the LZ decompressor, a transform
-(second box: do nothing, invert, reverse, add 17, DCT, inverse DCT) or a CPU
-(second box: Brainfuck and the sixteen machines; a "CPU steps" box appears
-with it).
+The "Changer" box picks a mode: none, a transform (second box: do nothing,
+invert, reverse, extremes, DCT, inverse DCT, the sorts), a decoder (second
+box: the LZ decompressor, the default, and the ten decoders of kinds 31 to
+40) or a CPU (second box: Brainfuck and the twenty-two machines; a "CPU
+steps" box appears with it).
 
 ## The entry point
 
 `$decode` in `decode.wat` dispatches on the changer number in the parameter
 block (`codec.js` keeps the numbering: 0 LZ, 1 and 2 Brainfuck (1 unused), 3 to 5 the
-simple transforms, 6 to 15 and 19 to 24 CPUs, 16 add 17, 17 and 18 DCT),
+simple transforms, 6 to 15 and 19 to 30 CPUs, 16 extremes, 17 and 18 DCT,
+31 to 40 decoders, 41 and 42 the sorts),
 and is itself the LZ decoder. The parameter block, output buffer, flags
 (one byte per output byte, for the inspector) and the dictionary are placed
 in memory by `Codec.install`, whose `LAYOUT` is the module's memory map.
@@ -60,6 +62,20 @@ read its own output back as commands and the decoder's output does not
 stop at the cell's end as it does in the whole-cell decode. The first step
 reads the start cursor from the leading header bits.
 
+The "LZ cursor read" slider (1 to the dictionary size on a semi-logarithmic
+scale: 1 to 8 one by one, then quarter octaves; `prm + 52`) sets the
+range V the header is read over: the header is ceil(log₂ V) bits wide and
+its value mod V is the start position, to which the constant "LZ cursor
+offset" (`prm + 100`, never read from the pixel) is added before wrapping at
+the end of the dictionary. V = 1 reads no header bits, so every pixel starts
+at the offset; V = the dictionary size (the default) makes every byte a
+start position with a 13-bit header.
+
+The "LZ skip bits" slider (0 to 16, `prm + 40`) makes the decoder skip that
+many bits of the pixel before it reads the cursor header, so the header and
+the commands move along the pixel; the link machine's first step skips them
+too.
+
 ## Brainfuck
 
 Each pixel's 16 bytes run as a Brainfuck program on a 16-cell circular
@@ -77,10 +93,21 @@ highlighted.
 ## Simple transforms
 
 "Do nothing" (identity), "Invert" (all 128 bits flipped), "Reverse bytes"
-(the 16 bytes in reverse order) and "Add 17": the smallest of the 16 bytes,
-the first one on ties, gains 1, the byte after it gains 17 and the byte
-before it gains 5, modulo 256 with the index wrapping around the 16 bytes.
+(the 16 bytes in reverse order) and "Extremes ±23": the largest of the 16
+bytes, the first one on ties, loses 23, the byte after it gains 11 and the
+byte before it gains 13, and the smallest, the first one on ties, gains 23,
+the byte after it loses 11 and the byte before it loses 13; the two sets add
+where they overlap, modulo 256 with the index wrapping around the 16 bytes.
+A flat cell, whose largest and smallest byte are the same, is a fixed point.
 These are useful as controls and as a slow, deterministic drift.
+
+"Sort bytes" (kind 41) rewrites the cell's bytes in ascending order, and
+"Primes first" (kind 42) puts the bytes whose value is a prime number first
+in ascending order and the other values after them, also ascending (an
+insertion sort on the key value + 256 for a non-prime; primality by trial
+division). On a pair they sort the 32 bytes of the joint cell. Both are
+fixed points after one turn, so what they show is the swapping and the
+mutation: the cell becomes a sorted histogram of what it receives.
 
 ## DCT and inverse DCT
 
@@ -96,6 +123,52 @@ DCT returns a pixel, or a pair, to within rounding unless a coefficient
 clipped. On a concatenated pair the first cell receives the 16 lowest
 frequencies and the second the 16 highest; on the lifting joinings the
 transform runs over the sum and difference halves.
+
+## Decoders
+
+Kinds 31 to 40 (`src/changers/codecs.wat`) read the cell as a coded signal
+rather than as a program: the information-centric changers. Every one of
+them reads the `$cw`-byte cell as a bitstream or byte stream that wraps at
+the end of the cell (reads are capped at 1024 bits), writes its output from
+byte 0, and leaves the cell's own bytes where its output falls short. The
+LZ77 formats among them take a *preset dictionary*, the way zlib, LZ4 and
+Snappy accept one: a back-reference reaching past the start of the output
+reads the Declaration text ending at the LZ cursor offset (`prm + 100`). The
+output flags carry the parity of the command that produced each byte (a
+nibble, letter, literal run, match or sample), or for the two image
+decoders whether the byte changed, and `prm + 48` holds the bits consumed.
+The return value is the bits consumed in the high bits and the number of
+bytes that differ from the input in the low 8.
+
+| kind | decoder | what the bits are |
+|---|---|---|
+| 31 | prefix code | 16 code lengths of 3 bits (1..8) for the nibbles 0..F, assigned canonically as in Deflate, then nibbles read bit by bit (MSB-first); a code matching nothing within 8 bits reads as 0; two nibbles make a byte |
+| 32 | Morse | a telegraph key, MSB-first: a run of one 1 is a dot, two or more a dash; one 0 separates elements, two end the letter, three or more the word (a space); letters come out in lower case from a 128-entry table indexed by 1 followed by the elements, unknown patterns as `?`, the rest of the cell is spaces |
+| 33 | Deflate | gzip's fixed Huffman block (BTYPE 01) without header or checksum: 7/8/9-bit literal/length codes, lengths 257..285 and 5-bit distance codes with their extra bits; end of block continues with the next; 286/287 count as 285, distance codes 30/31 wrap |
+| 34 | LZ4 | the block format: token, literals, 2-byte little-endian offset, match (offset 0 counts as 1; length extensions read up to 4 bytes) |
+| 35 | Snappy | a varint preamble (skipped), then literal, copy-1, copy-2 and copy-4 tags as in the format |
+| 36 | Brotli-like | not the format, a small cousin: insert length (2-bit code: 0, 1, 2+1 bit, 4+2 bits) and 8-bit literals, copy length (2, 3, 4+1 bit, 6+3 bits), and a distance that is either one of Brotli's 16 short codes on the ring of the last four distances (starting 4 11 15 16, pushed by all but short code 0) or an explicit 1 + 6 bits; a distance past the output is a dictionary word with a 2-bit transform (as is, first letter upper case, upper case, lower case); bits LSB-first |
+| 37 | PNG filters | rows of 4 bytes, a filter byte (low 3 bits mod 5: None Sub Up Average Paeth) and 3 one-byte samples, reconstructed from the left, upper and upper-left reconstructed neighbours (zero outside); the filter bytes are kept, so the cell integrates itself turn after turn |
+| 38 | JPEG | one 4×4 block with a restart before it (DC predictor 0): the DC category and bits, run/size pairs for the 15 AC coefficients in zigzag order, with the standard luminance Huffman tables of Annex K (K.3 and K.5), MSB-first; EOB ends the block, ZRL skips past it, a code matching nothing is EOB; dequantised with the top-left 4×4 of the K.1 luminance quantiser, 4-point inverse DCT per axis, level shift, clamp; a pair is two blocks |
+| 39 | VP8 boolean decoder | WebP's arithmetic coder (RFC 6386 section 7) fed the cell's bytes; each output byte is eight binary decisions down a tree whose probabilities are an order-1 model of the Declaration (context: the previous output byte, a space to begin with; bigram counts smoothed towards the byte frequencies with 16 pseudo-counts), 256 × 256 bytes at `LAYOUT.VP8` built by `Codec.vp8Model` |
+| 40 | Rice | a FLAC-style subframe: a 3-bit Rice parameter k, then per sample a unary quotient (zeros ended by a 1, at most 32) and k remainder bits, MSB-first; the folded value is a signed residual added to the previous sample (128 before the first) |
+
+The tables (`Codec.decoderTables`, written at `LAYOUT.DEC` by the installer)
+are the Deflate length and distance bases and extra bits, the Morse
+alphabet, the JPEG code tables, quantiser and zigzag, and 1 KB of scratch for
+the prefix code and the JPEG coefficients. The decoders are not link
+machines: with Cells set to a pair joining they run once over the joint
+cell like the transforms (the JPEG block as two cells).
+
+Why these: the LZ decompressor of kind 0 has no literals and no distances
+and so always writes dictionary text. The decoders span the other
+possibilities an information-centric cell can have. Literals and
+back-references into its own output (Deflate, LZ4, Snappy), a distance
+cache and transforms (Brotli-like), an entropy code whose table is in the
+cell itself (prefix), run lengths as symbols (Morse), prediction with coded
+residuals (Rice, PNG), a transform code (JPEG) and an arithmetic code
+against a language model (VP8), under which every bit string is a valid
+code and decodes to text-like bytes.
 
 ## Pairs: two cells changed together
 
@@ -151,7 +224,7 @@ configurations through it.
 ## Links: a persistent CPU per pair of neighbours
 
 With the "Cells" box on any pair joining, the CPU changers (Z80 and up,
-kinds 6 to 15 and 19 to 24) and the LZ decompressor (kind 0, one copy
+kinds 6 to 15 and 19 to 30) and the LZ decompressor (kind 0, one copy
 command a step) change regime. Instead of a fresh machine
 running 256 instructions over one cell, every link of the lattice has a
 machine of its own whose registers persist from round to round. A link is
@@ -170,14 +243,16 @@ instruction of its forward machine (left or top pixel first) and then one
 of its backward machine, which sees what the forward one wrote. So a pixel
 is visited by eight machines a round, four of them running code that starts
 in the pixel itself, and each machine advances one instruction a round. A turn makes a number of rounds in a row (the
-"Link rounds" box: 1 to 256, 128 by default) before the lattice is drawn, so
-by default each machine runs 128 instructions a turn, interleaved with its
-neighbours' machines one instruction at a time. The "Link reset" box says
-how often the machines are reset to PC 0 and zero registers: at the start
-of every turn by default, so that what a turn does is a function of the
-pixels alone and the code in them has a meaning by itself; or every 4, 16
-or 64 turns, or never, when the registers persist and carry state the
-pixels do not show. The steps setting does not apply.
+"CPU cycles per frame" box: any whole number, 2 by default; 0 leaves the machines
+idle for the turn) before the lattice is drawn, so
+by default each machine runs 2 instructions a turn, interleaved with its
+neighbours' machines one instruction at a time. The "CPU reset" box says
+how often the machines are reset to PC 0 and zero registers: never by
+default (the "never" checkbox), so the registers persist and carry state
+the pixels do not show, the machines running on from frame to frame; or
+every n frames for any whole number n, every frame making what a turn does
+a function of the pixels alone, so that the code in them has a meaning by
+itself. The steps setting does not apply.
 
 The states live in a buffer of 128 bytes per directed link, 4WH of them
 (512 bytes a pixel), allocated the first time the mode runs and reset to fresh

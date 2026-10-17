@@ -117,22 +117,30 @@ const Band = (() => {
     return { top: m8.slice(base, base + E * S), bottom: m8.slice(base + (st.rows - E) * S, base + st.rows * S) };
   }
   // ---- render post-processing, shared by the page (single-thread engine) and the band workers ----
-  // A frame of w x h RGBA pixels at base is followed by two sets of 16.16 accumulators (12 bytes a pixel) and a
-  // 4-byte scratch copy: POST_BYTES per pixel in all. p = { stages (0..2), sharp, k0, k4, k8 } comes from the page,
-  // which decides the per-frame constants; rows [cy0, cy1) are the ones counted as flat. A band processes its own
-  // rows plus POST_HALO neighbour rows on each side: the first stage's flatness test reads one row beyond a pixel,
-  // the second stage's reads the first stage's output one row beyond, and the sharpening reads the second stage's
-  // output one row beyond, so three correct neighbour rows make a band's own rows identical to a whole-frame run.
-  const POST_HALO = 3, POST_BYTES = 32;
+  // A frame of w x h RGBA pixels at base is followed by three sets of accumulators (one v128 a pixel: the channels
+  // as f32 lanes) and a 4-byte scratch copy: POST_BYTES per pixel in all. p = { stages (0..2), sp, k0, k4, k8,
+  // ts, k0s, k4s, k8s } comes from the page, which decides the per-frame constants; rows [cy0, cy1) are the ones
+  // counted as flat. With a temporal sharpening ts other than 0 a slow stage blends the last averaging stage's output
+  // (the frame itself when there is none) at its own constants k0s, k4s, k8s (twice the half-time) and the frame is
+  // composed from the last and the slow accumulators as (1 + ts) last - ts slow. Nothing runs when both are off.
+  // A band processes its own rows plus POST_HALO neighbour rows on each side: each stage's flatness test reads one
+  // row beyond a pixel of the previous stage's output and the spatial sharpening one more, so four correct
+  // neighbour rows make a band's own rows identical to a whole-frame run.
+  const POST_HALO = 4, POST_BYTES = 56;
   function postFrame(wasm, base, w, h, p, cy0 = 0, cy1 = h) {
-    const n = w * h, acc1 = base + 4 * n, acc2 = acc1 + 12 * n, scratch = acc2 + 12 * n;
+    const n = w * h, acc1 = base + 4 * n, acc2 = acc1 + 16 * n, acc3 = acc2 + 16 * n, scratch = acc3 + 16 * n;
     let flat = null;
-    if (p.stages) {
-      const r = wasm.blend(w, h, base, acc1, p.k0, p.k4, p.k8, cy0, cy1);
+    if (p.stages || p.ts) {
+      // with no averaging stage the first accumulator takes an exact copy of the frame (k = 65536), so the sharpening works against the raw frame
+      const r = p.stages ? wasm.blend(w, h, base, acc1, p.k0, p.k4, p.k8, cy0, cy1) : wasm.blend(w, h, base, acc1, 65536, 65536, 65536, cy0, cy1);
       if (p.stages > 1) wasm.blend(w, h, base, acc2, p.k0, p.k4, p.k8, cy0, cy1);   // the second stage reads the first stage's output
+      if (p.ts) {   // the slow stage reads the last stage's output; the frame = (1 + ts) last - ts slow
+        wasm.blend(w, h, base, acc3, p.k0s ?? p.k0, p.k4s ?? p.k4, p.k8s ?? p.k8, cy0, cy1);
+        wasm.unsharp(n, base, p.stages > 1 ? acc2 : acc1, acc3, -p.ts);
+      }
       flat = { n4: Number(r >> 32n), n8: Number(r & 0xffffffffn) };
     }
-    if (p.sharp) { new Uint8Array(wasm.memory.buffer).copyWithin(scratch, base, base + 4 * n); wasm.sharpen(w, h, scratch, base); }
+    if (p.sp) { new Uint8Array(wasm.memory.buffer).copyWithin(scratch, base, base + 4 * n); wasm.sharpen(w, h, scratch, base, Math.round(p.sp * 256)); }   // spatial sharpening by p.sp (1 = the classic 2 x pixel - mean)
     return flat;
   }
   // split H rows into K bands of even heights, each at least D rows, starting at even rows

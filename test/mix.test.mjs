@@ -2,11 +2,12 @@
 // Run: node test/mix.test.mjs [project dir]
 import fs from 'node:fs';
 import vm from 'node:vm';
+import zlib from 'node:zlib';
 const dir = process.argv[2] || new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const Codec = vm.runInThisContext(fs.readFileSync(dir + '/src/changers/codec.js', 'utf8') + '; Codec');
 const text = fs.readFileSync(dir + '/src/changers/declaration.txt', 'utf8').trim();
 const { instance } = await WebAssembly.instantiate(fs.readFileSync(dir + '/build/keimli.wasm'));
-const { memory, mix, mix_from, render, bits, randomize, decode_pixel, blend, sharpen, mutate, links, links_reset, hist } = instance.exports;
+const { memory, mix, mix_from, render, bits, randomize, decode_pixel, blend, sharpen, unsharp, mutate, links, links_reset, hist, change } = instance.exports;
 let fails = 0; const check = (n, ok) => { console.log((ok ? 'ok  ' : 'FAIL') + ' ' + n); if (!ok) fails++; };
 const L = Codec.LAYOUT, PRM = L.PRM, GRID = L.GRID;
 // per-column swap threshold table (uniform value), returns its address
@@ -58,6 +59,19 @@ check(`header 100 -> cursor ${c300} (${io.headerBits}-bit header, ${io.offsetUni
   flags()[0] === 1 && flags()[1] === 1 && flags()[2] === 0 && flags()[5] === 0);
 stream(0, [[4, 7]]);
 check('skip 7 then copy 4 yields dictionary bytes 7..10', [0, 1, 2, 3].every(k => out()[k] === txt(7 + k)));
+// cursorRead: the header is ceil(log2 V) bits wide and taken mod V; V = 1 reads no header at all
+{ io.setCursorRead(100); check('cursor read 100: a 7-bit header', io.headerBits === 7);
+  words.fill(0n); words[0] = 37n; decode_pixel(GRID, 0, PRM); const c37 = io.lastOffset();
+  words[0] = 100n; decode_pixel(GRID, 0, PRM); const c100 = io.lastOffset();
+  check(`header 37 -> cursor 37, header 100 -> cursor 0 (mod 100): ${c37}, ${c100}`, c37 === 37 && c100 === 0);
+  io.setCursorRead(1); words[0] = 0xffffn; const v1 = decode_pixel(GRID, 0, PRM);
+  check(`cursor read 1: no header bits, the cursor is the offset alone (${io.lastOffset()}, header ${io.headerBits} bits)`, io.headerBits === 0 && io.lastOffset() === 0 && (v1 >> 8) < 64);
+  io.setCursorRead(text.length); check('cursor read = the dictionary size restores the 13-bit header', io.headerBits === built.headerBits); }
+// skipBits: the header is read after that many bits of the pixel
+{ io.setSkipBits(5); words.fill(0n); words[0] = 0b10110n | (100n << 5n); const v = decode_pixel(GRID, 0, PRM);
+  check(`5 skipped bits: the header is read from bit 5 (cursor ${io.lastOffset()}, ${v >> 8} bits consumed)`, io.lastOffset() === 100 * io.offsetUnit && (v >> 8) > io.headerBits + 5);
+  io.setSkipBits(16); words[0] = 100n << 16n; decode_pixel(GRID, 0, PRM); check('16 skipped bits', io.lastOffset() === 100 * io.offsetUnit);
+  io.setSkipBits(0); }
 const vEnd = (text.length - 2) / io.offsetUnit;
 if (Number.isInteger(vEnd)) { stream(vEnd, [[4, 0]]); check('a copy running past the end of the dictionary wraps to its start', [0, 1, 2, 3].every(k => out()[k] === txt(text.length - 2 + k))); }
 else console.log('   (wrap test skipped: dictionary length does not allow an exact end cursor)');
@@ -352,6 +366,95 @@ check('random pixels consume a plausible number of bits', consumed / N > 20 && c
     check('68000 MOVE.W D0,-(A0) from A0 = 0 lands on bytes 14..15', r.mem[14] === 0xbe && r.mem[15] === 0xef && A(r, 0) === -2);
     r = runC(m68([0x3038, 0x000C, 0xD078, 0x000E, 0x60FE, 0, 0x0005, 0x0007]), 21);
     check('68000 MOVE.W $000C.W,D0; ADD.W $000E.W,D0: 5 + 7 = 12', D(r, 0) === 12);
+    // 68020 (25): the same core with the 68020 additions
+    r = runC(m68([0x7007, 0x7206, 0x4C01, 0x0000, 0x60FE]), 25);
+    check('68020 MULU.L D1,D0: 7 * 6 = 42', D(r, 0) === 42);
+    r = runC(m68([0x7007, 0x72FD, 0x4C01, 0x0800, 0x60FE]), 25);
+    check('68020 MULS.L D1,D0: 7 * -3 = -21, N set', D(r, 0) === -21 && (R(r, 10) & 8) !== 0);
+    r = runC(m68([0x70FF, 0x7202, 0x4C01, 0x0402, 0x60FE]), 25);
+    check('68020 MULU.L D1,D2:D0: $FFFFFFFF * 2 = $1_FFFFFFFE (D2 = 1, D0 = $FFFFFFFE)', D(r, 0) === -2 && D(r, 2) === 1);
+    r = runC(m68([0x70F9, 0x7202, 0x4C41, 0x0802, 0x60FE]), 25);
+    check('68020 DIVSL.L D1,D2:D0: -7 / 2 = -3 remainder -1', D(r, 0) === -3 && D(r, 2) === -1);
+    r = runC(m68([0x7012, 0x103C, 0x00FE, 0x49C0, 0x60FE]), 25);
+    check('68020 EXTB.L D0: $000000FE -> -2', D(r, 0) === -2 && (R(r, 10) & 8) !== 0);
+    r = runC(m68([0x203C, 0x1234, 0x5678, 0xE9C0, 0x1108, 0x60FE]), 25);
+    check('68020 BFEXTU D0{4:8},D1 on $12345678 gives $23', D(r, 1) === 0x23 && D(r, 0) === 0x12345678);
+    r = runC(m68([0xEBF8, 0x210C, 0x000C, 0x60FE, 0, 0, 0xABCD, 0x1234]), 25);
+    check('68020 BFEXTS $000C{4:12},D2: the 12 bits BCD, sign-extended, -1075', D(r, 2) === 0xBCD - 0x1000);
+    r = runC(m68([0xEEF8, 0x0004, 0x000E, 0x60FE]), 25);
+    check('68020 BFSET $000E{0:4} sets the top nibble of byte 14: F0', r.mem[14] === 0xf0 && r.mem[13] === 0 && r.mem[15] === 0);
+    r = runC(m68([0x203C, 0x0000, 0x1000, 0xEDC0, 0x1000, 0x60FE]), 25);
+    check('68020 BFFFO D0{0:32},D1 on $00001000: first set bit at offset 19', D(r, 1) === 19);
+    r = runC(m68([0x7203, 0x43F0, 0x1D20, 0x0002, 0x60FE]), 25);
+    check('68020 LEA (2,A0,D1.L*4),A1 (full extension word, word base displacement, scale 4): 2 + 3 * 4 = 14', A(r, 1) === 14);
+    r = runC(m68([0x3630, 0x01E1, 0x000C, 0x60FE, 0xBEEF, 0, 0x0000, 0x0008]), 25);
+    check('68020 MOVE.W ([$000C]),D3: memory indirect through the long pointer 8 at byte 12 reads BEEF', (D(r, 3) & 0xffff) === 0xbeef);
+    r = runC(m68([0x480E, 0xFFFF, 0xFFFC, 0x60FE]), 25);
+    check('68020 LINK.L A6,#-4: A6 = old SP (0) pushed at 12..15, A6 = -4, A7 = -8', A(r, 6) === -4 && A(r, 7) === -8 && r.mem[12] === 0 && r.mem[15] === 0);
+    r = runC(m68([0x60FF, 0x0000, 0x0006, 0x0000, 0x7009, 0x60FE]), 25);
+    check('68020 BRA.L with a 32-bit displacement lands on byte 8: D0 = 9', D(r, 0) === 9 && r.pc === 10);
+    r = runC(m68([0x7005, 0x7207, 0x0AF8, 0x0040, 0x000E, 0x60FE, 0, 0x0500]), 25);
+    check('68020 CAS.B D0,D1,$000E: byte 14 (5) equals D0, so it becomes D1 = 7 and Z is set', r.mem[14] === 7 && (R(r, 10) & 4) !== 0);
+    r = runC(m68([0x7005, 0x7207, 0x0AF8, 0x0040, 0x000E, 0x60FE, 0, 0x0900]), 25);
+    check('68020 CAS.B with byte 14 = 9: not equal, D0 takes 9, memory unchanged', r.mem[14] === 9 && D(r, 0) === 9 && (R(r, 10) & 4) === 0);
+    r = runC(m68([0x700A, 0x02F8, 0x0000, 0x000C, 0x60FE, 0, 0x0003, 0x0009]), 25);
+    check('68020 CMP2.W $000C,D0 with bounds 3..9 and D0 = 10: C set, Z clear', (R(r, 10) & 1) === 1 && (R(r, 10) & 4) === 0);
+    r = runC(m68([0x7003, 0x02F8, 0x0000, 0x000C, 0x60FE, 0, 0x0003, 0x0009]), 25);
+    check('68020 CMP2.W with D0 = 3 (on the lower bound): Z set, C clear', (R(r, 10) & 1) === 0 && (R(r, 10) & 4) !== 0);
+    r = runC(m68([0x7203, 0x43F0, 0x1D20, 0x0002, 0x60FE]), 21);
+    check('68000: the same LEA bytes read as a brief extension word (no scaling, bit 8 ignored): A1 = 0 + 3 + 0x20', A(r, 1) === 0x23);
+    // Intel 8086 (26), 80286 (27), 80386 (28): EAX ECX EDX EBX ESP EBP ESI EDI little-endian at 64 + 4n, FLAGS at 20
+    const hx = t => Uint8Array.from(t.split(' '), h => parseInt(h, 16));
+    const X = (r, n) => new Int32Array(r.regs.buffer, r.regs.byteOffset + 64 + 4 * n, 1)[0], FL = r => R(r, 10);
+    r = runC(hx('B8 34 12 A3 0E 00 EB FE'), 26);
+    check('8086 MOV AX,1234h; MOV [000Eh],AX; JMP $: little-endian store at 14,15', r.mem[14] === 0x34 && r.mem[15] === 0x12 && X(r, 0) === 0x1234 && r.pc === 6);
+    r = runC(hx('B0 05 B3 07 F6 E3 EB FE'), 26);
+    check('8086 MOV AL,5; MOV BL,7; MUL BL: AX = 35', X(r, 0) === 35 && (FL(r) & 0x801) === 0);
+    r = runC(hx('B9 04 00 BF 0C 00 B0 AA F3 AA EB FE'), 26);
+    check('8086 REP STOSB with CX = 4, DI = 12 fills bytes 12..15 with AAh one iteration a step: CX = 0, DI = 16', r.mem[12] === 0xaa && r.mem[15] === 0xaa && r.mem[11] === 0xfe && r.mem[10] === 0xeb && X(r, 1) === 0 && X(r, 7) === 16);
+    r = runC(hx('B9 03 00 31 C0 40 E2 FD EB FE'), 26);
+    check('8086 MOV CX,3; XOR AX,AX; INC AX; LOOP: AX = 3', X(r, 0) === 3 && X(r, 1) === 0);
+    r = runC(hx('B8 CD AB 50 5B EB FE'), 26);
+    check('8086 PUSH AX; POP BX: the word goes to 14,15 (SP wraps from 0), BX = ABCDh, SP back to 0', X(r, 3) === 0xabcd && r.mem[14] === 0xcd && r.mem[15] === 0xab && X(r, 4) === 0);
+    r = runC(hx('E8 03 00 EB FE 00 40 C3'), 26);
+    check('8086 CALL +3; ... INC AX; RET: the return address 3 is pushed at 14,15, AX = 1, back in the JMP $ loop', X(r, 0) === 1 && r.mem[14] === 3 && r.mem[15] === 0 && X(r, 4) === 0 && r.pc === 3);
+    r = runC(hx('6A 05 5B EB FE'), 26);
+    check('8086 reads 6A as JP (not taken: PF clear), then POP BX pops the code bytes 0,1: BX = 056Ah', X(r, 3) === 0x056a && X(r, 4) === 2);
+    r = runC(hx('6A 05 5B EB FE'), 27);
+    check('80286 PUSH imm8 5; POP BX: BX = 5', X(r, 3) === 5 && X(r, 4) === 0);
+    r = runC(hx('B8 06 00 6B C0 07 EB FE'), 27);
+    check('80286 IMUL AX,AX,7: 6 * 7 = 42', X(r, 0) === 42);
+    r = runC(hx('B8 01 00 C1 E0 04 EB FE'), 27);
+    check('80286 SHL AX,4 by immediate: 16', X(r, 0) === 16);
+    r = runC(hx('66 B8 78 56 34 12 66 A3 0C 00 EB FE'), 28);
+    check('80386 MOV EAX,12345678h; MOV [000Ch],EAX (66 prefix): 78 56 34 12 at 12..15', r.mem[12] === 0x78 && r.mem[15] === 0x12 && X(r, 0) === 0x12345678);
+    r = runC(hx('B3 FE 0F B6 C3 EB FE'), 28);
+    check('80386 MOVZX AX,BL: FEh -> 00FEh', X(r, 0) === 0xfe);
+    r = runC(hx('31 C0 0F 94 C3 EB FE'), 28);
+    check('80386 XOR AX,AX; SETE BL: BL = 1', (X(r, 3) & 0xff) === 1 && (FL(r) & 0x40) !== 0);
+    r = runC(hx('B8 08 00 0F BA E0 03 EB FE'), 28);
+    check('80386 BT AX,3 with AX = 8 sets CF', (FL(r) & 1) === 1);
+    r = runC(hx('67 8B 04 24 EB FE'), 28);
+    check('80386 MOV AX,[ESP] through a SIB byte (67 prefix): reads the code bytes 0,1 = 8B67h', X(r, 0) === 0x8b67);
+    // Intel i860 (29): 32-bit little-endian instructions; r1..r15 at 64 + 4(n - 1), f2..f6 at 4(n - 2), f7..f15 at 24 + 4(n - 7)
+    const i860 = words => { const b = new Uint8Array(16); words.forEach((w, i) => { b[4 * i] = w & 255; b[4 * i + 1] = (w >>> 8) & 255; b[4 * i + 2] = (w >>> 16) & 255; b[4 * i + 3] = w >>> 24; }); return b; };
+    const IR = (r, n) => X(r, n - 1), IF = (r, n) => { const o = n <= 6 ? 4 * (n - 2) : 24 + 4 * (n - 7); return new Int32Array(r.regs.buffer, r.regs.byteOffset + o, 1)[0]; };
+    r = runC(i860([0x94020005, 0x1C00100D, 0x6BFFFFFF, 0]), 29);
+    check('i860 adds 5,r0,r2; st.l r2,12(r0); br . (delayed, the stored word runs as its delay slot): bytes 12..15 = 05 00 00 00, r2 = 5', r.mem[12] === 5 && r.mem[13] === 0 && r.mem[15] === 0 && IR(r, 2) === 5);
+    r = runC(i860([0xEC023FC0, 0x08021000, 0x48431030, 0x48041840]), 29);
+    check('i860 orh 3FC0h,r0,r2 (1.5f); ixfr r2,f2; fadd.ss f2,f2,f3; fxfr f3,r4: r4 = 40400000h (3.0f)', IR(r, 4) === 0x40400000 && IF(r, 3) === 0x40400000 && IR(r, 2) === 0x3fc00000);
+    // General Instrument PIC1640 (30): ten 12-bit words at bit offsets 12k, little-endian bit order; W at 0, PC (word) at 22
+    const pic = words => { let v = 0n; words.forEach((w, k) => { v |= BigInt(w) << BigInt(12 * k); }); const b = new Uint8Array(16); for (let i = 0; i < 16; i++) b[i] = Number((v >> BigInt(8 * i)) & 255n); return b; };
+    r = runC(pic([0xC5A, 0x02F, 0xA02]), 30);
+    check('PIC1640 MOVLW 5Ah; MOVWF 15; GOTO 2: byte 15 = 5Ah, W = 5Ah', r.mem[15] === 0x5a && r.regs[0] === 0x5a && R(r, 11) === 2);
+    r = runC(pic([0xC03, 0x02E, 0x2EE, 0xA02, 0xA04]), 30);
+    check('PIC1640 MOVLW 3; MOVWF 14; DECFSZ 14,f; GOTO 2; GOTO 4: counts byte 14 down to 0 and skips out of the loop', r.mem[14] === 0 && R(r, 11) === 4);
+    r = runC(pic([0xCF0, 0x02F, 0xC20, 0x1CF, 0xA04]), 30);
+    check('PIC1640 ADDWF 15,w: F0h + 20h = 10h in W with C set in STATUS = byte 3 (which is also the low byte of word 2)', r.regs[0] === 0x10 && (r.mem[3] & 1) === 1 && (r.mem[3] & 4) === 0 && r.mem[15] === 0xf0);
+    r = runC(pic([0x903, 0x02F, 0xA02, 0x877]), 30);
+    check('PIC1640 CALL 3; MOVWF 15; GOTO 2; ... RETLW 77h: W = 77h lands in byte 15, PC loops at 2', r.regs[0] === 0x77 && r.mem[15] === 0x77 && R(r, 11) === 2);
+    r = runC(pic([0x5EF, 0x7EF, 0xC11, 0xA03]), 30);
+    check('PIC1640 BSF 15,7; BTFSS 15,7 skips the MOVLW: byte 15 = 80h, W = 0', r.mem[15] === 0x80 && r.regs[0] === 0 && R(r, 11) === 3);
     io.setChanger(0);
   }
   // ERA/UNIVAC 1101 (22), DEC VAX-11/780 (23), CDC 6600 (24)
@@ -449,17 +552,20 @@ check('random pixels consume a plausible number of bits', consumed / N > 20 && c
   io.setChanger(5); rr = decode_pixel(GRID, 0, PRM);
   check('reverse: the 16 bytes in reverse order', out().every((b, k) => b === bytes[15 - k]) && (rr & 255) === 16);
   io.setChanger(16); rr = decode_pixel(GRID, 0, PRM);
-  { const mi = bytes.indexOf(Math.min(...bytes)), nx = (mi + 1) & 15, pv = (mi + 15) & 15;
-    const want = bytes.map((b, k) => (b + (k === mi ? 1 : k === nx ? 17 : k === pv ? 5 : 0)) & 255);
-    check(`add 17: the smallest byte ${mi} (${bytes[mi]}) gains 1, byte ${nx} gains 17, byte ${pv} gains 5, the rest are kept, three bytes flagged`, out().every((b, k) => b === want[k]) && (rr & 255) === 3 && flags().every((f, k) => f === (k === mi || k === nx || k === pv ? 1 : 0))); }
+  { const mi = bytes.indexOf(Math.max(...bytes)), nx = (mi + 1) & 15, pv = (mi + 15) & 15, mn = bytes.indexOf(Math.min(...bytes));
+    const g = d => d === 0 ? -23 : d === 1 ? 11 : d === 15 ? 13 : 0;
+    const want = bytes.map((b, k) => (b + g((k - mi) & 15) - g((k - mn) & 15) + 512) & 255), nflag = want.filter((v, k) => v !== bytes[k]).length;
+    check(`extremes: the largest byte ${mi} (${bytes[mi]}) loses 23, byte ${nx} gains 11, byte ${pv} gains 13, the smallest ${mn} (${bytes[mn]}) and its neighbours the opposite, ${nflag} bytes flagged`, out().every((b, k) => b === want[k]) && (rr & 255) === nflag && flags().every((f, k) => f === (want[k] !== bytes[k] ? 1 : 0))); }
   m8.set(Uint8Array.from([9, 3, 250, 3, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]), GRID); decode_pixel(GRID, 0, PRM);
-  check('add 17: ties go to the first smallest byte (1 -> 4, 2 -> 250+17, 0 -> 14)', out()[1] === 4 && out()[2] === 11 && out()[0] === 14 && out()[3] === 3);
-  m8.set(Uint8Array.from([9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 3]), GRID); decode_pixel(GRID, 0, PRM);
-  check('add 17: the index wraps, smallest at 15 -> byte 0 gains 17, byte 14 gains 5', out()[15] === 4 && out()[0] === 26 && out()[14] === 14 && out()[1] === 9);
-  m8.set(Uint8Array.from([3, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]), GRID); decode_pixel(GRID, 0, PRM);
-  check('add 17: smallest at 0 -> byte 15 gains 5', out()[0] === 4 && out()[1] === 26 && out()[15] === 14);
+  check('extremes: 250 at 2 -> 227 - 11 (it follows the smallest 3 at 1) = 216, byte 3 -> 14, the smallest at 1 -> 3 + 23 + 13 = 39, byte 0 -> 9 - 13 = 252', out()[2] === 216 && out()[3] === 14 && out()[1] === 39 && out()[0] === 252 && out()[4] === 9);
+  m8.set(Uint8Array.from([9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]), GRID); decode_pixel(GRID, 0, PRM);
+  check('extremes: a flat cell is a fixed point (largest = smallest = byte 0)', out().every(b => b === 9));
+  m8.set(Uint8Array.from([9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 30]), GRID); decode_pixel(GRID, 0, PRM);
+  check('extremes: largest at 15 -> 30 - 23 - 13 (before the smallest at 0) = 250, byte 0 -> 9 + 11 + 23 = 43, byte 14 -> 22, byte 1 -> 9 - 11 = 254', out()[15] === 250 && out()[0] === 43 && out()[14] === 22 && out()[1] === 254 && out()[2] === 9);
+  m8.set(Uint8Array.from([30, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]), GRID); decode_pixel(GRID, 0, PRM);
+  check('extremes: largest at 0 -> 7 - 13 = 250 (before the smallest at 1), byte 1 -> 20 + 23 = 43, byte 2 -> 254, byte 15 -> 22', out()[0] === 250 && out()[1] === 43 && out()[2] === 254 && out()[15] === 22);
   m8.set(Uint8Array.from([250, 251, 252, 253, 254, 255, 250, 251, 252, 253, 254, 255, 250, 251, 252, 253]), GRID); decode_pixel(GRID, 0, PRM);
-  check('add 17 wraps mod 256 (250 -> 251, 251 -> 12, 253 -> 2)', out()[0] === 251 && out()[1] === 12 && out()[15] === 2 && out()[6] === 250);
+  check('extremes wrap mod 256: 255 at 5 -> 232, 6 -> 5, 4 -> 11; the smallest 250 at 0 -> 17, 1 -> 240, 15 -> 240', out()[5] === 232 && out()[6] === 5 && out()[4] === 11 && out()[0] === 17 && out()[1] === 240 && out()[15] === 240);
   // DCT (17) and inverse DCT (18): bytes as signed samples b - 128
   const dct = (b, inv) => { io.setChanger(inv ? 18 : 17); m8.set(b, GRID); const r = decode_pixel(GRID, 0, PRM); return { o: out(), r }; };
   let d = dct(new Uint8Array(16).fill(138), 0);
@@ -483,7 +589,7 @@ check('random pixels consume a plausible number of bits', consumed / N > 20 && c
 // ---- change(): the byte changer rewrites every pixel with its own output
 {
   const { change } = instance.exports;
-  for (const [changer, name] of [[0, 'LZ decompressor'], [1, 'Brainfuck, empty tape'], [2, 'Brainfuck, tape = pixel'], [3, 'do nothing'], [4, 'invert'], [5, 'reverse'], [6, 'Z80'], [7, '6502'], [8, '8080'], [9, 'Subleq'], [10, 'CHIP-8'], [11, '4004'], [12, 'SM83'], [13, '8051'], [14, '6809'], [15, 'RISC-V'], [16, 'add 17'], [17, 'DCT'], [18, 'inverse DCT'], [19, 'PDP-8'], [20, 'PDP-11'], [21, '68000'], [22, 'UNIVAC 1101'], [23, 'VAX-11/780'], [24, 'CDC 6600']]) {
+  for (const [changer, name] of [[0, 'LZ decompressor'], [1, 'Brainfuck, empty tape'], [2, 'Brainfuck, tape = pixel'], [3, 'do nothing'], [4, 'invert'], [5, 'reverse'], [6, 'Z80'], [7, '6502'], [8, '8080'], [9, 'Subleq'], [10, 'CHIP-8'], [11, '4004'], [12, 'SM83'], [13, '8051'], [14, '6809'], [15, 'RISC-V'], [16, 'extremes'], [17, 'DCT'], [18, 'inverse DCT'], [19, 'PDP-8'], [20, 'PDP-11'], [21, '68000'], [22, 'UNIVAC 1101'], [23, 'VAX-11/780'], [24, 'CDC 6600'], [25, '68020'], [26, '8086'], [27, '80286'], [28, '80386'], [29, 'i860'], [30, 'PIC1640']]) {
     io.setChanger(changer);
     randomize(4 * N, GRID, 31 + changer);
     if (changer === 1 || changer === 2) for (let i = GRID; i < GRID + 16 * N; i++) m8[i] &= 7;   // Brainfuck programs
@@ -776,21 +882,23 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   console.log(`   200 turns from a random start: ${(performance.now() - t2).toFixed(0)} ms, ${movedTotal} bits moved, quietest turn ${worst}`);
   check('default start keeps moving under the context-only rule', worst > 100);
 }
-// ---- render buffer: blend(w, h, pix, acc, k0, k4, k8) -> (n4 << 32) | n8
+// ---- render buffer: blend(w, h, pix, acc, k0, k4, k8) -> (n4 << 32) | n8; acc = one f32x4 per pixel (channels in lanes 0..2)
 {
   const W = 6, H = 5, N = W * H, PIXB = GRID + 65536, ACC = PIXB + 4 * N;
-  const px = new Uint8Array(memory.buffer, PIXB, 4 * N), ac = new Int32Array(memory.buffer, ACC, 3 * N);
+  const px = new Uint8Array(memory.buffer, PIXB, 4 * N), ac = new Float32Array(memory.buffer, ACC, 4 * N);
   const setFrame = f => { for (let i = 0; i < N; i++) { const [r, g, b] = f(i % W, Math.floor(i / W)); px.set([r, g, b, 255], 4 * i); } };
   const rgb = i => [px[4 * i], px[4 * i + 1], px[4 * i + 2]];
   const run = (k0, k4, k8) => { const r = blend(W, H, PIXB, ACC, k0, k4, k8, 0, H); return { n4: Number(r >> 32n), n8: Number(r & 0xffffffffn) }; };
   setFrame(() => [100, 150, 200]);
   let r = run(65536, 65536, 65536);
-  check('blend with k = 65536 copies the frame into the accumulator; a flat frame is 8-connected flat everywhere', r.n8 === N && r.n4 === 0 && ac[0] === 100 << 16 && ac[3 * N - 1] === 200 << 16 && rgb(N - 1).join() === '100,150,200' && px[3] === 255);
+  check('blend with k = 65536 copies the frame into the accumulator (equal constants: no flat counts)', r.n8 === 0 && r.n4 === 0 && ac[0] === 100 && ac[4 * N - 2] === 200 && rgb(N - 1).join() === '100,150,200' && px[3] === 255);
+  setFrame(() => [100, 150, 200]); r = run(65536, 32768, 16384);
+  check('a flat frame is 8-connected flat everywhere when the constants differ', r.n8 === N && r.n4 === 0 && rgb(0).join() === '100,150,200');
   // one pixel in the middle changes colour: its cross neighbours lose both tiers, its diagonal neighbours only the 8-connected one
   setFrame((x, y) => x === 2 && y === 2 ? [0, 150, 200] : [100, 150, 200]);
   r = run(32768, 6554, 2185);   // k = 1/2, 1/10, 1/30
   check(`a changed pixel: it and its 4 cross neighbours are not flat, its 4 diagonal neighbours are 4-connected flat only (${r.n4}), the rest 8-connected flat (${r.n8})`, r.n4 === 4 && r.n8 === N - 9);
-  { const r0 = blend(W, H, PIXB, ACC, 0, 0, 0, 0, 1);   // k = 0: nothing moves; count row 0 only
+  { const r0 = blend(W, H, PIXB, ACC, 0, 0, 1, 0, 1);   // k = 0 (and 1/65536 for the flat ones): nothing visible moves; count row 0 only
     check(`the flat counts honour the row range: row 0 alone has ${W} 8-connected flat pixels`, r0 === BigInt(W)); }
   check('the changed pixel moves half way (100 -> 50), its flat neighbours stay', rgb(2 * W + 2)[0] === 50 && rgb(0)[0] === 100 && rgb(2 * W + 1)[0] === 100 && px.every((v, i) => (i & 3) !== 3 || v === 255));
   // a uniform change of the whole frame moves only at the slowest constant
@@ -800,7 +908,7 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   // tiers: a diagonal-only disturbance leaves the centre 4-connected flat
   setFrame(() => [0, 150, 200]); run(65536, 65536, 65536);
   setFrame((x, y) => x === 1 && y === 1 ? [200, 150, 200] : [0, 150, 200]);
-  for (let i = 0; i < N; i++) { ac[3 * i] = 50 << 16; ac[3 * i + 1] = 150 << 16; ac[3 * i + 2] = 200 << 16; }   // every accumulator at R = 50
+  for (let i = 0; i < N; i++) { ac[4 * i] = 50; ac[4 * i + 1] = 150; ac[4 * i + 2] = 200; }   // every accumulator at R = 50
   r = run(65536, 32768, 0);   // not flat: copy; 4-connected flat: half way; 8-connected flat: frozen
   check('tiers: the pixel diagonal to a change is 4-connected flat (50 -> 25 at k = 1/2), its cross neighbour copies (50 -> 0), far pixels are frozen (50)', rgb(2 * W + 2)[0] === 25 && rgb(W + 2)[0] === 0 && rgb(N - 1)[0] === 50 && r.n4 === 4);
   // edge pixels compare with the neighbours that exist: a corner differing from its 3 neighbours
@@ -810,24 +918,61 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
   check(`a corner change: corner and its 2 cross neighbours not flat, its diagonal neighbour 4-connected flat (${r.n4}), ${r.n8} 8-connected flat`, r.n4 === 1 && r.n8 === N - 4 && rgb(0)[0] === 255 && rgb(1)[0] === 0);
   // convergence: repeated identical frames reach the target exactly in fixed point (the frame must be re-set, blend overwrites it)
   for (let t = 0; t < 2000; t++) { setFrame(() => [37, 0, 0]); run(1638, 410, 410); }
-  check('2000 identical frames at k = 1/160 converge to the target value (37)', rgb(0)[0] === 37 && rgb(N - 1)[0] === 37 && ac[1] === 0);
+  check(`2000 identical frames at k = 1/160 converge to the target value (37): accumulator ${ac[0]}`, rgb(0)[0] === 37 && rgb(N - 1)[0] === 37 && Math.abs(ac[0] - 37) < 2e-3 && Math.abs(ac[1]) < 2e-3);   // f32: the last steps round away, within a thousandth of a level
+  // equal constants: the flatness pass is skipped, the counts are 0 and the blend is the same as with the textured constant
+  setFrame(() => [0, 150, 200]); run(65536, 65536, 65536);
+  setFrame((x, y) => x === 2 && y === 2 ? [100, 150, 200] : [0, 150, 200]);
+  r = run(32768, 32768, 32768);
+  check('one constant for every pixel: no flat counts, the changed pixel and the rest move at the same k', r.n4 === 0 && r.n8 === 0 && rgb(2 * W + 2)[0] === 50 && rgb(0)[0] === 0);
   // the blend depends only on the colour, not on the alpha byte
-  setFrame(() => [37, 0, 0]); px[3] = 7; r = run(65536, 65536, 65536);
+  setFrame(() => [37, 0, 0]); px[3] = 7; r = run(65536, 65536, 65535);
   check('alpha is ignored for the flatness test and written back as 255', r.n8 === N && px[3] === 255);
   // two stages in cascade: the second accumulator reads the first stage's output
-  const ACC2 = ACC + 12 * N;
+  const ACC2 = ACC + 16 * N;
   setFrame(() => [0, 0, 0]); blend(W, H, PIXB, ACC, 65536, 65536, 65536, 0, H); blend(W, H, PIXB, ACC2, 65536, 65536, 65536, 0, H);
   const two = [];
   for (let t = 0; t < 4; t++) { setFrame(() => [200, 0, 0]); blend(W, H, PIXB, ACC, 32768, 32768, 32768, 0, H); blend(W, H, PIXB, ACC2, 32768, 32768, 32768, 0, H); two.push(rgb(0)[0]); }
   check(`two stages at k = 1/2 give the cascade step response 50, 100, 137.5, 162.5 of 200: ${two.join(', ')}`, two.join() === '50,100,138,162' || two.join() === '50,100,137,163' || two.join() === '50,100,138,163');
+  // unsharp(n, pix, acc2, acc3, w): the frame from two stages' accumulators, (1 - w) acc2 + w acc3, rounded and clamped
+  { const ACC3 = ACC2 + 16 * N, a2 = new Float32Array(memory.buffer, ACC2, 4 * N), a3 = new Float32Array(memory.buffer, ACC3, 4 * N);
+    for (let i = 0; i < N; i++) { a2.set([100, 200, 10, 0], 4 * i); a3.set([60, 240, 0, 0], 4 * i); }
+    unsharp(N, PIXB, ACC2, ACC3, -0.25);
+    check(`unsharp at w = -0.25: 100 over 60 -> 110, 200 over 240 -> 190, 10 over 0 -> 13 (rounded), alpha 255: ${rgb(0).join(' ')}`, rgb(0).join() === '110,190,13' && px[3] === 255);
+    unsharp(N, PIXB, ACC2, ACC3, 1);
+    check('w = 1 shows the third stage itself', rgb(0).join() === '60,240,0');
+    for (let i = 0; i < N; i++) { a2.set([250, 0, 128, 0], 4 * i); a3.set([0, 255, 128, 0], 4 * i); }
+    unsharp(N, PIXB, ACC2, ACC3, -5);
+    check('w = -5 clamps: 250 over 0 -> 255, 0 over 255 -> 0, equal values are unchanged', rgb(0).join() === '255,0,128');
+    // two stages and the slow stage through Band.postFrame: the shown value is (1 + ts) s2 - ts s3 of the step response, ts = 0.25
+    const Band = vm.runInThisContext(fs.readFileSync(dir + '/src/lattice/band.js', 'utf8') + '; Band');
+    const base = PIXB, need = base + Band.POST_BYTES * N; if (need > memory.buffer.byteLength) memory.grow(Math.ceil((need - memory.buffer.byteLength) / 65536));
+    const frame = new Uint8Array(memory.buffer, base, 4 * N), set = v => { for (let i = 0; i < N; i++) frame.set([v, 0, 0, 255], 4 * i); };
+    const P = { stages: 2, sharp: false, k0: 32768, k4: 32768, k8: 32768, k0s: 19195, k4s: 19195, k8s: 19195, ts: 0.25 };   // k = 1/2 and 1 - sqrt(1/2)
+    set(0); Band.postFrame(instance.exports, base, W, H, { ...P, k0: 65536, k4: 65536, k8: 65536, k0s: 65536, k4s: 65536, k8s: 65536 });
+    const three = [], want = [];
+    for (let t = 0; t < 4; t++) { set(200); Band.postFrame(instance.exports, base, W, H, P); three.push(frame[0]); }
+    { let a1 = 0, a2 = 0, a3 = 0; for (let t = 0; t < 4; t++) { a1 += (200 - a1) / 2; a2 += (Math.round(a1) - a2) / 2; a3 += (Math.round(a2) - a3) * (19195 / 65536); want.push(Math.round(1.25 * a2 - 0.25 * a3)); } }
+    check(`two stages and the slow stage: the frame is 1.25 x the second stage - 0.25 x the slow one: ${three.join(', ')} (model ${want.join(', ')})`, three.every((v, i) => Math.abs(v - want[i]) <= 1));
+    // one stage and the slow stage: the slow one reads the first stage's output
+    const P1 = { ...P, stages: 1, ts: 1 }; set(0); Band.postFrame(instance.exports, base, W, H, { ...P1, k0: 65536, k4: 65536, k8: 65536, k0s: 65536, k4s: 65536, k8s: 65536 });
+    const one = []; for (let t = 0; t < 3; t++) { set(200); Band.postFrame(instance.exports, base, W, H, P1); one.push(frame[0]); }
+    const w1 = []; { let a1 = 0, a3 = 0; for (let t = 0; t < 3; t++) { a1 += (200 - a1) / 2; a3 += (Math.round(a1) - a3) * (19195 / 65536); w1.push(Math.min(255, Math.round(2 * a1 - a3))); } }
+    check(`one stage with sharpening 1: the frame is 2 x the first stage - the slow one: ${one.join(', ')} (model ${w1.join(', ')})`, one.every((v, i) => Math.abs(v - w1[i]) <= 1));
+    // no averaging and the slow stage: the frame is 2 x itself - the slow one
+    const P0 = { ...P, stages: 0, ts: 1 }; set(0); Band.postFrame(instance.exports, base, W, H, { ...P0, k0s: 65536, k4s: 65536, k8s: 65536 });
+    const zero = []; for (let t = 0; t < 3; t++) { set(100); Band.postFrame(instance.exports, base, W, H, P0); zero.push(frame[0]); }
+    const w0 = []; { let a3 = 0; for (let t = 0; t < 3; t++) { a3 += (100 - a3) * (19195 / 65536); w0.push(Math.round(200 - a3)); } }
+    check(`averaging off with sharpening 1: the frame is 2 x the frame - the slow stage: ${zero.join(', ')} (model ${w0.join(', ')})`, zero.every((v, i) => Math.abs(v - w0[i]) <= 1));
+    check('averaging off and sharpening 0: postFrame leaves the frame alone', (set(77), Band.postFrame(instance.exports, base, W, H, { stages: 0, ts: 0, sharp: false }) === null && frame[0] === 77));
+  }
   // ---- spatial sharpening: dst = 2 * src - mean of the 4-connected neighbours
   const DST = ACC + 12 * N, out = new Uint8Array(memory.buffer, DST, 4 * N), org = i => [out[4 * i], out[4 * i + 1], out[4 * i + 2]];
-  setFrame(() => [100, 150, 200]); sharpen(W, H, PIXB, DST);
+  setFrame(() => [100, 150, 200]); sharpen(W, H, PIXB, DST, 256);
   check('sharpen: a flat frame is unchanged, alpha 255', out.every((v, i) => v === [100, 150, 200, 255][i & 3]));
-  setFrame((x, y) => x === 2 && y === 2 ? [200, 100, 0] : [100, 100, 100]); sharpen(W, H, PIXB, DST);
+  setFrame((x, y) => x === 2 && y === 2 ? [200, 100, 0] : [100, 100, 100]); sharpen(W, H, PIXB, DST, 256);
   check('sharpen: a lone pixel 200 on 100 becomes 2*200-100 = 255 (clamped), 0 on 100 becomes 0, its neighbours 2*100-125 = 75 and 2*100-75 = 125, diagonals unchanged',
     org(2 * W + 2).join() === '255,100,0' && org(2 * W + 1).join() === '75,100,125' && org(W + 2).join() === '75,100,125' && org(W + 1).join() === '100,100,100' && org(0).join() === '100,100,100');
-  setFrame((x, y) => [10 * x, 0, 0]); sharpen(W, H, PIXB, DST);   // a ramp: interior pixels keep their value, the edges are extrapolated
+  setFrame((x, y) => [10 * x, 0, 0]); sharpen(W, H, PIXB, DST, 256);   // a ramp: interior pixels keep their value, the edges are extrapolated
   check('sharpen: a linear ramp is unchanged inside, the edge columns extrapolate (2*0-(10+0)/3 -> 0 at the corner, 2*50-(40+50+50)/3 = 53 at the right edge)',
     org(2 * W + 2)[0] === 20 && org(2 * W + 3)[0] === 30 && org(0)[0] === 0 && org(2 * W + 5)[0] === 53);
 }
@@ -1034,5 +1179,76 @@ check('seeded halves reach every column', colBits().every(c => c > 0));
     check(`links, byte-interleaved joining: a program spread over A's even and B's odd addresses stores 2Ah into joint byte 8 = A[4] (${c} pixel writes)`, px(0)[4] === 0x2a && px(0)[0] === 0x3e && px(1)[0] === 0x2a && c === 1);
     io.setPair(0, 0);
   }
+}
+// ---- sorts (41 ascending, 42 primes first)
+{
+  io.setPair(0, 0); io.setChanger(41);
+  m8.set([9, 2, 255, 0, 7, 7, 128, 1, 3, 200, 4, 11, 6, 5, 10, 8], GRID); let r = decode_pixel(GRID, 0, PRM);
+  check(`sort: ${out().join(' ')} (${r & 255} bytes moved)`, out().join() === '0,1,2,3,4,5,6,7,7,8,9,10,11,128,200,255' && (r & 255) === 16 && flags()[0] === 1);
+  io.setChanger(42); m8.set([9, 2, 255, 0, 7, 7, 128, 1, 3, 200, 4, 11, 6, 5, 10, 8], GRID); r = decode_pixel(GRID, 0, PRM);
+  check(`primes first: ${out().join(' ')}`, out().join() === '2,3,5,7,7,11,0,1,4,6,8,9,10,128,200,255');
+  m8.set([251, 250, 1, 0, 2, 253, 211, 221, 223, 227, 229, 233, 239, 241, 255, 254], GRID); decode_pixel(GRID, 0, PRM);
+  check(`primes first near 255: ${out().join(' ')}`, out().join() === '2,211,223,227,229,233,239,241,251,0,1,221,250,253,254,255');
+  io.setChanger(0);
+}
+// ---- decoders (changers 31..40): hand-made cells with known decodings
+{
+  io.setPair(0, 0); io.setCursorOffset(0);   // the preset dictionary window ends at the cursor offset: at 0, the text's end
+  const cell = (kind, bytes) => { io.setChanger(kind); m8.fill(0, GRID, GRID + 16); m8.set(bytes.slice(0, 16), GRID); const r = decode_pixel(GRID, 0, PRM); return { out: out(), flags: flags(), used: r >> 8, changed: r & 255 }; };
+  const msb = bits => { const b = new Uint8Array(16); [...bits].forEach((c, i) => { if (c === '1') b[i >> 3] |= 128 >> (i & 7); }); return b; };
+  const lsb = bits => { const b = new Uint8Array(16); [...bits].forEach((c, i) => { if (c === '1') b[i >> 3] |= 1 << (i & 7); }); return b; };
+  const bin = (v, n) => v.toString(2).padStart(n, '0'), rev = t => [...t].reverse().join('');
+  const str = a => String.fromCharCode(...a);
+  let r = cell(31, msb('011'.repeat(16) + [1, 2, 3, 4, 5, 6, 7, 8].map(v => bin(v, 4)).join('')));
+  check(`prefix code: 16 lengths of 4 give the identity code; nibbles 1..8 pack to 12 34 56 78 (${r.used} bits read)`, r.out.slice(0, 4).join() === '18,52,86,120' && r.flags.slice(0, 4).join('') === '1010' && r.out[4] === 0);
+  r = cell(32, msb('10101' + '00' + '11011011' + '00' + '10101' + '000'));
+  check(`Morse: ... --- ... keys out "sos", wrapping repeats it: "${str(r.out)}"`, str(r.out) === 'sos sos sos sos ');
+  const strip3 = raw => { let v = 0n; for (let i = raw.length - 1; i >= 0; i--) v = (v << 8n) | BigInt(raw[i]); v >>= 3n; const b = new Uint8Array(16); for (let i = 0; i < 16; i++) b[i] = Number((v >> BigInt(8 * i)) & 255n); return b; };
+  r = cell(33, strip3(zlib.deflateRawSync(Buffer.from('the the the the the the'), { strategy: zlib.constants.Z_FIXED })));
+  check(`Deflate: zlib's fixed-Huffman raw stream (block header stripped) decodes: "${str(r.out)}" (${r.used} bits)`, str(r.out) === 'the the the the ' && r.used < 128);
+  const tail = text.slice(-12);
+  r = cell(33, strip3(zlib.deflateRawSync(Buffer.from(tail + tail), { strategy: zlib.constants.Z_FIXED, dictionary: Buffer.from(text) })));
+  check(`Deflate with the Declaration as preset dictionary (cursor offset 0: the window ends at the text's end): a match into it decodes "${str(r.out).replace(/\n/g, '⏎')}"`, str(r.out) === (tail + tail).slice(0, 16));
+  r = cell(34, Uint8Array.from([0x54, 104, 101, 108, 108, 111, 5, 0]));
+  check(`LZ4: token 5 literals + match 8 at offset 5: "${str(r.out).slice(0, 13)}"`, str(r.out).startsWith('hellohellohel') && r.flags.slice(0, 6).join('') === '111110');
+  r = cell(35, Uint8Array.from([16, 0x10, 104, 101, 108, 108, 111, 0x11, 5]));
+  check(`Snappy: literal 5 then copy-1 length 8 offset 5: "${str(r.out).slice(0, 13)}"`, str(r.out).startsWith('hellohellohel'));
+  r = cell(36, lsb(rev(bin(1, 2)) + rev(bin(97, 8)) + rev(bin(0, 2)) + '1' + rev(bin(0, 6)) + rev(bin(0, 2)) + rev(bin(0, 2)) + '0' + rev(bin(0, 4))));
+  check(`Brotli-like: insert "a", copy 2 at distance 1, then copies through short code 0 (the last distance): "${str(r.out)}"`, str(r.out) === 'a'.repeat(16));
+  r = cell(37, Uint8Array.from([1, 1, 1, 1, 2, 5, 5, 5, 3, 2, 2, 2, 4, 1, 1, 1]));
+  check(`PNG filters: Sub, Up, Average and Paeth rows reconstruct to ${r.out.join(' ')}`, r.out.join() === '1,1,2,3,2,6,7,8,3,5,8,10,4,6,9,11' && r.flags[0] === 0 && r.flags[2] === 1);
+  r = cell(38, msb('011' + '10' + '1010'));
+  check(`JPEG: DC category 2 value 2 then EOB gives a flat block of ${r.out[0]} (${r.used} bits read)`, r.out.every(b => b === 136) && r.used === 9);
+  r = cell(38, msb('00' + '00' + '1' + '1010'));
+  check(`JPEG: one horizontal AC coefficient gives the cosine row ${r.out.slice(0, 4).join(' ')} repeated`, r.out.join() === '132,129,127,124,'.repeat(4).slice(0, -1));
+  {   // VP8: a boolean encoder (RFC 6386 section 7.3) against the same model must round-trip
+    const model = Codec.vp8Model(built.bytes), e = { out: [], range: 255, bottom: 0, bitCount: 24 };
+    const addOne = () => { let x = e.out.length - 1; while (x >= 0 && e.out[x] === 255) { e.out[x] = 0; x--; } e.out[x]++; };
+    const put = (prob, bit) => { const split = 1 + (((e.range - 1) * prob) >> 8); if (bit) { e.bottom += split; e.range -= split; } else e.range = split;
+      while (e.range < 128) { e.range <<= 1; if (e.bottom & (1 << 31)) addOne(); e.bottom = (e.bottom << 1) >>> 0; if (!--e.bitCount) { e.out.push((e.bottom >>> 24) & 255); e.bottom = (e.bottom & 0xffffff) >>> 0; e.bitCount = 8; } } };
+    const flush = () => { let c = e.bitCount, v = e.bottom; if (v & (1 << (32 - c))) addOne(); v <<= c & 7; c >>= 3; while (--c >= 0) v = (v << 8) >>> 0; c = 4; while (--c >= 0) { e.out.push((v >>> 24) & 255); v = (v << 8) >>> 0; } };
+    const msg = 'the people of th'; let ctx = 32;
+    for (const ch of msg) { const sym = ch.charCodeAt(0); let node = 1; for (let i = 7; i >= 0; i--) { const bit = (sym >> i) & 1; put(model[(ctx << 8) | node], bit); node = (node << 1) | bit; } ctx = sym; }
+    flush();
+    r = cell(39, Uint8Array.from(e.out));
+    check(`VP8 boolean decoder: "${msg}" arithmetic-coded in ${e.out.length} bytes against the Declaration's bigram model decodes back (${r.used} bits read)`, str(r.out) === msg);
+    r = cell(39, new Uint8Array(16));
+    const rnd = cell(39, Uint8Array.from({ length: 16 }, (_, i) => (i * 97 + 31) & 255));
+    check(`VP8: a zero cell decodes to zeros; a random cell decodes to text-like bytes: "${str(rnd.out).replace(/[^ -~]/g, '·')}"`, r.out.every(b => b === 0) && rnd.out.filter(b => (b >= 97 && b <= 122) || b === 32).length >= 12);
+  }
+  r = cell(40, msb('010' + '110' + '101' + '0110' + '100'));
+  check(`Rice (k = 2): residuals +1 -1 +3 0 from 128 give ${r.out.slice(0, 4).join(' ')}`, r.out.slice(0, 4).join() === '129,128,131,131');
+  // every decoder on random cells: output differs from the input, reads stay within the cap
+  randomize(4 * N, GRID, 99);
+  for (const k of [31, 32, 33, 34, 35, 36, 37, 38, 39, 40]) {
+    io.setChanger(k); let ch = 0, used = 0;
+    for (let i = 0; i < N; i++) { const v = decode_pixel(GRID, i, PRM); ch += v & 255; used = Math.max(used, v >> 8); }
+    check(`decoder ${k} on ${N} random cells: ${(ch / N).toFixed(1)} bytes changed a cell on average, at most ${used} bits read`, ch > N && used <= 1024 + 32);
+  }
+  // on a concatenated pair the decoder sees 32 bytes: Morse spells 32 characters over both cells
+  io.setChanger(32); io.setPair(1, 0); randomize(8, GRID, 5); change(2, GRID, PRM);
+  const both = Array.from(m8.subarray(GRID, GRID + 32));
+  check(`Morse on a concatenated pair writes letters and spaces into both cells: "${str(both).replace(/[^ -~]/g, '·')}"`, both.every(b => b === 32 || b === 63 || (b >= 97 && b <= 122) || (b >= 48 && b <= 57) || '.,\'!/()&:;=+-_"@'.includes(String.fromCharCode(b))));
+  io.setPair(0, 0); io.setChanger(0);
 }
 console.log(fails ? fails + ' failures' : 'all passed'); process.exit(fails ? 1 : 0);

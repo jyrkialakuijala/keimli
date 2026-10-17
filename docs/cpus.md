@@ -1,4 +1,4 @@
-# The sixteen machines
+# The twenty-two machines
 
 Source: `src/changers/cpu/` — `common.wat` (register file and pixel memory
 helpers shared by every core), `driver.wat` (the run loop, register load
@@ -87,8 +87,19 @@ spill converged too fast); RISC-V maps the low bytes of x1..x15 to bytes
   extended forms, shifts and rotates, bit instructions, MULU/MULS/DIVU/DIVS,
   Bcc/DBcc/Scc, JSR/RTS, LEA/PEA, LINK/UNLK, MOVEM, EXG); the BCD
   instructions, CHK, TRAP and lines A/F are NOPs.
+- **Motorola 68020** (kind 25, the same `m68k.wat` with the `$m20` flag).
+  The 68000 core plus the 68020 additions: the full extension word (16- and
+  32-bit base displacements, index scaled by 1, 2, 4 or 8, suppressed base
+  or index, memory indirect pre- and post-indexed with an outer
+  displacement; the brief format's scale bits count too), MULU.L/MULS.L and
+  DIVU.L/DIVS.L with the 64-bit product and dividend forms, the eight bit
+  field instructions on registers (the field wraps around the 32 bits) and
+  in memory (up to five bytes from ea + offset div 8), EXTB.L, LINK.L,
+  Bcc.L (displacement byte FF), RTD, CAS and CMP2 (CHK2 compares without
+  trapping). TRAPcc, PACK/UNPK, CAS2, CALLM/RTM, MOVEC/MOVES, BKPT and the
+  coprocessor line are NOPs that consume their extension words.
 
-On random pixels these three rewrite 84–97% of them in a first pass.
+On random pixels these four rewrite 84–97% of them in a first pass.
 
 ## Wide-word machines
 
@@ -120,6 +131,44 @@ register-file access.
 Random pixels are rewritten less often by the two tiny-memory machines,
 about 12% for the 1101 and 26% for the 6600 on a first pass against 90% for
 the VAX, because a 5- or 2-word program has few places to store to.
+
+## Intel 16/32-bit, the i860 and the PIC
+
+- **Intel 8086, 80286, 80386** (`x86.wat`, kinds 26, 27, 28: one core with
+  `$xm` = 0, 1, 2). EAX..EDI little-endian at 64 + 4n (so AL is byte 64 + 4n
+  and AH 65 + 4n), the six segment registers at 96 + 2n, FLAGS at 20, IP at
+  22. Real mode on one flat 16-byte memory: the segment registers are kept
+  and moved but take no part in addressing, the stack pointer is 16-bit.
+  The 8086 runs its whole instruction set (all addressing modes, the string
+  instructions, the decimal adjusts, MUL/IMUL/DIV/IDIV, far calls and
+  jumps) with IN/OUT, HLT, WAIT, LOCK, INT and the 8087 escapes as NOPs,
+  and reads 60..6F as the Jcc aliases and C0/C1, C8/C9 as the RET aliases
+  like the chip. The 80286 adds PUSHA/POPA, PUSH imm, IMUL r,rm,imm, shifts
+  by an immediate (counts masked to 31), ENTER/LEAVE, BOUND, INS/OUTS and
+  the 0F page, whose protected-mode instructions are NOPs. The 80386 adds
+  the 66/67 prefixes (32-bit operands and addresses, SIB), FS/GS,
+  CWDE/CDQ, MOVZX/MOVSX, SETcc, Jcc rel32, the bit tests, BSF/BSR,
+  SHLD/SHRD, IMUL r,rm and LSS/LFS/LGS; MOV CRn/DRn are NOPs. A REP string
+  instruction runs one iteration a step and sets IP back to itself while
+  CX allows, as the interruptible loop on the chip does.
+- **Intel i860** (`i860.wat`, kind 29). 32-bit little-endian instructions,
+  four to a cell. r1..r15 at 64 + 4(n − 1) (r0 is zero, 16..31 alias
+  0..15), f2..f15 in the low part of the register file (f0 and f1 zero,
+  16..31 alias; a double is the pair fn, fn+1), CC and LCC in byte 20, PC
+  at 22. The core integer set with delayed branches (the .t forms skip the
+  delay slot when not taken), ld/st in three widths, fld/fst in .l and .d,
+  and the scalar floating-point core in single and double precision; the
+  pipelined forms run unpipelined, the dual-operation forms, trap, flush,
+  lock/unlock, st.c, pfld and pst.d are NOPs.
+- **General Instrument PIC1640** (`pic1640.wat`, kind 30). The first PIC
+  (1976): 12-bit instructions, the baseline set of 33. The cell is both
+  memories: the program is ten 12-bit words at bit offsets 12k (the last 8
+  bits are never fetched), the file registers are the bytes, f mod 16,
+  with INDF through FSR (byte 4), PCL (f 2, a write is a jump) and STATUS
+  (byte 3: C, DC, Z) on top of them, so a write to a file register is a
+  write to the program. W and the two-level stack live in the register
+  file; OPTION, TRIS, SLEEP and CLRWDT are NOPs. Like the other 128-bit
+  machines it sees a pair as two cells.
 
 ## Adding a machine
 

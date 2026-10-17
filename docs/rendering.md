@@ -49,21 +49,50 @@ frame and keeps the larger of the two remaining fractions 2^(−ms/200) and
 2^(−turns/4), so at low speeds the display follows within a few turns and
 at high speeds it averages about a fifth of a second of turns.
 
-By default the image is integrated twice: a second buffer with its own
-accumulators reads the rounded output of the first and integrates it with
-the same half-time (two stages in cascade, selectable as one stage or off).
+The image is integrated twice: a second buffer with its own accumulators
+reads the rounded output of the first and integrates it with the same
+half-time (two stages in cascade, selectable as one stage or off).
 The cascade's step response starts flat instead of with a jump, which damps
 flicker more than one stage of the same half-time at the price of a little
 more lag, so the slow dynamics carry more weight.
 
-Where a pixel's whole 3 × 3 neighbourhood in the new frame has exactly its
-colour (8-connected flat) the half-time is 2 × longer by default, so flat
-regions change on screen a little more slowly than textured ones; the
-select also offers 4 ×, the same half-time everywhere, or 2 × for
-4-connected flat and 4 × for 8-connected flat pixels. The stats panel shows
-the current half-time in turns and counts the flat neighbourhoods of the
-frame. The buffer resets when the grid, the view or the settings change or
-a pixel is painted.
+The temporal sharpening is a separate control. When its value s is not 0
+one more stage is computed: a slow buffer integrates the last averaging
+stage's output, or the frame itself when averaging is off, at twice the half-time (its constants are the square roots
+of the remaining fractions), and the frame shown
+is composed from the last and the slow accumulators as (1 + s) × the last
+− s × the slow, per channel, rounded and clamped (`unsharp` in render.wat,
+whose weight w = −s), with s from a slider between −1 and 5, 1 by default.
+At the default the frame is the average plus all of what the slow stage
+has not yet followed, so recent change stands out against the long
+average; s = 0 is the plain cascade with no slow stage computed, s = −1 the
+slow stage itself, s = 5 a strong temporal sharpening. The slider acts on
+the next frame without a reset, except that the slow stage starts from the
+current picture when the sharpening is switched on from 0.
+
+The accumulators are f32x4 vectors, one per pixel and stage, the channels
+in lanes 0 to 2, and `blend` and `unsharp` run in SIMD: the flatness pass
+compares four pixels at a time against each neighbour offset where all the
+horizontal neighbours exist (the edge columns and the tail of a row one by
+one), the blend pulls each accumulator by k of the difference in f32x4 and
+rounds it back to bytes through the saturating narrowing instructions,
+which also clamp the composed frame. k = 65536 copies the frame exactly. A
+float accumulator settles within a thousandth of a level of a constant
+input, which the rounded byte cannot see. The three stages and a scratch
+copy for the spatial sharpening make `Band.POST_BYTES` = 56 bytes a pixel;
+a band worker needs `Band.POST_HALO` = 4 neighbour rows, one per stage and
+one for the spatial sharpening. Three stages plus sharpening take about
+7 ms at 512² and 120 ms at 2048² in one thread (11 and 200 ms before SIMD;
+the spatial sharpening is still scalar).
+
+The half-time is the same for every pixel. The kernel can still run a pixel
+at one of three constants by the flatness of its 3 × 3 neighbourhood in the
+new frame (k0 textured, k4 4-connected flat, k8 8-connected flat, with the
+counts of flat pixels returned), which the page once used to slow flat
+regions down; the page now passes one constant and the kernel skips the
+flatness pass when the three are equal. The stats panel shows the current
+half-time in turns. The buffer resets when the grid, the view or the
+settings change or a pixel is painted.
 
 **Threads.** With the worker pool, each band runs the render buffer and
 the sharpening on its own rows inside its worker (`Band.postFrame`, shared
@@ -74,12 +103,15 @@ the whole-frame computation, band edges included.
 
 ## Spatial sharpening
 
-After the render buffer the frame is sharpened a little (`sharpen`, on by
-default, switchable): each channel becomes 2 × the pixel minus the mean of
-its 4-connected neighbours (those that exist at the edges), rounded and
-clamped to 0–255. A flat region is unchanged, a linear ramp is unchanged
-inside, and a lone pixel on a flat background is pushed to saturation with
-its neighbours moved slightly away from it.
+After the render buffer the frame can be sharpened spatially (`sharpen`,
+amount p from a slider between −1 and 5, 0 by default, which skips the
+pass): each channel becomes the pixel + p × (the pixel − the mean of its
+4-connected neighbours, those that exist at the edges), rounded half away
+from zero and clamped to 0–255. p = 1 is the classic 2 × pixel − mean,
+p = −1 replaces the pixel by the mean of its neighbours (a blur). A flat
+region is unchanged, a linear ramp is unchanged inside, and at p = 1 a lone
+pixel on a flat background is pushed to saturation with its neighbours
+moved slightly away from it.
 
 ## Drawing
 

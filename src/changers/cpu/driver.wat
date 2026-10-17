@@ -31,6 +31,10 @@
   ;; step(kind): one instruction of the core for kind 6..24 on the register file and the memory at $zp
   (func $step (param $kind i32)
     (if (i32.eqz (local.get $kind)) (then (call $lz_step) (return)))   ;; 0: the LZ decompressor, one copy command a step
+    (if (i32.eq (local.get $kind) (i32.const 25)) (then (global.set $m20 (i32.const 1)) (call $m68k_step) (global.set $m20 (i32.const 0)) (return)))   ;; 25: the 68000 core as a 68020
+    (if (i32.and (i32.ge_u (local.get $kind) (i32.const 26)) (i32.le_u (local.get $kind) (i32.const 28))) (then (global.set $xm (i32.sub (local.get $kind) (i32.const 26))) (call $x86_step) (return)))   ;; 26..28: 8086, 80286, 80386
+    (if (i32.eq (local.get $kind) (i32.const 29)) (then (call $i860_step) (return)))
+    (if (i32.eq (local.get $kind) (i32.const 30)) (then (call $pic1640_step) (return)))
     (block $done (block $b24 (block $b23 (block $b22 (block $b21 (block $b20 (block $b19 (block $b16 (block $b15 (block $b14 (block $b13 (block $b12 (block $b11 (block $b10 (block $b9 (block $b8 (block $b7 (block $b6
       (br_table $b6 $b7 $b8 $b9 $b10 $b11 $b12 $b13 $b14 $b15 $b16 $b16 $b16 $b19 $b20 $b21 $b22 $b23 $b24 $done (i32.sub (local.get $kind) (i32.const 6))))
       (call $zstep) (br $done))
@@ -97,7 +101,7 @@
     (local.set $kind (i32.load offset=72 (local.get $prm)))
     (local.set $mode (i32.load offset=104 (local.get $prm)))
     (if (i32.eqz (local.get $mode)) (then (local.set $mode (i32.const 1))))
-    (if (i32.or (i32.and (i32.ge_u (local.get $kind) (i32.const 1)) (i32.lt_u (local.get $kind) (i32.const 6))) (i32.or (i32.gt_u (local.get $kind) (i32.const 24))
+    (if (i32.or (i32.and (i32.ge_u (local.get $kind) (i32.const 1)) (i32.lt_u (local.get $kind) (i32.const 6))) (i32.or (i32.gt_u (local.get $kind) (i32.const 30))
         (i32.and (i32.ge_u (local.get $kind) (i32.const 16)) (i32.le_u (local.get $kind) (i32.const 18))))) (then (return (i32.const 0))))
     (local.set $out (i32.load (local.get $prm)))
     (global.set $prmg (local.get $prm))

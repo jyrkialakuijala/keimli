@@ -14,7 +14,8 @@
   ;;  72 changer  0 = LZ decompressor, 1 = Brainfuck with an empty tape, 2 = Brainfuck on a copy of the pixel,
   ;;              3 = do nothing, 4 = invert, 5 = reverse bytes, 6 = Z80, 7 = MOS 6502, 8 = Intel 8080,
   ;;              9 = Subleq, 10 = CHIP-8, 11 = Intel 4004, 12 = Game Boy SM83, 13 = Intel 8051, 14 = Motorola 6809, 15 = RISC-V RV32EC,
-  ;;              16 = add 17 (1 to the smallest byte, 17 to the next, 5 to the previous), 17 = DCT, 18 = inverse DCT
+  ;;              16 = extremes (the largest byte loses 23, the next gains 11, the previous 13; the smallest the opposite), 17 = DCT, 18 = inverse DCT,
+  ;;              31..40 the decoders (codecs.wat), 41 = sort bytes, 42 = primes first then the rest, each ascending
   ;; 512 cosTab   64 x f64: cos(pi m / 32), m = 0..63, written by Codec.install (used by the DCT processors)
   ;;  76/80/84 frame sums of the unstretched R, G, B averages in the LUT views, 88 their count (reset by render)
   ;;  92 steps    instructions per pixel for the CPU cores (256 by default)
@@ -27,6 +28,8 @@
   ;;
   ;; $cw is the cell width in bytes seen by every changer: 16, or 32 while a pair's joint cell is being changed.
   (global $cw (mut i32) (i32.const 16))
+  ;;  40 skipBits   bits of the pixel skipped before the LZ header is read (0..16)
+  ;;  52 cursorRead  the header value is taken mod this (the cursor read range V; 0 = no limit); the header is ceil log2 V bits wide
   ;;  (12..28 are unused by this decoder and kept for layout stability)
 
   ;; peek(w0, w1, bitpos, n): n (<= 16) bits LSB-first starting at bitpos, wrapping at 128
@@ -45,8 +48,8 @@
              (i32.sub (i32.shl (i32.const 1) (local.get $n)) (i32.const 1))))
 
   ;; decode(p, prm): expand the 128 bits at p into exactly outLen bytes.
-  ;; The first prm.headerBits bits (ceil log2 textLen) set a byte cursor into the dictionary (times prm.offsetUnit, 1 at that
-  ;; width; plus prm.cursorOffset; mod textLen, so values past the end wrap to the start).
+  ;; After prm.skipBits skipped bits, the next prm.headerBits bits (ceil log2 of the cursor read range V) set a byte cursor into the dictionary: the value mod V
+  ;; (times prm.offsetUnit, 1), plus the constant prm.cursorOffset, mod textLen, so values past the end wrap to the start.
   ;; Every command is a prefix-coded copy length (2..N bytes) followed by a 3-bit skip:
   ;; the cursor first skips that many bytes, then the copy is taken from the dictionary
   ;; at the cursor, which advances past it. Copies are the only source of output; the
@@ -72,11 +75,15 @@
     (if (result i32) (i32.eq (global.get $cw) (i32.const 16))
       (then (call $peek (local.get $w0) (local.get $w1) (local.get $off) (local.get $n)))
       (else (call $peekm (local.get $p) (local.get $off) (local.get $n)))))
-  ;; halfkind(kind): changers defined on exactly 128 bits (PDP-8, UNIVAC 1101, CDC 6600); a joint cell is handed
+  ;; halfkind(kind): changers defined on exactly 128 bits (PDP-8, UNIVAC 1101, CDC 6600, PIC1640, the JPEG block); a joint cell is handed
   ;; to them as two consecutive 16-byte cells. (The DCT scales with the cell width: 32 points on a joint cell.)
   (func $halfkind (param $k i32) (result i32)
-    (i32.or (i32.eq (local.get $k) (i32.const 19)) (i32.or (i32.eq (local.get $k) (i32.const 22)) (i32.eq (local.get $k) (i32.const 24)))))
+    (i32.or (i32.or (i32.or (i32.eq (local.get $k) (i32.const 19)) (i32.eq (local.get $k) (i32.const 30))) (i32.or (i32.eq (local.get $k) (i32.const 22)) (i32.eq (local.get $k) (i32.const 24)))) (i32.eq (local.get $k) (i32.const 38))))
 
+  ;; lz_cursor(h, prm): the start cursor from a header value h: (h mod cursorRead) * offsetUnit + cursorOffset, mod textLen
+  (func $lz_cursor (param $h i32) (param $prm i32) (result i32)
+    (if (i32.load offset=52 (local.get $prm)) (then (local.set $h (i32.rem_u (local.get $h) (i32.load offset=52 (local.get $prm))))))
+    (i32.rem_u (i32.add (i32.mul (local.get $h) (i32.load offset=44 (local.get $prm))) (i32.load offset=100 (local.get $prm))) (i32.load offset=32 (local.get $prm))))
   (func $decode (param $p i32) (param $prm i32) (result i32)
     (local $w0 i64) (local $w1 i64) (local $bp i32)
     (local $out i32) (local $L i32) (local $flags i32) (local $textLen i32) (local $text i32)
@@ -93,13 +100,17 @@
       (global.set $cw (i32.const 32))
       (return (local.get $cmds))))
     ;; changer 1 = Brainfuck on an empty tape, 2 = Brainfuck on a copy of the pixel,
-    ;; 3 = do nothing, 4 = invert, 5 = reverse bytes, 16 = add 17 (1 to the smallest byte, 17 to the next, 5 to the previous); 0 = LZ decompressor below
+    ;; 3 = do nothing, 4 = invert, 5 = reverse bytes, 16 = extremes (the largest byte loses 23, the next gains 11, the previous 13; the smallest the opposite); 0 = LZ decompressor below
     (if (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 16)) (then
       (return (call $simple (local.get $p) (local.get $prm) (i32.const 16)))))
     (if (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 17)) (then
       (return (call $dct (local.get $p) (local.get $prm) (i32.const 0)))))
     (if (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 18)) (then
       (return (call $dct (local.get $p) (local.get $prm) (i32.const 1)))))
+    (if (i32.or (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 41)) (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 42))) (then
+      (return (call $sortx (local.get $p) (local.get $prm) (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 42))))))   ;; 41 sort, 42 primes first
+    (if (i32.and (i32.ge_u (i32.load offset=72 (local.get $prm)) (i32.const 31)) (i32.le_u (i32.load offset=72 (local.get $prm)) (i32.const 40))) (then
+      (return (call $codec (local.get $p) (local.get $prm) (i32.load offset=72 (local.get $prm))))))   ;; 31..40: the decoders
     (if (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 6)) (then
       (return (call $z80 (local.get $p) (local.get $prm)))))
     (if (i32.ge_u (i32.load offset=72 (local.get $prm)) (i32.const 7)) (then
@@ -116,14 +127,9 @@
     (local.set $flags (i32.load offset=36 (local.get $prm)))
     (local.set $text (i32.sub (local.get $out) (local.get $textLen)))
     ;; header: cursor into the dictionary
-    (local.set $cursor (i32.rem_u
-      (i32.add
-        (i32.mul (call $pk (local.get $p) (local.get $w0) (local.get $w1) (i32.const 0) (i32.load offset=96 (local.get $prm)))
-                 (i32.load offset=44 (local.get $prm)))
-        (i32.load offset=100 (local.get $prm)))
-      (local.get $textLen)))
+    (local.set $cursor (call $lz_cursor (call $pk (local.get $p) (local.get $w0) (local.get $w1) (i32.load offset=40 (local.get $prm)) (i32.load offset=96 (local.get $prm))) (local.get $prm)))
     (i32.store offset=48 (local.get $prm) (local.get $cursor))
-    (local.set $bp (i32.load offset=96 (local.get $prm)))
+    (local.set $bp (i32.add (i32.load offset=40 (local.get $prm)) (i32.load offset=96 (local.get $prm))))
     (block $done (loop $cmd
       (br_if $done (i32.ge_u (local.get $pos) (local.get $L)))
       (br_if $done (i32.ge_u (local.get $bp) (i32.const 1024)))
@@ -163,7 +169,7 @@
   ;; file: 0..1 the bit position, 2 whether the start cursor has been read, 4..5 the dictionary cursor, 6 the output
   ;; position. Its memory is the joint cell at $zp ($cw bytes): the input bits are read from it as it stands, so its
   ;; own output can be read back as commands, and each command's copy is written at the output position, both
-  ;; positions wrapping like a CPU's addresses. The first step reads the header into the cursor; every later step
+  ;; positions wrapping like a CPU's addresses. The first step reads the header (after the skipped bits) into the cursor; every later step
   ;; reads one copy length and skip and copies that many dictionary bytes. Parameters from $prmg.
   (func $lz_step
     (local $prm i32) (local $bp i32) (local $cursor i32) (local $pos i32) (local $entry i32) (local $len i32) (local $textLen i32) (local $text i32)
@@ -172,11 +178,8 @@
     (local.set $text (i32.sub (i32.load (local.get $prm)) (local.get $textLen)))
     (local.set $bp (call $zr16 (i32.const 0)))
     (if (i32.eqz (call $zr (i32.const 2))) (then
-      (call $zw16 (i32.const 4) (i32.rem_u
-        (i32.add (i32.mul (call $peekm (global.get $zp) (i32.const 0) (i32.load offset=96 (local.get $prm))) (i32.load offset=44 (local.get $prm)))
-                 (i32.load offset=100 (local.get $prm)))
-        (local.get $textLen)))
-      (call $zw16 (i32.const 0) (i32.load offset=96 (local.get $prm)))
+      (call $zw16 (i32.const 4) (call $lz_cursor (call $peekm (global.get $zp) (i32.load offset=40 (local.get $prm)) (i32.load offset=96 (local.get $prm))) (local.get $prm)))
+      (call $zw16 (i32.const 0) (i32.add (i32.load offset=40 (local.get $prm)) (i32.load offset=96 (local.get $prm))))
       (call $zw (i32.const 2) (i32.const 1))
       (return)))
     (local.set $entry (i32.load (i32.add (i32.load offset=8 (local.get $prm))

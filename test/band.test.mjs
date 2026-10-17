@@ -122,7 +122,7 @@ for (const [W, H, K, kind, rounds, mode = 1] of [[32, 24, 3, 6, 40], [32, 32, 4,
     return f; };
   let same = true, counts = true;
   for (let t = 0; t < 12 && same; t++) {
-    const f = frame(t), p = { stages: 2, sharp: true, k0: t === 0 ? 65536 : 20000, k4: t === 0 ? 65536 : 12000, k8: t === 0 ? 65536 : 6000 };
+    const f = frame(t), p = { stages: 2, sp: 1, k0: t === 0 ? 65536 : 20000, k4: t === 0 ? 65536 : 12000, k8: t === 0 ? 65536 : 6000, k0s: t === 0 ? 65536 : 10000, k4s: t === 0 ? 65536 : 6000, k8s: t === 0 ? 65536 : 3000, ts: 0.25 };
     m8.set(f, FULL); const flatFull = Band.postFrame(ex, FULL, W, H, p, 0, H);
     let n4 = 0, n8 = 0;
     bands.forEach((b, k) => {
@@ -133,12 +133,12 @@ for (const [W, H, K, kind, rounds, mode = 1] of [[32, 24, 3, 6, 40], [32, 32, 4,
     });
     if (n4 !== flatFull.n4 || n8 !== flatFull.n8) counts = false;
   }
-  check(`render post-processing in ${bands.length} bands with ${Band.POST_HALO} halo rows equals the whole frame over 12 frames (two stages, tiers, sharpening)`, same);
+  check(`render post-processing in ${bands.length} bands with ${Band.POST_HALO} halo rows equals the whole frame over 12 frames (two stages, the slow stage, tiers, temporal and spatial sharpening)`, same);
   check('the flat-neighbourhood counts of the bands add up to the whole frame', counts);
   // two halo rows would not be enough: the band result then differs from the whole frame somewhere
   let sameWith2 = true;
   for (let t = 0; t < 12 && sameWith2; t++) {
-    const f = frame(t), p = { stages: 2, sharp: true, k0: t === 0 ? 65536 : 20000, k4: t === 0 ? 65536 : 12000, k8: t === 0 ? 65536 : 6000 };
+    const f = frame(t), p = { stages: 2, sp: 1, k0: t === 0 ? 65536 : 20000, k4: t === 0 ? 65536 : 12000, k8: t === 0 ? 65536 : 6000 };
     m8.set(f, FULL); Band.postFrame(ex, FULL, W, H, p, 0, H);
     bands.forEach((b, k) => {
       const hT = k > 0 ? 2 : 0, hB = k + 1 < bands.length ? 2 : 0, base = bandBase(k);

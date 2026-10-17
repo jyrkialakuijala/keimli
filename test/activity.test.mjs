@@ -15,9 +15,10 @@ const L = Codec.LAYOUT, W = 64, H = 64, N = W * H, GRID = L.GRID;
 if (GRID + 16 * N > memory.buffer.byteLength) memory.grow(4);
 const m8 = new Uint8Array(memory.buffer);
 const names = { 0: 'LZ decompressor', 1: 'Brainfuck (empty tape, not offered)', 2: 'Brainfuck (tape = pixel)', 3: 'do nothing', 4: 'invert', 5: 'reverse',
-  6: 'Z80', 7: '6502', 8: '8080', 9: 'Subleq', 10: 'CHIP-8', 11: '4004', 12: 'SM83', 13: '8051', 14: '6809', 15: 'RISC-V', 16: 'add 17 (1/17/5)', 17: 'DCT', 18: 'inverse DCT', 19: 'PDP-8', 20: 'PDP-11', 21: '68000', 22: 'UNIVAC 1101', 23: 'VAX-11/780', 24: 'CDC 6600' };
+  6: 'Z80', 7: '6502', 8: '8080', 9: 'Subleq', 10: 'CHIP-8', 11: '4004', 12: 'SM83', 13: '8051', 14: '6809', 15: 'RISC-V', 16: 'extremes (+-23/11/13)', 17: 'DCT', 18: 'inverse DCT', 19: 'PDP-8', 20: 'PDP-11', 21: '68000', 22: 'UNIVAC 1101', 23: 'VAX-11/780', 24: 'CDC 6600', 25: '68020', 26: '8086', 27: '80286', 28: '80386', 29: 'i860', 30: 'PIC1640',
+  31: 'prefix code', 32: 'Morse', 33: 'Deflate fixed', 34: 'LZ4', 35: 'Snappy', 36: 'Brotli-like', 37: 'PNG filters', 38: 'JPEG 4x4', 39: 'VP8 boolean', 40: 'Rice residuals', 41: 'sort bytes', 42: 'primes first' };
 const THRESHOLD = 0.05, idle = [], rows = [];
-for (let k = 0; k <= 24; k++) {
+for (let k = 0; k <= 42; k++) {
   io.setChanger(k);
   randomize(4 * N, GRID, 1234 + k);
   if (k === 1 || k === 2) for (let i = GRID; i < GRID + 16 * N; i++) m8[i] &= 7;   // Brainfuck wants command bytes
