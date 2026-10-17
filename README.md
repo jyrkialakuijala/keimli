@@ -12,7 +12,7 @@ plane by bit plane, and then inflate their own content: the 16 bytes are
 run through an LZ decompressor against a fixed dictionary (the US
 Declaration of Independence or one of seventeen short public-domain texts in
 many scripts, as UTF-8 bytes), a DCT, a
-Brainfuck interpreter, one of twenty-two emulated CPUs, or one of ten
+Brainfuck interpreter, one of twenty-four emulated CPUs, or one of ten
 decoders (Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse,
 Rice residuals, WebP's boolean decoder, PNG filters, a JPEG block), and
 whatever comes out becomes the cell's new content. The whole thing is an experiment in

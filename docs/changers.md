@@ -13,17 +13,18 @@ pixel's new content: the decompressed text, the Brainfuck tape, the memory
 a CPU left behind. `decode_pixel` runs it on one pixel for the inspector and
 the views without writing back.
 
-The "Changer" box picks a mode: none, a transform (second box: do nothing,
+The section's on/off box switches the rewrite off altogether; with it on,
+the "Changer" box picks a mode: none, a transform (second box: do nothing,
 invert, reverse, extremes, DCT, inverse DCT, the sorts), a decoder (second
 box: the LZ decompressor, the default, and the ten decoders of kinds 31 to
-40) or a CPU (second box: Brainfuck and the twenty-two machines; a "CPU
+40) or a CPU (second box: Brainfuck and the twenty-four machines; a "CPU
 steps" box appears with it).
 
 ## The entry point
 
 `$decode` in `decode.wat` dispatches on the changer number in the parameter
 block (`codec.js` keeps the numbering: 0 LZ, 1 and 2 Brainfuck (1 unused), 3 to 5 the
-simple transforms, 6 to 15 and 19 to 30 CPUs, 16 extremes, 17 and 18 DCT,
+simple transforms, 6 to 15, 19 to 30, 43 and 44 CPUs, 16 extremes, 17 and 18 DCT,
 31 to 40 decoders, 41 and 42 the sorts),
 and is itself the LZ decoder. The parameter block, output buffer, flags
 (one byte per output byte, for the inspector) and the dictionary are placed
@@ -296,7 +297,7 @@ configurations through it.
 ## Links: a persistent CPU per pair of neighbours
 
 With the "Cells" box on any pair joining, the CPU changers (Z80 and up,
-kinds 6 to 15 and 19 to 30) and the LZ decompressor (kind 0, one copy
+kinds 6 to 15, 19 to 30, 43 and 44) and the LZ decompressor (kind 0, one copy
 command a step) change regime. Instead of a fresh machine
 running 256 instructions over one cell, every link of the lattice has a
 machine of its own whose registers persist from round to round. A link is

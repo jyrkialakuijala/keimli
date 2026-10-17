@@ -30,10 +30,17 @@
     (local.set $x (i64.mul (i64.xor (local.get $x) (i64.shr_u (local.get $x) (i64.const 27))) (i64.const 0x94D049BB133111EB)))
     (i64.xor (local.get $x) (i64.shr_u (local.get $x) (i64.const 31))))
 
+  ;; decide(a, b, salt): the two 32-bit contexts of a position packed without regard to order, the smaller in the low
+  ;; word and the larger in the high (an injective key of the unordered pair), hashed once; plus the salt, mod 2^64.
+  (func $decide (param $a i64) (param $b i64) (param $salt i64) (result i64)
+    (i64.add (local.get $salt) (call $mix64 (i64.or
+      (select (local.get $a) (local.get $b) (i64.lt_u (local.get $a) (local.get $b)))
+      (i64.shl (select (local.get $b) (local.get $a) (i64.lt_u (local.get $a) (local.get $b))) (i64.const 32))))))
+
   ;; pair(p, q, d, thr, salt) -> the number of bits exchanged between pixels p and q.
   ;; The decision is taken on the snapshot copies of the two pixels at p + d and q + d (d = 0 decides on the
-  ;; live pixels): at every position where the snapshot pixels differ, hash(context of p) + hash(context of q)
-  ;; + salt (mod 2^64) is compared with thr, independent of pixel order, and each position below thr is
+  ;; live pixels): at every position where the snapshot pixels differ, the two contexts are combined without
+  ;; regard to order and hashed once ($decide), the salt added, and the sum compared with thr; each position below thr is
   ;; exchanged on its own: a uniform crossover at rate thr / 2^64. The exchanges are then applied to the live
   ;; pixels where they still differ (an earlier phase may have moved a bit already). thr = 0 never swaps and
   ;; thr = 2^64-1 exchanges every differing bit, so the two pixels change places, both without hashing.
@@ -51,9 +58,7 @@
       (block $lo (loop $l0
         (br_if $lo (i64.eqz (local.get $x)))
         (local.set $i (i32.wrap_i64 (i64.ctz (local.get $x))))
-        (if (i64.lt_u (i64.add (local.get $salt) (i64.add
-              (call $mix64 (call $ctx (local.get $a0) (local.get $a1) (local.get $i)))
-              (call $mix64 (call $ctx (local.get $b0) (local.get $b1) (local.get $i)))))
+        (if (i64.lt_u (call $decide (call $ctx (local.get $a0) (local.get $a1) (local.get $i)) (call $ctx (local.get $b0) (local.get $b1) (local.get $i)) (local.get $salt))
             (local.get $thr))
           (then (local.set $m (i64.or (local.get $m) (i64.shl (i64.const 1) (i64.extend_i32_u (local.get $i)))))))
         (local.set $x (i64.and (local.get $x) (i64.sub (local.get $x) (i64.const 1))))
@@ -71,9 +76,7 @@
       (block $hi (loop $l1
         (br_if $hi (i64.eqz (local.get $x)))
         (local.set $i (i32.wrap_i64 (i64.ctz (local.get $x))))
-        (if (i64.lt_u (i64.add (local.get $salt) (i64.add
-              (call $mix64 (call $ctx (local.get $a0) (local.get $a1) (i32.add (local.get $i) (i32.const 64))))
-              (call $mix64 (call $ctx (local.get $b0) (local.get $b1) (i32.add (local.get $i) (i32.const 64))))))
+        (if (i64.lt_u (call $decide (call $ctx (local.get $a0) (local.get $a1) (i32.add (local.get $i) (i32.const 64))) (call $ctx (local.get $b0) (local.get $b1) (i32.add (local.get $i) (i32.const 64))) (local.get $salt))
             (local.get $thr))
           (then (local.set $m (i64.or (local.get $m) (i64.shl (i64.const 1) (i64.extend_i32_u (local.get $i)))))))
         (local.set $x (i64.and (local.get $x) (i64.sub (local.get $x) (i64.const 1))))
@@ -202,12 +205,13 @@
   ;; majority(src, o, x, w, g, h, stride, nbr, off): bitwise majority over a neighbourhood of
   ;; the pixel at src + o (column x, global row g; off = 0 or 8 selects the i64 half).
   ;; nbr 0: the pixel and its 4-connected neighbours (5 votes, at least 3 set);
-  ;; nbr 1: the 3x3 block (9 votes, at least 5); nbr 2: the 5x5 block (25 votes, at least 13).
+  ;; nbr 1: the 3x3 block (9 votes, at least 5); nbr r >= 2: the (2r+1)x(2r+1) block (25, 49, 81, 121 votes for r = 2..5,
+  ;; at least 13, 25, 41, 61).
   ;; Coordinates are clamped to the grid, so a missing neighbour at an edge counts as the
   ;; nearest pixel (the pixel itself for the immediate neighbours). Bit-sliced counter.
   (func $majority (param $src i32) (param $o i32) (param $x i32) (param $w i32) (param $g i32) (param $h i32) (param $stride i32) (param $nbr i32) (param $off i32) (result i64)
-    (local $c0 i64) (local $c1 i64) (local $c2 i64) (local $c3 i64) (local $c4 i64) (local $v i64) (local $t i64)
-    (local $r i32) (local $dy i32) (local $dx i32) (local $yy i32) (local $xx i32) (local $rowo i32)
+    (local $c0 i64) (local $c1 i64) (local $c2 i64) (local $c3 i64) (local $c4 i64) (local $c5 i64) (local $c6 i64) (local $v i64) (local $t i64)
+    (local $r i32) (local $dy i32) (local $dx i32) (local $yy i32) (local $xx i32) (local $rowo i32) (local $T i32) (local $ge i64) (local $eq i64)
     (local.set $r (select (i32.const 1) (local.get $nbr) (i32.eqz (local.get $nbr))))
     (local.set $dy (i32.sub (i32.const 0) (local.get $r)))
     (block $ye (loop $yl (br_if $ye (i32.gt_s (local.get $dy) (local.get $r)))
@@ -226,12 +230,32 @@
           (local.set $t (i64.and (local.get $c1) (local.get $v))) (local.set $c1 (i64.xor (local.get $c1) (local.get $v))) (local.set $v (local.get $t))
           (local.set $t (i64.and (local.get $c2) (local.get $v))) (local.set $c2 (i64.xor (local.get $c2) (local.get $v))) (local.set $v (local.get $t))
           (local.set $t (i64.and (local.get $c3) (local.get $v))) (local.set $c3 (i64.xor (local.get $c3) (local.get $v))) (local.set $v (local.get $t))
-          (local.set $c4 (i64.xor (local.get $c4) (local.get $v)))))
+          (local.set $t (i64.and (local.get $c4) (local.get $v))) (local.set $c4 (i64.xor (local.get $c4) (local.get $v))) (local.set $v (local.get $t))
+          (local.set $t (i64.and (local.get $c5) (local.get $v))) (local.set $c5 (i64.xor (local.get $c5) (local.get $v))) (local.set $v (local.get $t))
+          (local.set $c6 (i64.xor (local.get $c6) (local.get $v)))))
         (local.set $dx (i32.add (local.get $dx) (i32.const 1))) (br $xl)))
       (local.set $dy (i32.add (local.get $dy) (i32.const 1))) (br $yl)))
-    (if (i32.eqz (local.get $nbr)) (then (return (i64.or (local.get $c2) (i64.and (local.get $c1) (local.get $c0))))))                         ;; >= 3
-    (if (i32.eq (local.get $nbr) (i32.const 1)) (then (return (i64.or (local.get $c3) (i64.and (local.get $c2) (i64.or (local.get $c1) (local.get $c0)))))))   ;; >= 5
-    (i64.or (local.get $c4) (i64.and (i64.and (local.get $c3) (local.get $c2)) (i64.or (local.get $c1) (local.get $c0)))))                      ;; >= 13
+    (if (i32.eqz (local.get $nbr)) (then (return (i64.or (local.get $c2) (i64.and (local.get $c1) (local.get $c0))))))                         ;; >= 3 of 5
+    (if (i32.eq (local.get $nbr) (i32.const 1)) (then (return (i64.or (local.get $c3) (i64.and (local.get $c2) (i64.or (local.get $c1) (local.get $c0)))))))   ;; >= 5 of 9
+    ;; (2r+1)^2 votes, a majority is T = 2r^2 + 2r + 1 or more (13 of 25, 25 of 49, 41 of 81, 61 of 121): compare the 7-bit
+    ;; bit-sliced count with T from the top bit down, ge = already greater, eq = equal so far
+    (local.set $T (i32.add (i32.add (i32.shl (i32.mul (local.get $r) (local.get $r)) (i32.const 1)) (i32.shl (local.get $r) (i32.const 1))) (i32.const 1)))
+    (local.set $eq (i64.const -1))
+    (local.set $v (local.get $c6)) (local.set $t (i64.extend_i32_s (i32.sub (i32.const 0) (i32.and (i32.shr_u (local.get $T) (i32.const 6)) (i32.const 1)))))
+    (local.set $ge (i64.or (local.get $ge) (i64.and (local.get $eq) (i64.and (local.get $v) (i64.xor (local.get $t) (i64.const -1)))))) (local.set $eq (i64.and (local.get $eq) (i64.xor (i64.xor (local.get $v) (local.get $t)) (i64.const -1))))
+    (local.set $v (local.get $c5)) (local.set $t (i64.extend_i32_s (i32.sub (i32.const 0) (i32.and (i32.shr_u (local.get $T) (i32.const 5)) (i32.const 1)))))
+    (local.set $ge (i64.or (local.get $ge) (i64.and (local.get $eq) (i64.and (local.get $v) (i64.xor (local.get $t) (i64.const -1)))))) (local.set $eq (i64.and (local.get $eq) (i64.xor (i64.xor (local.get $v) (local.get $t)) (i64.const -1))))
+    (local.set $v (local.get $c4)) (local.set $t (i64.extend_i32_s (i32.sub (i32.const 0) (i32.and (i32.shr_u (local.get $T) (i32.const 4)) (i32.const 1)))))
+    (local.set $ge (i64.or (local.get $ge) (i64.and (local.get $eq) (i64.and (local.get $v) (i64.xor (local.get $t) (i64.const -1)))))) (local.set $eq (i64.and (local.get $eq) (i64.xor (i64.xor (local.get $v) (local.get $t)) (i64.const -1))))
+    (local.set $v (local.get $c3)) (local.set $t (i64.extend_i32_s (i32.sub (i32.const 0) (i32.and (i32.shr_u (local.get $T) (i32.const 3)) (i32.const 1)))))
+    (local.set $ge (i64.or (local.get $ge) (i64.and (local.get $eq) (i64.and (local.get $v) (i64.xor (local.get $t) (i64.const -1)))))) (local.set $eq (i64.and (local.get $eq) (i64.xor (i64.xor (local.get $v) (local.get $t)) (i64.const -1))))
+    (local.set $v (local.get $c2)) (local.set $t (i64.extend_i32_s (i32.sub (i32.const 0) (i32.and (i32.shr_u (local.get $T) (i32.const 2)) (i32.const 1)))))
+    (local.set $ge (i64.or (local.get $ge) (i64.and (local.get $eq) (i64.and (local.get $v) (i64.xor (local.get $t) (i64.const -1)))))) (local.set $eq (i64.and (local.get $eq) (i64.xor (i64.xor (local.get $v) (local.get $t)) (i64.const -1))))
+    (local.set $v (local.get $c1)) (local.set $t (i64.extend_i32_s (i32.sub (i32.const 0) (i32.and (i32.shr_u (local.get $T) (i32.const 1)) (i32.const 1)))))
+    (local.set $ge (i64.or (local.get $ge) (i64.and (local.get $eq) (i64.and (local.get $v) (i64.xor (local.get $t) (i64.const -1)))))) (local.set $eq (i64.and (local.get $eq) (i64.xor (i64.xor (local.get $v) (local.get $t)) (i64.const -1))))
+    (local.set $v (local.get $c0)) (local.set $t (i64.extend_i32_s (i32.sub (i32.const 0) (i32.and (local.get $T) (i32.const 1)))))
+    (local.set $ge (i64.or (local.get $ge) (i64.and (local.get $eq) (i64.and (local.get $v) (i64.xor (local.get $t) (i64.const -1)))))) (local.set $eq (i64.and (local.get $eq) (i64.xor (i64.xor (local.get $v) (local.get $t)) (i64.const -1))))
+    (i64.or (local.get $ge) (local.get $eq)))
 
   ;; smooth_px(src, o, x, w, g, h, stride, nbr, d, thr, salt) -> bits changed. Writes the smoothed pixel to d.
   ;; thr = 0 copies the pixel unchanged and thr = 2^64-1 takes the majority outright, without hashing.
@@ -273,7 +297,7 @@
 
   ;; smooth_zone(w, src, dst, thrTab, gy0, h, a, b, ca, cb, salt, nbr) -> bits changed in rows [ca, cb). Smooths local rows [a, b)
   ;; of a buffer whose local row 0 is global row gy0, reading up to R rows above a and below b (R = 1 for
-  ;; nbr 0 and 1, 2 for nbr 2), which must exist in the buffer unless they lie outside the grid. Coordinates
+  ;; nbr 0 and 1, r for nbr r >= 2), which must exist in the buffer unless they lie outside the grid. Coordinates
   ;; are clamped to the grid. Synchronous: reads src, writes dst. thrTab is indexed by global row.
   (func $smooth_zone (export "smooth_zone") (param $w i32) (param $src i32) (param $dst i32) (param $thrTab i32) (param $gy0 i32) (param $h i32) (param $a i32) (param $b i32) (param $ca i32) (param $cb i32) (param $salt i64) (param $nbr i32) (result i32)
     (local $x i32) (local $r i32) (local $g i32) (local $o i32) (local $changed i32) (local $row i32) (local $stride i32) (local $thr i64) (local $inc i32)

@@ -31,21 +31,23 @@
     (local.set $v (i32.add (local.get $m) (i32.mul (i32.sub (local.get $c) (local.get $m)) (local.get $gain))))
     (select (i32.const 0) (select (i32.const 255) (local.get $v) (i32.gt_s (local.get $v) (i32.const 255))) (i32.lt_s (local.get $v) (i32.const 0))))
 
-  ;; lutavg(ptr, prm, meanOff): sum the 16 LUT entries (4 bits per channel, R at bit 0, G at 8,
-  ;; B at 16) of the 16 bytes at ptr; the per-channel sums (0..240) are scaled to 0..255, added to
+  ;; lutavg(ptr, prm, meanOff): average the 16 LUT entries (8 bits per channel, R at bit 0, G at 8,
+  ;; B at 16) of the 16 bytes at ptr, channel by channel with rounding; the averages are added to
   ;; the frame accumulators (prm 76/80/84, count at 88) so the host can derive the frame's mean,
   ;; then stretched by prm.gain around the packed 8-bit mean at prm[meanOff].
   (func $lutavg (param $ptr i32) (param $prm i32) (param $meanOff i32) (result i32)
-    (local $i i32) (local $sum i32) (local $r i32) (local $g i32) (local $b i32) (local $mean i32) (local $gain i32)
+    (local $i i32) (local $e i32) (local $r i32) (local $g i32) (local $b i32) (local $mean i32) (local $gain i32)
     (block $exit (loop $loop
       (br_if $exit (i32.ge_u (local.get $i) (i32.const 16)))
-      (local.set $sum (i32.add (local.get $sum)
-        (i32.load (i32.add (i32.load offset=56 (local.get $prm)) (i32.shl (i32.load8_u (i32.add (local.get $ptr) (local.get $i))) (i32.const 2))))))
+      (local.set $e (i32.load (i32.add (i32.load offset=56 (local.get $prm)) (i32.shl (i32.load8_u (i32.add (local.get $ptr) (local.get $i))) (i32.const 2)))))
+      (local.set $r (i32.add (local.get $r) (i32.and (local.get $e) (i32.const 255))))
+      (local.set $g (i32.add (local.get $g) (i32.and (i32.shr_u (local.get $e) (i32.const 8)) (i32.const 255))))
+      (local.set $b (i32.add (local.get $b) (i32.and (i32.shr_u (local.get $e) (i32.const 16)) (i32.const 255))))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $loop)))
-    (local.set $r (i32.shr_u (i32.mul (i32.and (local.get $sum) (i32.const 255)) (i32.const 17)) (i32.const 4)))
-    (local.set $g (i32.shr_u (i32.mul (i32.and (i32.shr_u (local.get $sum) (i32.const 8)) (i32.const 255)) (i32.const 17)) (i32.const 4)))
-    (local.set $b (i32.shr_u (i32.mul (i32.and (i32.shr_u (local.get $sum) (i32.const 16)) (i32.const 255)) (i32.const 17)) (i32.const 4)))
+    (local.set $r (i32.shr_u (i32.add (local.get $r) (i32.const 8)) (i32.const 4)))   ;; the rounded mean of 16
+    (local.set $g (i32.shr_u (i32.add (local.get $g) (i32.const 8)) (i32.const 4)))
+    (local.set $b (i32.shr_u (i32.add (local.get $b) (i32.const 8)) (i32.const 4)))
     (i32.store offset=76 (local.get $prm) (i32.add (i32.load offset=76 (local.get $prm)) (local.get $r)))
     (i32.store offset=80 (local.get $prm) (i32.add (i32.load offset=80 (local.get $prm)) (local.get $g)))
     (i32.store offset=84 (local.get $prm) (i32.add (i32.load offset=84 (local.get $prm)) (local.get $b)))
@@ -60,10 +62,20 @@
   ;; render(n, grid, pix, pal, mode, prm):
   ;;   mode 0: decode each pixel; R, G, B = hash of the first, middle and last third of the output
   ;;   mode 1: raw bits: R = hash(bits 0..15), G = hash(16..31), B = hash(32..47)
-  ;;   mode 2: decode; colour by the pixel's dictionary cursor offset (129-entry palette)
+  ;;   mode 2: decode; colour by the pixel's dictionary cursor (129-entry palette) within its range: the cursor less the
+  ;;           constant offset, as a fraction of the cursor read range V (the whole text when V is 0 or larger than it)
   ;;   mode 3: bit density in thirds: set bits of positions 0-42, 43-85, 86-127 scaled to R, G, B
   ;;   mode 4: average of the byte-colour LUT (prm.lut) over the pixel's 16 raw bytes
   ;;   mode 5: the same over the 16 decoded bytes
+  ;; cursor_idx(prm): palette index 0..128 of the last decoded pixel's cursor (prm.lastOffset) within the cursor read range
+  (func $cursor_idx (param $prm i32) (result i32)
+    (local $tl i32) (local $v i32) (local $c i32) (local $k i32)
+    (local.set $tl (i32.load offset=32 (local.get $prm)))
+    (local.set $v (i32.load offset=52 (local.get $prm)))
+    (if (i32.or (i32.eqz (local.get $v)) (i32.gt_u (local.get $v) (local.get $tl))) (then (local.set $v (local.get $tl))))
+    (local.set $c (i32.rem_u (i32.add (i32.sub (i32.add (i32.load offset=48 (local.get $prm)) (local.get $tl)) (i32.rem_u (i32.load offset=100 (local.get $prm)) (local.get $tl))) (local.get $tl)) (local.get $tl)))   ;; the cursor less the offset, mod the text
+    (local.set $k (i32.div_u (i32.shl (local.get $c) (i32.const 7)) (local.get $v)))
+    (select (i32.const 128) (local.get $k) (i32.gt_u (local.get $k) (i32.const 128))))
   (func (export "render") (param $n i32) (param $grid i32) (param $pix i32) (param $pal i32) (param $mode i32) (param $prm i32)
     (local $i i32) (local $p i32) (local $w0 i64) (local $w1 i64) (local $out i32) (local $L i32) (local $third i32)
     (local.set $out (i32.load (local.get $prm)))
@@ -100,8 +112,7 @@
               (then
                 (drop (call $decode (local.get $p) (local.get $prm)))
                 (i32.load (i32.add (local.get $pal) (i32.shl
-                  (i32.div_u (i32.shl (i32.load offset=48 (local.get $prm)) (i32.const 7))
-                             (i32.load offset=32 (local.get $prm)))
+                  (call $cursor_idx (local.get $prm))
                   (i32.const 2)))))
               (else   ;; mode 3: set-bit counts of bits 0-42, 43-85, 86-127 as R, G, B
                 (local.set $w1 (i64.load offset=8 (local.get $p)))
@@ -212,6 +223,69 @@
       (i32.store (local.get $p) (i32.or (i32x4.extract_lane 0 (i8x16.narrow_i16x8_u (i16x8.narrow_i32x4_u (local.get $a) (local.get $a)) (local.get $a))) (i32.const 0xff000000)))
       (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $il)))
     (i64.or (i64.shl (i64.extend_i32_u (local.get $n4)) (i64.const 32)) (i64.extend_i32_u (local.get $n8))))
+
+  ;; cycle(w, h, pix, hist, reset, t, share, push) -> the number of cycling pixels: a pixel whose colour jumps far from
+  ;; the previous frame's while a closer colour stands 2 to 8 frames back is taken to cycle with that period k, and the
+  ;; temporal averaging is fed a mix of the cycle's mean colour and one phase of the cycle chosen by the column,
+  ;; share/256 of the phase and the rest of the mean (per channel, rounded to the nearest): pixel x's phase is the
+  ;; colour the cycle had at the frame whose number is x mod k (frame t being the current one), so a cycling pixel
+  ;; shows a steady colour near its mean, a region of in-phase oscillators shows faint stripes k pixels wide with the
+  ;; cycle's colours in turn, and a phase shift between neighbours shows as a shift of the stripes. hist holds the
+  ;; nine last raw frames' colours per pixel (36 bytes: h0 the current, h1 the previous, ... h8): with push = 1 the
+  ;; frame as it came in is pushed in first (a new turn), with push = 0 the stored frames are used as they are (a
+  ;; redraw of the same turn, which then gives the same result again); reset = 1 clears the history first and pushes.
+  ;; Distances are the sum of the three channel differences (0..765): with d1 = d(c, h1) at least FAR (32), the
+  ;; smallest of d2 .. d8 = d(c, h2 .. h8) below d1 (the shortest period on a tie) picks k; the phase is h_lag with
+  ;; the lag (t - x) mod k, and the mean runs over h0 .. h_(k-1). Alpha becomes 255.
+  (func $cdist (param $a i32) (param $b i32) (result i32)   ;; sum of absolute channel differences
+    (local $d i32) (local $ch i32) (local $x i32)
+    (block $e (loop $l (br_if $e (i32.ge_u (local.get $ch) (i32.const 24)))
+      (local.set $x (i32.sub (i32.and (i32.shr_u (local.get $a) (local.get $ch)) (i32.const 255)) (i32.and (i32.shr_u (local.get $b) (local.get $ch)) (i32.const 255))))
+      (local.set $d (i32.add (local.get $d) (select (i32.sub (i32.const 0) (local.get $x)) (local.get $x) (i32.lt_s (local.get $x) (i32.const 0)))))
+      (local.set $ch (i32.add (local.get $ch) (i32.const 8))) (br $l)))
+    (local.get $d))
+  (func $cyc_mix (param $q i32) (param $k i32) (param $ph i32) (param $share i32) (result i32)   ;; per channel: ((256 - share) * mean of h0..h(k-1) + share * phase)
+    (local $ch i32) (local $o i32) (local $sum i32) (local $j i32) (local $v i32)
+    (block $e (loop $l (br_if $e (i32.ge_u (local.get $ch) (i32.const 24)))
+      (local.set $sum (i32.const 0)) (local.set $j (i32.const 0))
+      (block $je (loop $jl (br_if $je (i32.ge_u (local.get $j) (local.get $k)))
+        (local.set $sum (i32.add (local.get $sum) (i32.and (i32.shr_u (i32.load (i32.add (local.get $q) (i32.shl (local.get $j) (i32.const 2)))) (local.get $ch)) (i32.const 255))))
+        (local.set $j (i32.add (local.get $j) (i32.const 1))) (br $jl)))
+      ;; out = ((256 - share) * sum + share * phase * k + 128 k) / (256 k)
+      (local.set $v (i32.div_u (i32.add (i32.add (i32.mul (i32.sub (i32.const 256) (local.get $share)) (local.get $sum)) (i32.mul (i32.mul (local.get $share) (i32.and (i32.shr_u (local.get $ph) (local.get $ch)) (i32.const 255))) (local.get $k))) (i32.shl (local.get $k) (i32.const 7))) (i32.shl (local.get $k) (i32.const 8))))
+      (local.set $o (i32.or (local.get $o) (i32.shl (local.get $v) (local.get $ch))))
+      (local.set $ch (i32.add (local.get $ch) (i32.const 8))) (br $l)))
+    (local.get $o))
+  (func (export "cycle") (param $w i32) (param $h i32) (param $pix i32) (param $hist i32) (param $reset i32) (param $t i32) (param $share i32) (param $push i32) (result i32)
+    (local $i i32) (local $n i32) (local $x i32) (local $p i32) (local $q i32) (local $c i32) (local $o i32) (local $cnt i32) (local $d1 i32) (local $dj i32) (local $best i32) (local $j i32) (local $k i32) (local $lag i32)
+    (local.set $n (i32.mul (local.get $w) (local.get $h)))
+    (if (local.get $reset) (then (memory.fill (local.get $hist) (i32.const 0) (i32.mul (local.get $n) (i32.const 36))) (local.set $push (i32.const 1))))   ;; a cleared history takes the frame first, whatever push says
+    (block $e (loop $l (br_if $e (i32.ge_u (local.get $i) (local.get $n)))
+      (local.set $p (i32.add (local.get $pix) (i32.shl (local.get $i) (i32.const 2))))
+      (local.set $q (i32.add (local.get $hist) (i32.mul (local.get $i) (i32.const 36))))
+      (if (local.get $push) (then   ;; a new turn: the raw frame goes to the front of the history
+        (local.set $j (i32.const 8))
+        (block $se (loop $sl (br_if $se (i32.eqz (local.get $j)))
+          (i32.store (i32.add (local.get $q) (i32.shl (local.get $j) (i32.const 2))) (i32.load (i32.add (local.get $q) (i32.shl (i32.sub (local.get $j) (i32.const 1)) (i32.const 2)))))
+          (local.set $j (i32.sub (local.get $j) (i32.const 1))) (br $sl)))
+        (i32.store (local.get $q) (i32.and (i32.load (local.get $p)) (i32.const 0xffffff)))))
+      (local.set $c (i32.load (local.get $q)))
+      (local.set $o (local.get $c)) (local.set $k (i32.const 0))
+      (local.set $d1 (call $cdist (local.get $c) (i32.load offset=4 (local.get $q))))
+      (if (i32.ge_u (local.get $d1) (i32.const 32)) (then   ;; far from the previous frame: the closest colour 2..8 frames back, if closer than that
+        (local.set $best (local.get $d1)) (local.set $j (i32.const 2))
+        (block $ke (loop $kl (br_if $ke (i32.gt_u (local.get $j) (i32.const 8)))
+          (local.set $dj (call $cdist (local.get $c) (i32.load (i32.add (local.get $q) (i32.shl (local.get $j) (i32.const 2))))))
+          (if (i32.lt_u (local.get $dj) (local.get $best)) (then (local.set $best (local.get $dj)) (local.set $k (local.get $j))))
+          (local.set $j (i32.add (local.get $j) (i32.const 1))) (br $kl)))))
+      (if (local.get $k) (then
+        (local.set $x (i32.rem_u (local.get $i) (local.get $w)))
+        (local.set $lag (i32.rem_u (i32.add (i32.rem_u (i32.sub (local.get $t) (local.get $x)) (local.get $k)) (local.get $k)) (local.get $k)))   ;; (t - x) mod k, non-negative (t - x is signed)
+        (local.set $o (call $cyc_mix (local.get $q) (local.get $k) (i32.load (i32.add (local.get $q) (i32.shl (local.get $lag) (i32.const 2)))) (local.get $share)))
+        (local.set $cnt (i32.add (local.get $cnt) (i32.const 1)))))
+      (i32.store (local.get $p) (i32.or (local.get $o) (i32.const 0xff000000)))
+      (local.set $i (i32.add (local.get $i) (i32.const 1))) (br $l)))
+    (local.get $cnt))
 
   ;; unsharp(n, pix, acc2, acc3, w): the frame composed from two stages' accumulators, per channel
   ;; pix = (1 - w) acc2 + w acc3 = acc2 + w (acc3 - acc2), rounded and clamped to 0..255 (the saturating

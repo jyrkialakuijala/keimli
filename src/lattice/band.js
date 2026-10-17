@@ -29,13 +29,13 @@ const Band = (() => {
   // an up-down phase, or a left-right phase whose leftover columns pair up and down, invalidates a
   // zone-edge row whose partner lies outside, and with the fixed order that happens at most twice.
   // Each smoothing pass costs R rows per side, R = radius(nbr): 1 for the 4- and 8-connected
-  // neighbourhoods, 2 for 5x5. Kept even so the parity argument holds.
-  const radius = nbr => nbr === 2 ? 2 : 1;
+  // neighbourhoods, r for the (2r+1)x(2r+1) blocks (nbr 2..5). Kept even so the parity argument holds.
+  const radius = nbr => nbr >= 2 ? nbr : 1;   // nbr 0 and 1: the cross and the 3x3; nbr r >= 2: the (2r+1)x(2r+1) square
   const depthFor = (passes, nbr = 0) => { const n = radius(nbr) * passes; return 2 + n + (n & 1); };
   // st = { wasm, W, H, y0, rows, D, GRID, GRID2, PRM, THR, THRY }
   // msg = { haloTop, haloBottom (Uint8Array of D rows or null at the grid edge), order (the turn's four phase ids), alt (the turn parity, for the edge pairs), passes,
   //         thrSwap (BigUint64Array W), thrSmooth (BigUint64Array H), salts (BigInt per step), changer (bool), pair ({ mode, flip }),
-  //         nbr (smoothing neighbourhood 0 cross / 1 3x3 / 2 5x5), mut ({ lam, salt }: expected flips per pixel as 32.32
+  //         nbr (smoothing neighbourhood 0 cross / 1 3x3 / r = 2..5 the (2r+1)x(2r+1) block), mut ({ lam, salt }: expected flips per pixel as 32.32
   //         fixed-point BigInt, and this turn's salt; absent or lam 0 for no mutation) }
   // runTurn = runHead (the swap phases and the smoothing passes) + runTail (the changer and the mutation); the worker
   // runs the link rounds in between when links are on, see linkBand.
@@ -118,19 +118,25 @@ const Band = (() => {
   }
   // ---- render post-processing, shared by the page (single-thread engine) and the band workers ----
   // A frame of w x h RGBA pixels at base is followed by three sets of accumulators (one v128 a pixel: the channels
-  // as f32 lanes) and a 4-byte scratch copy: POST_BYTES per pixel in all. p = { stages (0..2), sp, k0, k4, k8,
-  // ts, k0s, k4s, k8s } comes from the page, which decides the per-frame constants; rows [cy0, cy1) are the ones
+  // as f32 lanes), a 4-byte scratch copy and the nine last raw colours of the pixel (36 bytes, for the cycle
+  // detection of periods 2 to 8): POST_BYTES per pixel in all. p = { stages (0..2), sp, k0, k4, k8,
+  // ts, k0s, k4s, k8s, turn, dt, cph } comes from the page, which decides the per-frame constants; rows [cy0, cy1) are the ones
   // counted as flat. With a temporal sharpening ts other than 0 a slow stage blends the last averaging stage's output
   // (the frame itself when there is none) at its own constants k0s, k4s, k8s (twice the half-time) and the frame is
   // composed from the last and the slow accumulators as (1 + ts) last - ts slow. Nothing runs when both are off.
   // A band processes its own rows plus POST_HALO neighbour rows on each side: each stage's flatness test reads one
   // row beyond a pixel of the previous stage's output and the spatial sharpening one more, so four correct
   // neighbour rows make a band's own rows identical to a whole-frame run.
-  const POST_HALO = 4, POST_BYTES = 56;
+  const POST_HALO = 4, POST_BYTES = 92;
   function postFrame(wasm, base, w, h, p, cy0 = 0, cy1 = h) {
-    const n = w * h, acc1 = base + 4 * n, acc2 = acc1 + 16 * n, acc3 = acc2 + 16 * n, scratch = acc3 + 16 * n;
+    const n = w * h, acc1 = base + 4 * n, acc2 = acc1 + 16 * n, acc3 = acc2 + 16 * n, scratch = acc3 + 16 * n, hist = scratch + 4 * n;
     let flat = null;
     if (p.stages || p.ts) {
+      // a pixel cycling with a period of 2 to 8 shows its cycle's mean mixed with cph/256 of the phase its column selects (x mod k at
+      // frame turn) before the averaging sees it. p.dt is the number of turns since the last frame: 1 pushes the raw frame into the
+      // history, 0 (a redraw of the same turn) reuses the history as it is, more than 1 clears it first
+      const dt = p.dt ?? 1, clear = p.reset || dt > 1;
+      wasm.cycle(w, h, base, hist, clear ? 1 : 0, p.turn | 0, p.cph ?? 31, dt === 0 && !clear ? 0 : 1);   // a cleared history always takes the frame first
       // with no averaging stage the first accumulator takes an exact copy of the frame (k = 65536), so the sharpening works against the raw frame
       const r = p.stages ? wasm.blend(w, h, base, acc1, p.k0, p.k4, p.k8, cy0, cy1) : wasm.blend(w, h, base, acc1, 65536, 65536, 65536, cy0, cy1);
       if (p.stages > 1) wasm.blend(w, h, base, acc2, p.k0, p.k4, p.k8, cy0, cy1);   // the second stage reads the first stage's output
@@ -153,12 +159,15 @@ const Band = (() => {
   }
   // Probability p as a 64-bit threshold (p * 2^64); 0 and 1 are exact so the kernels can skip hashing.
   const toThreshold = p => p <= 0 ? 0n : p >= 1 ? (1n << 64n) - 1n : BigInt(Math.round(p * 2 ** 32)) << 32n;
-  // Linear gradient of n thresholds from probability a at one edge of the image to b at the other,
-  // sampled at pixel centres: entry i is a + (b - a) * (i + 0.5) / n, so no pixel sits at exactly a or b
-  // and the first and last columns (or rows) are not frozen when an edge value is 0.
-  const gradient = (a, b, n, f = v => v) => { const tab = new BigUint64Array(n); for (let i = 0; i < n; i++) tab[i] = toThreshold(f(a + (b - a) * (i + 0.5) / n)); return tab; };
+  // Gradient of n thresholds from probability a at one edge of the image to b at the other, sampled at pixel
+  // centres: entry i is at t = (i + 0.5) / n of the way, so no pixel sits at exactly a or b and the first and last
+  // columns (or rows) are not frozen when an edge value is 0. The position can be shaped by a power: t is taken
+  // to u = 2t - 1 in [-1, 1], |u| is raised to pow and the sign put back, so pow < 1 makes the gradient steep at the
+  // centre and flat towards the edges (more of the lattice near the edge values), pow > 1 the opposite, pow = 1 linear.
+  const shape = (t, pow) => { const u = 2 * t - 1; return (Math.sign(u) * Math.abs(u) ** pow + 1) / 2; };
+  const gradient = (a, b, n, f = v => v, pow = 1) => { const tab = new BigUint64Array(n); for (let i = 0; i < n; i++) tab[i] = toThreshold(f(a + (b - a) * shape((i + 0.5) / n, pow))); return tab; };
   // The swap slider p -> the per-position exchange rate 2 p (1 - p): p = 0 and p = 1 are the identity (exchanging every
   // differing bit only swaps the two pixels' places), p = 1/2 the maximal mixing, half of the differing bits crossing over.
   const mixRate = p => 2 * p * (1 - p);
-  return { PHASE_NAMES, ORDER, order, orderName, edgeParity, leftover, radius, depthFor, runTurn, runHead, runTail, linkBand, linkStateBytes, edges, split, toThreshold, gradient, mixRate, POST_HALO, POST_BYTES, postFrame };
+  return { PHASE_NAMES, ORDER, order, orderName, edgeParity, leftover, radius, depthFor, runTurn, runHead, runTail, linkBand, linkStateBytes, edges, split, toThreshold, gradient, shape, mixRate, POST_HALO, POST_BYTES, postFrame };
 })();

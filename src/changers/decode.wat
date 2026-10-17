@@ -115,7 +115,7 @@
       (return (call $codec (local.get $p) (local.get $prm) (i32.load offset=72 (local.get $prm))))))   ;; 31..40: the decoders
     (if (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 6)) (then
       (return (call $z80 (local.get $p) (local.get $prm)))))
-    (if (i32.ge_u (i32.load offset=72 (local.get $prm)) (i32.const 7)) (then
+    (if (i32.ge_u (i32.load offset=72 (local.get $prm)) (i32.const 7)) (then   ;; 7..30 and 43: the CPU driver
       (return (call $cpu (local.get $p) (local.get $prm) (i32.load offset=72 (local.get $prm))))))
     (if (i32.ge_u (i32.load offset=72 (local.get $prm)) (i32.const 3)) (then
       (return (call $simple (local.get $p) (local.get $prm) (i32.load offset=72 (local.get $prm))))))

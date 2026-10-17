@@ -138,7 +138,7 @@ const Codec = (() => {
   // Mean LUT colour (packed 8-bit channels) under a byte distribution given as 256 weights.
   function lutMean(lut, weights) {
     let r = 0, g = 0, b = 0, n = 0;
-    for (let v = 0; v < 256; v++) { const wgt = weights[v]; if (!wgt) continue; const e = lut[v]; r += wgt * (e & 15) * 17; g += wgt * ((e >> 8) & 15) * 17; b += wgt * ((e >> 16) & 15) * 17; n += wgt; }
+    for (let v = 0; v < 256; v++) { const wgt = weights[v]; if (!wgt) continue; const e = lut[v]; r += wgt * (e & 255); g += wgt * ((e >> 8) & 255); b += wgt * ((e >> 16) & 255); n += wgt; }
     return Math.round(r / n) | (Math.round(g / n) << 8) | (Math.round(b / n) << 16);
   }
 
@@ -176,43 +176,51 @@ const Codec = (() => {
     return io;
   }
 
-  // Byte-colour LUT, 4 bits per channel packed as R | G << 8 | B << 16 so 16 entries can be
-  // summed without carries. Designed around the dictionary's alphabet: a-z take the whole hue
-  // circle in order at full saturation, A-Z are pastel versions of the same hue as their lowercase
-  // letter, digits and punctuation are light neutral tones, space is white and newline light grey.
-  // Byte values 0-7, the Brainfuck commands, get eight vivid hues of their own. Every other byte
-  // value is coloured by its Z80 opcode class (x = bits 7-6, y = bits 5-3, z = bits 2-0): teal for
-  // the x=0 loads/inc/dec/rotates/jumps, blue for LD r,r', red-to-orange for the ALU block, violet
-  // for control flow and stack, pale lilac for the CB/DD/ED/FD prefixes; all kept darker than letters.
-  function byteLut(dictBytes) {
-    const hsl = (h, s, l) => { const f = n => { const k = (n + h / 30) % 12, a = s * Math.min(l, 1 - l); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return [f(0), f(8), f(4)]; };
-    const pack = rgb => rgb.map(v => Math.max(0, Math.min(15, Math.round(v * 15)))).reduce((acc, q, k) => acc | (q << (8 * k)), 0);
-    const inDict = new Uint8Array(256); if (dictBytes) for (const b of dictBytes) inDict[b] = 1;
-    const lut = new Uint32Array(256);
-    let punct = 0;
-    for (let v = 0; v < 256; v++) {
-      let rgb;
-      if (v < 8) rgb = hsl(v * 45 + 10, 0.9, 0.55);                                        // 0-7: the eight Brainfuck commands, eight hues
-      else if (v >= 97 && v <= 122) rgb = hsl((v - 97) * 360 / 26, 0.9, 0.5);            // a-z: the full hue circle
-      else if (v >= 65 && v <= 90) rgb = hsl((v - 65) * 360 / 26, 0.85, 0.74);           // A-Z: pastel of the same hue
-      else if (v === 32) rgb = [0.95, 0.95, 0.95];                                        // space
-      else if (v === 10 || v === 13) rgb = [0.8, 0.8, 0.84];                              // newline
-      else if (v >= 48 && v <= 57) rgb = hsl(200 + (v - 48) * 16, 0.25, 0.68);           // digits: cool light neutrals
-      else if (inDict[v]) rgb = hsl(30 + 37 * punct++, 0.18, 0.5 + 0.04 * (punct % 4));  // punctuation: warm mid neutrals
-      else {                                                                                // everything else: coloured by Z80 opcode class
-        const x = v >> 6, y = (v >> 3) & 7, z = v & 7;
-        if (v === 0xCB || v === 0xDD || v === 0xED || v === 0xFD) rgb = [0.92, 0.84, 0.95];   // prefixes: pale lilac
-        else if (x === 0) rgb = hsl(165 + z * 7, 0.55, 0.30 + 0.04 * y);                    // loads, inc/dec, rotates, jumps: teal
-        else if (x === 1) rgb = hsl(215 + z * 4, 0.45, 0.34 + 0.04 * y);                    // LD r,r': blue
-        else if (x === 2) rgb = hsl(y * 7, 0.75, 0.32 + 0.04 * z);                           // ALU: ADD..CP across red to orange
-        else rgb = hsl(275 + z * 8, 0.55, 0.30 + 0.04 * y);                                  // control flow, stack, I/O: violet
-      }
-      lut[v] = pack(rgb);
-    }
-    return lut;
-  }
+  // Byte-colour LUT, 8 bits per channel packed as R | G << 8 | B << 16. The 256 colours come from
+  // tools/palette.py: 257 points spread through the RGB cube by maximising the sum over colours of
+  // sqrt(sqrt(distance to the nearest other colour)), with the eight corners pinned, so the closest
+  // pairs are pushed apart first and the smallest gap ends near the sphere-packing limit (44.5 of
+  // 255); white is one of the pinned points but is kept out of the table, so no byte is white and
+  // every byte shows against a white page. Which byte value gets which colour is optimised against the
+  // dictionaries: for each one, the byte values making up at least 0.2 % of its text form a working set,
+  // and simulated annealing over swaps maximises the frequency-weighted sum of sqrt(sqrt(distance to the
+  // nearest colour of another byte in the set)), summed over all dictionaries, so the Latin letters of the
+  // Declaration and the UTF-8 bytes of the Chinese, Armenian, Cyrillic, Arabic ... texts each get a broad mix.
+  const BYTE_PALETTE = new Uint32Array([
+    0xbc6759, 0xff9eb0, 0x524b00, 0xac0079, 0xff5736, 0xcfdcff, 0xbf392c, 0xd3ffa7,
+    0x4500d3, 0x92292c, 0x0000ff, 0x71007f, 0xa6bdff, 0x9f8c56, 0xd6d84c, 0xd4ff2a,
+    0xafd470, 0xa9cfa2, 0x5affb9, 0x7dcd80, 0xd9ff6e, 0x55aad2, 0x94ff2c, 0x93d64c,
+    0x9150a8, 0x9200ff, 0xd0aaa1, 0xcf847e, 0xa7a781, 0xa6dbd9, 0x30002b, 0xdc7baf,
+    0xffff00, 0xffb14c, 0xbf2dd4, 0x516d2d, 0x420085, 0x81bad9, 0xffc9cf, 0x0077d5,
+    0x7f822c, 0xb2ff52, 0x552e7b, 0xd36b2d, 0x00d775, 0x004286, 0x49b850, 0xd978ff,
+    0x0045d4, 0x2dffa8, 0x8c277b, 0x52292a, 0xceffdb, 0xaa86a9, 0xd78c00, 0xbe56ae,
+    0xdb5489, 0xff815c, 0x00a8d2, 0x2b90d2, 0x230061, 0x0000ce, 0x00312f, 0x2545ab,
+    0xa90036, 0x2847ff, 0xff79d4, 0x7933ff, 0xb38f2a, 0x2b887b, 0x002fff, 0x819d00,
+    0x4929ff, 0x279b50, 0xd30022, 0x007281, 0x0091ff, 0x557481, 0x77517f, 0xa97900,
+    0x740027, 0x7977a7, 0x2525d7, 0x2f00ff, 0x5595a7, 0xa5ffb9, 0x2b77ff, 0xd05600,
+    0x797159, 0x8e2bd0, 0xa82bff, 0xaf2456, 0x702a52, 0x002262, 0x302f53, 0x92d200,
+    0xa2602c, 0x000000, 0x00c3ff, 0x57ffff, 0x000089, 0xff00ff, 0x55c9a6, 0x00ffc0,
+    0xff0076, 0xff778e, 0x7c927e, 0x80ffdb, 0x008300, 0xff0000, 0xffc6ff, 0xffff8e,
+    0x8987d4, 0x5559ff, 0xff6e00, 0x00ff00, 0x7e6300, 0x880057, 0x80ff64, 0x742ba5,
+    0x335ad4, 0x2e75a8, 0x809fff, 0xab28a5, 0x81ff98, 0xdb55d7, 0xb3d627, 0xd4904d,
+    0x0060ff, 0xa7ffff, 0xadff85, 0xffffc4, 0x83aaaa, 0x4bd675, 0xffcf9f, 0x27da51,
+    0x2aa8a2, 0x67da51, 0x00b851, 0x2a8528, 0x005fac, 0x00a47e, 0x500000, 0x28b872,
+    0x578200, 0x2f547d, 0x00d7d5, 0x2edbff, 0x2a6a51, 0x7bff00, 0x5cc500, 0x005258,
+    0x91b02b, 0x6100ff, 0x53a97c, 0x540053, 0x2c2800, 0x545257, 0x5554a9, 0x2c4c29,
+    0x2fffda, 0x008fa9, 0x008555, 0x27b82b, 0x00ffff, 0xb3ae00, 0x48d82b, 0x00682b,
+    0x00ba00, 0x63ff2e, 0x2ad500, 0x2b6900, 0x27ff2c, 0x4aff56, 0x0026ad, 0x00d92b,
+    0x00ff51, 0x00ff8f, 0x30a200, 0x54ff88, 0x29d794, 0x46ff00, 0x2ca9ff, 0x79ac55,
+    0x00003d, 0x528a55, 0x27ff74, 0x2600ad, 0x004800, 0x59dbd8, 0x59a427, 0x009d2b,
+    0xff8c29, 0x7fdcff, 0x577ad0, 0x7800d3, 0x59beff, 0x76d427, 0xa00000, 0xaa00d0,
+    0xd5d78b, 0x7455d2, 0x944b56, 0xd8b128, 0xd1d2c1, 0xafaccc, 0xff003c, 0xff94ff,
+    0xff2bd6, 0xff3a00, 0xd64255, 0xff53b2, 0xffd86d, 0xd30056, 0xff55ff, 0xff2958,
+    0xec2b2c, 0xc500ff, 0x7fdbb7, 0xdc2eae, 0xa23f00, 0xd6d500, 0xb758ff, 0x5a2ed3,
+    0xdd00d2, 0xdc2fff, 0x4425aa, 0xff00ac, 0xffff49, 0xcd2200, 0x8568ff, 0xffb000,
+    0xb3b44c, 0xb3ff00, 0x9100a5, 0xff556a, 0xd2aaff, 0x568aff, 0xab8aff, 0xffd528,
+    0x744e2d, 0xbf7ed5, 0x5f00ab, 0xff308d, 0x00c7a7, 0xb0457e, 0x2dc9ca, 0xd2227c,
+    0xffa77f, 0x9e7080, 0x752600, 0xd4b36e, 0xca00a2, 0xdfa2d3, 0x252585, 0xa258d4]);
+  function byteLut() { return new Uint32Array(BYTE_PALETTE); }
 
-  // Mean LUT colour (packed 8-bit channels) under a byte distribution given as 256 weights.
   return { MIN_MATCH, MAX_MATCH_LIMIT, SKIP_BITS, LIT_BITS, OUT_BYTES, cursorBits, rangeBits, CURSOR_OFFSET, pixelRate, LAYOUT,
-           huffmanLengths, canonicalTable, build, install, reverseBits, byteLut, lutMean, vp8Model, morseTable, decoderTables, MORSE, ZIGZAG4, JPEG_Q4 };
+           huffmanLengths, canonicalTable, build, install, reverseBits, byteLut, BYTE_PALETTE, lutMean, vp8Model, morseTable, decoderTables, MORSE, ZIGZAG4, JPEG_Q4 };
 })();

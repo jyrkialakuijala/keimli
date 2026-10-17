@@ -1,4 +1,4 @@
-# The twenty-two machines
+# The twenty-four machines
 
 Source: `src/changers/cpu/` — `common.wat` (register file and pixel memory
 helpers shared by every core), `driver.wat` (the run loop, register load
@@ -169,6 +169,57 @@ the VAX, because a 5- or 2-word program has few places to store to.
   write to the program. W and the two-level stack live in the register
   file; OPTION, TRIS, SLEEP and CLRWDT are NOPs. Like the other 128-bit
   machines it sees a pair as two cells.
+
+## DEC Alpha 21064
+
+Kind 43, `alpha.wat`: the first Alpha, the EV4 of 1992, a 64-bit RISC with
+32-bit little-endian instructions, four to a cell. The 128-byte register
+file holds fifteen 64-bit registers, R0 at 0, R1 at 8 and R2 to R14 at
+24 + 8 (n − 2), with the PC at 22 as a byte address; R16 to R30 alias R0
+to R14 and R15 and R31 are the zero register, the convention of the RV32E
+and i860 cores. Memory is the cell with addresses wrapping byte by byte, so
+a quadword may wrap round the end. Implemented: LDA and LDAH; LDL, LDQ and
+LDQ_U, with the locked forms as plain loads; STL, STQ and STQ_U, with the
+conditional forms storing and setting Ra to 1; the integer arithmetic with
+its S4 and S8 forms, the /V forms without traps, the compares and CMPBGE;
+the logical group with the conditional moves, AMASK returning Rb and
+IMPLVER 0 as on an EV4; SLL, SRL and SRA; the byte-manipulation group
+EXTxL/EXTxH, INSxL/INSxH, MSKxL/MSKxH and ZAP/ZAPNOT, which on an EV4 stands
+in for the byte and word loads it lacks; MULL, MULQ and UMULH; BR and BSR,
+the eight integer conditional branches, and the JMP group. CALL_PAL, the
+floating-point loads, stores, operates and branches, the miscellaneous
+group (TRAPB, MB, RPCC, ...) and the opcodes of later Alphas (BWX, CIX,
+MVI) are NOPs. The test programs cover a store loop, a SUBQ/BNE countdown,
+EXTBL, INSBL with ZAPNOT, CMOVEQ, UMULH of 2^64 − 1 squared, ADDL with a
+literal and SRA, and the register aliasing.
+
+## HP PA-RISC 1.1
+
+Kind 44, `parisc.wat`: Hewlett-Packard's Precision Architecture in its 1.1
+form, the PA-7100 generation of 1992, a 32-bit big-endian RISC with 32-bit
+instructions, four to a cell, delayed branches and nullification. The
+register file holds GR1 to GR15 as 32-bit words at 64 + 4n; GR0 reads zero
+and drops writes, and GR16 to GR31 alias GR0 to GR15, so GR16 is a second
+zero register. The PC is at 22 as a byte address, byte 21 the branch state
+(nullify the next instruction, a branch is pending) and the pending target
+at 24. Memory is the cell, big-endian, wrapping byte by byte. Implemented:
+LDO and LDI, LDIL and ADDIL with the scrambled 21-bit immediate, the byte,
+halfword and word loads and stores with the 14-bit low-sign displacement
+and the modify forms LDWM and STWM; the three-register arithmetic group
+(ADD, ADDC, ADDL, the SHnADD forms, SUB, SUBB, SUBT, DS, COMCLR and the /O
+forms without traps) and the logical group (AND, ANDCM, OR, XOR, UXOR,
+UADDCM), each with its condition completer nullifying the next
+instruction; ADDI, ADDIT, SUBI and COMICLR; SHD, EXTRU, EXTRS, ZDEP, DEP,
+ZDEPI and DEPI with the shift conditions; BL, BLR and BV; and the compare,
+add, bit and move branches COMBT/COMBF, COMIBT/COMIBF, ADDBT/ADDBF,
+ADDIBT/ADDIBF, BB, MOVB and MOVIB. Every branch has a delay slot; with the
+nullify bit, BL and BV skip the slot and a conditional branch skips it when
+taken forward or not taken backward, the loop idiom. The system,
+memory-management, coprocessor and floating-point groups, the external
+branches and the variable shifts (VSHD, VEXTR, VDEP) are NOPs. The tests
+cover a store loop through BL, an ADDIB countdown with the store in the
+slot, EXTRU and ZDEP, forward nullification, SH2ADD, LDIL with LDO, ADDI
+nullifying its successor, BV, and the register aliasing.
 
 ## Adding a machine
 

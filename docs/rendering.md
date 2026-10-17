@@ -17,14 +17,31 @@ colour is stretched 3 × and clamped; the mean is taken from the previous
 frame's unstretched averages (seeded from the palette), so it adapts to
 whatever the field contains, like an auto white balance.
 
-The LUT is designed around the dictionary's alphabet: a–z take the whole
-hue circle in order, A–Z are pastels of the same hues, digits and
-punctuation are light neutrals, space is white, byte values 0–7 (the
-Brainfuck commands) have eight vivid hues, and every other byte value is
-coloured by its Z80 opcode class, kept dimmer than the letters: teal for
-the x=0 block, blue for LD r,r', red to orange for the ALU block, violet
-for control flow and stack, pale lilac for the CB/DD/ED/FD prefixes. The
-page shows the legend and a swatch per dictionary character.
+The LUT holds 256 colours with 8 bits a channel, made once by
+`tools/palette.py`: 257 points are spread through the RGB cube by
+maximising Σ ⁴√(distance to the nearest other colour) over the colours
+(L-BFGS-B on a power-mean soft minimum, the eight corners pinned, the best
+of eight random starts), then rounded half up to 8 bits. The fourth root is
+concave, so the colours whose nearest neighbour is closest gain most from
+moving, and the result is close to a sphere packing: the smallest gap
+between two colours is 44.5 of 255 and the median nearest neighbour 48, with
+100 colours inside the cube and 156 on its faces. White is one of the
+pinned points but is left out of the table, so no byte value is white and
+every byte shows against a white page. Which byte value gets which colour
+is a second optimisation, against the dictionaries: for each of the
+eighteen texts the byte values making up at least 0.2 % of it form a
+working set (30 bytes for the Declaration, 44 for the Chinese poem's UTF-8,
+61 for the Iroha), and simulated annealing over swaps of two byte values'
+colours maximises the frequency-weighted sum of ⁴√(distance to the nearest
+colour of another byte in the set), summed over the dictionaries. Starting
+from a hue ordering dealt with a stride of 97 the score rises by 16 %; in
+the result every dictionary's working set has its closest pair at least 44
+apart, the palette's own floor, and frequency-weighted mean gaps of 85 to
+160. The colours are ordered by hue
+and dealt to byte values with a stride of 97, near the golden fraction of
+256, so neighbouring byte values differ by about 137° of hue. The kernel
+averages the 16 entries channel by channel with rounding. The page shows
+the legend and a swatch per dictionary character.
 
 **Other views.** Decoded text hashed in thirds (R, G, B); dictionary cursor
 position; raw bits hashed 16 at a time; bit density in thirds (set bits of
@@ -42,6 +59,30 @@ The image on screen is not the latest frame but an exponential average of
 the rendered frames (`blend`), run on the main thread in a second instance
 of the module whose memory holds three 16.16 fixed-point channels per
 pixel, so the average converges exactly.
+
+Before the averaging sees a frame, cycling pixels are steadied (`cycle` in
+render.wat): the eight previous colours of every pixel are kept, and a
+colour that jumps far from the previous frame's (a channel-difference sum
+of 32 or more, of 765) while a closer colour stands two to eight frames
+back is taken to cycle with that period k, the closest deciding (the
+shortest period on a tie). The pixel is then shown as its cycle's
+mean colour mixed with a share of one phase of the cycle, chosen by its
+column (the "Cycle phase share" slider, 0 to 1, 0.12 by default: 0.88 of the
+mean and 0.12 of the phase; 0 the plain mean, 1 the phases alone): pixel x's phase is the colour
+the cycle had at the frame numbered x mod k, the current frame being turn
+t, so the lag into the history is (t − x) mod k and the phase is the
+current colour or one of the seven before it. A cycling pixel is thus
+steady on screen near its mean, a region of oscillators in the same phase
+shows faint stripes k pixels wide carrying the cycle's colours in turn, so
+the stripe width shows the period, and a phase shift between neighbouring
+oscillators shows as a shift of the stripes. An exact repeat is the plain
+case, distance 0. The history holds the last nine raw frames, the current
+one included: a new turn pushes its frame in, while a redraw of the same
+turn (a window resize, a slider moved while paused) reuses the history as
+it stands and so gives the same picture again. The history is cleared with
+the buffer, and if more than one turn ever passed between frames, since a
+history sampled every other turn would mistake a 2-cycle for a constant;
+the page runs one turn per frame, so that does not happen in normal use.
 
 The half-time of the average is 200 ms or 4 turns, whichever is longer:
 each frame the page measures the turns and the wall time since the previous

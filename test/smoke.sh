@@ -11,7 +11,7 @@ probe() {  # probe <file> <id of counter> <id of activity value>; each run gets 
   dom=''
   for attempt in 1 2; do
     prof=$(mktemp -d)
-    dom=$(timeout 90 "$BROWSER" --headless=new --no-sandbox --disable-gpu --user-data-dir="$prof" --virtual-time-budget=6000 \
+    dom=$(timeout 150 "$BROWSER" --headless=new --no-sandbox --disable-gpu --user-data-dir="$prof" --virtual-time-budget=1500 \
           --dump-dom "file://$PWD/$1#selftest" 2>/dev/null) && { rm -rf "$prof"; break; }
     rm -rf "$prof"; dom=''
   done

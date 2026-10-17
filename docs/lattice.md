@@ -31,6 +31,12 @@ The view is refreshed once per turn.
 
 ## Entropy increase through gene swapping
 
+Each of the three stages has an on/off box in its section header. Swapping
+off sends the kernel a table of zero thresholds, so no pair exchanges a bit
+and nothing is hashed; median filtering off does the same for the
+smoothing passes, which then copy every pixel unchanged; the local changer
+off skips the rewrite (the views still decode with the selected decoder).
+
 A swap phase pairs every pixel with one neighbour: left–right (LR) or
 up–down (UD), at an even (0) or odd (1) offset. Pairs never cross a row end
 or the last row, so the last pixel of a row and the last row sit out the
@@ -38,10 +44,11 @@ odd-offset phases.
 
 For each pair the two strings are compared position by position. Where the
 bits differ, the 32 bits neighbouring that position (16 below, 16 above,
-wrapping around the 128-bit ring, the position itself excluded) are hashed
-separately for each pixel with a splitmix64 finaliser and the two 64-bit
-hashes are added with overflow, so the decision is independent of pixel
-order. Every position whose sum is below the threshold is exchanged on its
+wrapping around the 128-bit ring, the position itself excluded) are taken
+from each pixel, the two contexts are packed without regard to order, the
+smaller in the low word and the larger in the high, an injective key of the
+unordered pair, and hashed once with a splitmix64 finaliser, so the
+decision is independent of pixel order and costs one hash per position. Every position whose sum is below the threshold is exchanged on its
 own, so a pair undergoes a uniform crossover at the rate the threshold
 encodes. The page maps the slider value p to the rate 2 p (1 − p)
 (`Band.mixRate`): exchanging every differing bit would only make the two
@@ -55,12 +62,17 @@ The page passes salt 0 to the swap and smoothing kernels, so the hashes
 see the neighbouring bits only; the salt argument stays for the tests and
 the band pipeline.
 
-The swap parameter is a per-column table: a linear gradient of p from the
+The swap parameter is a per-column table: a gradient of p from the
 left-edge value to the right-edge value, each 0 to 1 (defaults 0 and 1),
-mapped to the rate 2 p (1 − p) column by column,
-sampled at pixel centres (column x gets (x + 0.5) / W of the way) so the
-first column is not frozen at exactly 0; a pair uses its first pixel's
-column. `Band.gradient` builds the table, shared with the tests. The kernel
+mapped to the rate 2 p (1 − p) column by column, sampled at pixel centres
+(column x is at t = (x + 0.5) / W of the way) so the first column is not
+frozen at exactly 0; a pair uses its first pixel's column. The position is
+shaped by the "Gradient power" slider: t is taken to u = 2t − 1 in
+[−1, 1], |u| raised to the power and the sign put back (`Band.shape`), so
+below 1 (0.07 by default; the slider runs 0 to 1) the gradient is steep at
+the centre and flat towards the edges, more of the lattice sitting near the
+edge values; 1 is linear and 0 two flat halves. `Band.gradient` builds the table, shared with the tests; the
+smoothing gradient along y stays linear. The kernel
 walks only the bit positions where the two pixels differ (`$pair`), uses a
 branchless 128-bit rotate for the context (`$ctx`), and skips hashing
 entirely at p = 0 and p = 1.
@@ -68,8 +80,8 @@ entirely at p = 0 and p = 1.
 ## Mutation
 
 The last step of a turn flips bits at random (`mutate`). The control is a
-percentage of all bits per turn, 0.001 % by default: with 128 bits a cell
-that is an expected 0.00128 flips per cell, about 335 flipped bits a turn on
+percentage of all bits per turn, 0 by default (mutation off); at 0.001 %,
+with 128 bits a cell, it is an expected 0.00128 flips per cell, about 335 flipped bits a turn on
 a 512 × 512 grid, one every 50 turns in a given cell. The kernel takes the
 expected flips per cell λ in 32.32 fixed point and gives every cell
 floor(λ) flips plus one more with probability frac(λ), each at a bit
@@ -116,7 +128,10 @@ is replaced each pass.
 
 The neighbourhood is selectable: the pixel and its four 4-connected
 neighbours (5 votes, majority at 3), the 3 × 3 block (9 votes, 5; the
-default) or the 5 × 5 block (25 votes, 13). Coordinates are clamped to the grid, so at an
+default) or the 5 × 5, 7 × 7, 9 × 9 or 11 × 11 block (25, 49, 81 or 121
+votes, a majority at 13, 25, 41 or 61; the kernel counts the votes in a
+7-bit bit-sliced counter and compares it with the majority from the top bit
+down). Coordinates are clamped to the grid, so at an
 edge the missing neighbours count as the nearest pixel. The kernel counts
 votes bit-sliced (`$majority`) and visits only the bits that disagree with
 the majority (`$smooth_px`).
@@ -135,7 +150,7 @@ xorshift32 words for the random starts.
 The page can run the lattice in a pool of Web Workers, one per horizontal
 band of rows, each with its own wasm instance. A band keeps D halo rows
 above and below (`Band.depthFor`: 2 plus one row per smoothing pass for the
-cross and 3 × 3 neighbourhoods, two per pass for 5 × 5, rounded up to even)
+cross and 3 × 3 neighbourhoods, r per pass for the (2r + 1) × (2r + 1) blocks, rounded up to even)
 and receives them once per turn from its neighbours' edge rows. It then
 runs the whole turn locally with the zone kernels `mix_zone` and
 `smooth_zone`, shrinking its valid zone by a row on a side whenever an

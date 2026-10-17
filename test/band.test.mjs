@@ -11,7 +11,7 @@ const bytes = fs.readFileSync(dir + '/build/keimli.wasm');
 const mk = async () => { const ex = (await WebAssembly.instantiate(bytes)).instance.exports; const io = Codec.install(ex.memory, Codec.build(text, 4)); return { ex, io }; };
 let fails = 0; const check = (n, ok) => { console.log((ok ? 'ok  ' : 'FAIL') + ' ' + n); if (!ok) fails++; };
 const L = Codec.LAYOUT;
-for (const [W, H, K, passes, changer, nbr = 0, pair = 0] of [[64, 48, 4, 3, 0], [64, 48, 8, 1, 6], [40, 24, 3, 0, 1], [64, 48, 7, 5, 0], [64, 48, 5, 3, 0, 1], [64, 48, 4, 3, 0, 2], [64, 64, 6, 5, 3, 2], [64, 48, 4, 1, 6, 0, 2], [64, 48, 3, 1, 0, 0, 1], [64, 48, 4, 1, 0, 0, 3], [64, 48, 5, 1, 6, 0, 4], [64, 48, 4, 1, 6, 0, 5]]) {
+for (const [W, H, K, passes, changer, nbr = 0, pair = 0] of [[64, 48, 4, 3, 0], [64, 48, 8, 1, 6], [40, 24, 3, 0, 1], [64, 48, 7, 5, 0], [64, 48, 5, 3, 0, 1], [64, 64, 3, 2, 0, 5], [64, 48, 4, 1, 6, 3], [64, 48, 4, 3, 0, 2], [64, 64, 6, 5, 3, 2], [64, 48, 4, 1, 6, 0, 2], [64, 48, 3, 1, 0, 0, 1], [64, 48, 4, 1, 0, 0, 3], [64, 48, 5, 1, 6, 0, 4], [64, 48, 4, 1, 6, 0, 5]]) {
   const N = W * H, S = 16 * W, D = Band.depthFor(passes, nbr);
   const full = await mk(); full.io.setChanger(changer);
   const fm8 = new Uint8Array(full.ex.memory.buffer), GRID = L.GRID, GRID2 = GRID + 16 * N + 64;
@@ -109,6 +109,10 @@ for (const [W, H, K, kind, rounds, mode = 1] of [[32, 24, 3, 6, 40], [32, 32, 4,
   check('the order is a permutation of the four phases with LR and UD alternating', [...Band.ORDER].sort().join('') === '0123' && Band.ORDER.every((ph, i) => i === 0 || (ph & 1) !== (Band.ORDER[i - 1] & 1)));
 }
 // Render post-processing in bands: a band's own rows, processed with POST_HALO neighbour rows on each side, must equal
+// shape: the gradient's position shaped by a power, symmetric about the centre, linear at 1
+{ const g1 = Band.gradient(0, 1, 8), gl = Band.gradient(0, 1, 8, v => v, 1), g3 = Band.gradient(0, 1, 512, v => v, 0.3);
+  const mid = Band.toThreshold(0.5), sym = Array.from(g3, (v, i) => v + g3[511 - i]).every(s => s >= 2n * mid - (1n << 33n) && s <= 2n * mid + (1n << 33n));
+  check('gradient power 1 is the linear gradient; 0.3 is symmetric about the centre, monotone, and steep there (column 256 of 512 is near 0.5 + 0.2)', Array.from(g1).every((v, i) => v === gl[i]) && sym && Array.from(g3).every((v, i) => i === 0 || v >= g3[i - 1]) && Math.abs(Band.shape(256.5 / 512, 0.3) - 0.5 - 0.5 * (1 / 512) ** 0.3) < 1e-9 && Band.shape(0.75, 1) === 0.75 && Band.shape(0.25, 0.3) === 1 - Band.shape(0.75, 0.3)); }
 // mixRate: the page's swap parameter -> exchange rate, identity at both ends, maximal at 1/2
 check('mixRate: 0 and 1 give 0, 1/2 gives 1/2, 1/4 gives 3/8', Band.mixRate(0) === 0 && Band.mixRate(1) === 0 && Band.mixRate(0.5) === 0.5 && Band.mixRate(0.25) === 0.375 && Band.gradient(1, 1, 4, Band.mixRate).every(t => t === 0n));
 // the whole-frame computation bit for bit over a sequence of frames (two stages, the flat tiers, sharpening).
@@ -124,7 +128,7 @@ check('mixRate: 0 and 1 give 0, 1/2 gives 1/2, 1/4 gives 3/8', Band.mixRate(0) =
     return f; };
   let same = true, counts = true;
   for (let t = 0; t < 12 && same; t++) {
-    const f = frame(t), p = { stages: 2, sp: 1, k0: t === 0 ? 65536 : 20000, k4: t === 0 ? 65536 : 12000, k8: t === 0 ? 65536 : 6000, k0s: t === 0 ? 65536 : 10000, k4s: t === 0 ? 65536 : 6000, k8s: t === 0 ? 65536 : 3000, ts: 0.25 };
+    const f = frame(t), p = { stages: 2, sp: 1, k0: t === 0 ? 65536 : 20000, k4: t === 0 ? 65536 : 12000, k8: t === 0 ? 65536 : 6000, k0s: t === 0 ? 65536 : 10000, k4s: t === 0 ? 65536 : 6000, k8s: t === 0 ? 65536 : 3000, ts: 0.25, reset: t === 0 };
     m8.set(f, FULL); const flatFull = Band.postFrame(ex, FULL, W, H, p, 0, H);
     let n4 = 0, n8 = 0;
     bands.forEach((b, k) => {
@@ -140,7 +144,7 @@ check('mixRate: 0 and 1 give 0, 1/2 gives 1/2, 1/4 gives 3/8', Band.mixRate(0) =
   // two halo rows would not be enough: the band result then differs from the whole frame somewhere
   let sameWith2 = true;
   for (let t = 0; t < 12 && sameWith2; t++) {
-    const f = frame(t), p = { stages: 2, sp: 1, k0: t === 0 ? 65536 : 20000, k4: t === 0 ? 65536 : 12000, k8: t === 0 ? 65536 : 6000 };
+    const f = frame(t), p = { stages: 2, sp: 1, k0: t === 0 ? 65536 : 20000, k4: t === 0 ? 65536 : 12000, k8: t === 0 ? 65536 : 6000, reset: t === 0 };
     m8.set(f, FULL); Band.postFrame(ex, FULL, W, H, p, 0, H);
     bands.forEach((b, k) => {
       const hT = k > 0 ? 2 : 0, hB = k + 1 < bands.length ? 2 : 0, base = bandBase(k);

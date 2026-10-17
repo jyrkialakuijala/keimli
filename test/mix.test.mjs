@@ -7,7 +7,7 @@ const dir = process.argv[2] || new URL('..', import.meta.url).pathname.replace(/
 const Codec = vm.runInThisContext(fs.readFileSync(dir + '/src/changers/codec.js', 'utf8') + '; Codec');
 const text = fs.readFileSync(dir + '/src/changers/declaration.txt', 'utf8').trim();
 const { instance } = await WebAssembly.instantiate(fs.readFileSync(dir + '/build/keimli.wasm'));
-const { memory, mix, mix_from, render, bits, randomize, decode_pixel, blend, sharpen, unsharp, mutate, links, links_reset, hist, change } = instance.exports;
+const { memory, mix, mix_from, render, bits, randomize, decode_pixel, blend, sharpen, unsharp, cycle, mutate, links, links_reset, hist, change, smooth } = instance.exports;
 let fails = 0; const check = (n, ok) => { console.log((ok ? 'ok  ' : 'FAIL') + ' ' + n); if (!ok) fails++; };
 const L = Codec.LAYOUT, PRM = L.PRM, GRID = L.GRID;
 // per-column swap threshold table (uniform value), returns its address
@@ -620,15 +620,15 @@ check('mode 3: last third set -> pure blue', px[0] === 0xffff0000);
 words[0] = ~0n; words[1] = ~0n; render(1, GRID, PIX, PAL, 3, PRM);
 check('mode 3: all ones -> white', px[0] === 0xffffffff);
 // LUT average modes: a test LUT with R = low nibble, G = high nibble, B = 15 - low nibble, installed with gain 1
-const lut = new Uint32Array(256); for (let v = 0; v < 256; v++) lut[v] = (v & 15) | ((v >> 4) << 8) | ((15 - (v & 15)) << 16);
+const lut = new Uint32Array(256); for (let v = 0; v < 256; v++) lut[v] = (v & 15) * 17 | (((v >> 4) * 17) << 8) | (((15 - (v & 15)) * 17) << 16);   // 8-bit channels, nibbles scaled by 17
 const io1 = Codec.install(memory, built, lut, 1); io1.setCursorOffset(0);
 m8.fill(0x5a, GRID, GRID + 16); render(1, GRID, PIX, PAL, 4, PRM);
-check('mode 4: sixteen identical bytes 0x5a -> nibbles expanded to 8 bits', px[0] === ((255 << 24) | ((15 - 10) * 17 << 16) | (5 * 17 << 8) | (10 * 17)) >>> 0);
+check('mode 4: sixteen identical bytes 0x5a -> the entry itself', px[0] === ((255 << 24) | ((15 - 10) * 17 << 16) | (5 * 17 << 8) | (10 * 17)) >>> 0);
 { const s = io1.frameSums(); check(`render accumulates the unstretched averages for the adaptive mean (${s.r},${s.g},${s.b} over ${s.n})`, s.n === 1 && s.r === 170 && s.g === 85 && s.b === 85); }
 for (let k = 0; k < 16; k++) m8[GRID + k] = k % 2 ? 0xff : 0x00; render(1, GRID, PIX, PAL, 4, PRM);
-check('mode 4: half 0x00 half 0xff -> channel averages 127', px[0] === 0xff7f7f7f);
+check('mode 4: half 0x00 half 0xff -> channel averages 127.5, rounded to 128', px[0] === 0xff808080);
 words.fill(0n); render(1, GRID, PIX, PAL, 5, PRM);
-const expect5 = (() => { let s = 0; for (let k = 0; k < 16; k++) s += lut[txt(k)]; const ch = b => ((s >> b) & 255) * 17 >> 4; return ((255 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)) >>> 0; })();
+const expect5 = (() => { const s = [0, 0, 0]; for (let k = 0; k < 16; k++) { const e = lut[txt(k)]; s[0] += e & 255; s[1] += (e >> 8) & 255; s[2] += (e >> 16) & 255; } const ch = c => (s[c] + 8) >> 4; return ((255 << 24) | (ch(2) << 16) | (ch(1) << 8) | ch(0)) >>> 0; })();
 check('mode 5: decoded bytes of the zero pixel average through the LUT', px[0] === expect5);
 // gain 3: the same 0x5a pixel stretched around the raw-byte palette mean
 {
@@ -639,22 +639,25 @@ check('mode 5: decoded bytes of the zero pixel average through the LUT', px[0] =
   check(`mode 4 with gain 3 stretches around the palette mean (mean ${(m & 255)},${(m >> 8) & 255},${(m >> 16) & 255})`, px[0] === want);
   Codec.install(memory, built, lut, 1).setCursorOffset(0);
 }
-const real = Codec.byteLut(built.bytes), inDict = new Set(built.bytes);
-const bright = e => (e & 15) + ((e >> 8) & 15) + ((e >> 16) & 15);
-const isText = v => v < 8 || (v >= 97 && v <= 122) || (v >= 65 && v <= 90) || (v >= 48 && v <= 57) || v === 32 || v === 10 || v === 13;   // 0-7 are the coloured Brainfuck commands
-const lower = [...Array(26).keys()].map(k => real[97 + k]), others = [...Array(256).keys()].filter(v => !inDict.has(v) && !isText(v)).map(v => real[v]);
-const chroma = e => Math.max(e & 15, (e >> 8) & 15, (e >> 16) & 15) - Math.min(e & 15, (e >> 8) & 15, (e >> 16) & 15);
-const mean = a => a.reduce((s, e) => s + bright(e), 0) / a.length;
-const cmdColours = [...Array(8).keys()].map(v => real[v]);
-const alu = [...Array(64).keys()].map(k => 0x80 + k).filter(v => !inDict.has(v) && !isText(v)).map(v => real[v]), ctl = [...Array(64).keys()].map(k => 0xC0 + k).filter(v => !inDict.has(v) && !isText(v) && ![0xCB, 0xDD, 0xED, 0xFD].includes(v)).map(v => real[v]);
-const hueOf = e => { const r = e & 15, g = (e >> 8) & 15, b = (e >> 16) & 15; return r >= g && r >= b ? 'r' : g >= b ? 'g' : 'b'; };
-check(`byte LUT: 4-bit channels; a-z have ${new Set(lower).size} distinct saturated colours; bytes 0-7 have ${new Set(cmdColours).size} distinct saturated colours; the ${others.length} non-text byte values are Z80-class colours, dimmer than letters (mean brightness ${mean(others).toFixed(1)} vs ${mean(lower).toFixed(1)})`,
-  new Set(cmdColours).size === 8 && cmdColours.every(e => chroma(e) >= 9) &&
-  real.length === 256 && real.every(e => (e & 0xf0f0f0) === 0) && new Set(lower).size === 26 && lower.every(e => chroma(e) >= 9) &&
-  others.every(e => chroma(e) >= 1) && mean(others) < mean(lower) && alu.every(e => hueOf(e) === 'r') && ctl.every(e => hueOf(e) !== 'g') && real[0xDD] === real[0xFD] && real[32] === (14 | (14 << 8) | (14 << 16)) &&
-  Math.abs(((real[65] & 15) - ((real[65] >> 8) & 15)) * ((real[97] & 15) - ((real[97] >> 8) & 15))) >= 0);
+const real = Codec.byteLut(built.bytes);
+{
+  const ch = e => [e & 255, (e >> 8) & 255, (e >> 16) & 255];
+  const dist = (a, b) => Math.hypot(...ch(a).map((v, k) => v - ch(b)[k]));
+  let minD = Infinity; for (let i = 0; i < 256; i++) for (let j = i + 1; j < 256; j++) minD = Math.min(minD, dist(real[i], real[j]));
+  const corners = [0x000000, 0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
+  const counts = new Float64Array(256); for (const b of built.bytes) counts[b]++;
+  const work = [...Array(256).keys()].filter(v => counts[v] / built.bytes.length >= 0.002);   // the dictionary's working set, as tools/palette.py defines it
+  let minWork = Infinity, meanWork = 0, wsum = 0; for (const u of work) { let nn = Infinity; for (const v of work) if (v !== u) nn = Math.min(nn, dist(real[u], real[v])); minWork = Math.min(minWork, nn); meanWork += counts[u] * nn; wsum += counts[u]; } meanWork /= wsum;
+  check(`byte LUT: 256 distinct 8-bit colours, white absent, the seven other corners present, smallest pairwise distance ${minD.toFixed(1)}; the dictionary's ${work.length} working-set bytes are at least ${minWork.toFixed(1)} apart, ${meanWork.toFixed(0)} on average by frequency`,
+    real.length === 256 && new Set(real).size === 256 && real.every(e => e >= 0 && e <= 0xffffff) && !real.includes(0xffffff) && corners.every(c => real.includes(c)) && minD >= 40 && minWork >= 40 && meanWork >= 100);
+}
 stream(100, [[2, 0]]); render(1, GRID, PIX, PAL, 2, PRM);
-check('mode 2 colours by cursor offset', (px[0] & 255) === Math.floor(c300 * 128 / text.length));
+check('mode 2 colours by the cursor within the whole text when the cursor read range is unset', (px[0] & 255) === Math.floor(c300 * 128 / text.length));
+{ io.setCursorRead(100); words.fill(0n); words[0] = 37n; render(1, GRID, PIX, PAL, 2, PRM);   // a 7-bit header of 37 in a range of 100: 37/100 of the palette
+  check(`mode 2 with cursor read 100: header 37 colours as 37/100 of the palette (${px[0] & 255})`, (px[0] & 255) === Math.floor(37 * 128 / 100));
+  io.setCursorOffset(610); words[0] = 37n; render(1, GRID, PIX, PAL, 2, PRM);
+  check('mode 2 ignores the constant offset', (px[0] & 255) === Math.floor(37 * 128 / 100));
+  io.setCursorOffset(0); io.setCursorRead(text.length); }
 
 // ---- mix: conservation, a uniform crossover per pair, thresholds, wrap, order independence
 const thr = (1n << 64n) / 16n;
@@ -931,6 +934,46 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
   setFrame((x, y) => x === 2 && y === 2 ? [100, 150, 200] : [0, 150, 200]);
   r = run(32768, 32768, 32768);
   check('one constant for every pixel: no flat counts, the changed pixel and the rest move at the same k', r.n4 === 0 && r.n8 === 0 && rgb(2 * W + 2)[0] === 50 && rgb(0)[0] === 0);
+  // cycle(w, h, pix, hist, reset, t): a pixel cycling with period k shows the phase its column selects, (t - x) mod k frames back
+  { const HIST = ACC + 64 * N; let t = 0, share = 256; const feed = (f, reset = 0, push = 1) => { setFrame(() => f); return cycle(W, H, PIXB, HIST, reset, reset || push ? t++ : t - 1, share, push); };   // a reset always pushes, so it is a new frame
+    const A = [10, 20, 30], B = [110, 21, 31];
+    t = 0; feed(A, 1); feed(B); const c2 = feed(A);   // frames 0 A, 1 B, 2 A: even columns show frame 0/2 (A), odd columns frame 1 (B)
+    check(`a 2-cycle shows A on even columns and B on odd ones, steady: ${rgb(0).join(' ')} | ${rgb(1).join(' ')} (${c2} cycling)`, rgb(0).join() === A.join() && rgb(1).join() === B.join() && rgb(2).join() === A.join() && c2 === N);
+    feed(B);   // frame 3: still A on even, B on odd
+    check(`the next frame keeps the same stripes: ${rgb(0).join(' ')} | ${rgb(1).join(' ')}`, rgb(0).join() === A.join() && rgb(1).join() === B.join());
+    share = 51; feed(A);   // 20 % phase, 80 % mean (60, 20.5, 30.5): even columns 50 20 30, odd 70 21 31
+    check(`a phase share of 51/256: 80 % of the cycle mean and 20 % of the phase: ${rgb(0).join(' ')} | ${rgb(1).join(' ')}`, rgb(0).join() === '50,20,30' && rgb(1).join() === '70,21,31');
+    share = 0; feed(B); check(`a phase share of 0 shows the plain mean on every column: ${rgb(0).join(' ')} | ${rgb(1).join(' ')}`, rgb(0).join() === '60,21,31' && rgb(1).join() === '60,21,31');
+    t = 0; feed(A, 1, 0);   // a cleared history with no push still takes the frame: the frame passes, not black
+    check(`a reset without a push still records and shows the frame: ${rgb(0).join(' ')}`, rgb(0).join() === A.join());
+    feed(B); feed(A); share = 256; feed(B, 0, 0); feed(B, 0, 0);   // redraws of the same turn: the history is untouched and the stripes are the same
+    check(`a redraw of the same turn (no push) gives the same stripes again: ${rgb(0).join(' ')} | ${rgb(1).join(' ')}`, rgb(0).join() === A.join() && rgb(1).join() === B.join());
+    const P = [0, 0, 0], Q = [3, 10, 100], R = [4, 20, 101];
+    t = 0; feed(P, 1); feed(Q); feed(R); const c3 = feed(P);   // frames 0 P, 1 Q, 2 R, 3 P: column x shows the frame numbered x mod 3
+    check(`a 3-cycle shows P, Q, R on columns 0, 1, 2 and P again on 3: ${[0, 1, 2, 3].map(x => rgb(x).join(' ')).join(' | ')} (${c3} cycling)`, rgb(0).join() === P.join() && rgb(1).join() === Q.join() && rgb(2).join() === R.join() && rgb(3).join() === P.join() && c3 === N);
+    feed(Q);   // frame 4: the same stripes
+    check(`the next frame keeps the 3-stripes: ${[0, 1, 2].map(x => rgb(x).join(' ')).join(' | ')}`, rgb(0).join() === P.join() && rgb(1).join() === Q.join() && rgb(2).join() === R.join());
+    const S4 = [[0, 0, 0], [200, 0, 0], [0, 200, 0], [0, 0, 200]];
+    t = 0; feed(S4[0], 1); feed(S4[1]); feed(S4[2]); feed(S4[3]); const c4 = feed(S4[0]);   // frames 0..4: column x shows the frame numbered x mod 4
+    check(`a 4-cycle shows its four colours on columns 0..3 and repeats on 4: ${[0, 1, 2, 3, 4].map(x => rgb(x).join(' ')).join(' | ')} (${c4} cycling)`, [0, 1, 2, 3, 4].every(x => rgb(x).join() === S4[x % 4].join()) && c4 === N);
+    feed(S4[1]); check(`the next frame keeps the 4-stripes: ${[0, 1, 2, 3].map(x => rgb(x).join(' ')).join(' | ')}`, [0, 1, 2, 3].every(x => rgb(x).join() === S4[x].join()));
+    const S8 = Array.from({ length: 8 }, (_, j) => [30 * j, 255 - 30 * j, (j * 70) & 255]);
+    t = 0; feed(S8[0], 1); for (let j = 1; j < 8; j++) feed(S8[j]); const c8 = feed(S8[0]);   // frames 0..8: column x shows the frame numbered x mod 8
+    const col = (x, y) => rgb(y * W + x);   // the test grid is W = 6 wide: columns 0..5, and the next row starts at column 0 again
+    check(`an 8-cycle shows its colours by column, 0..5 on the first row and 0..1 again on the second (${c8} cycling)`, [0, 1, 2, 3, 4, 5].every(x => col(x, 0).join() === S8[x].join()) && col(0, 1).join() === S8[0].join() && col(1, 1).join() === S8[1].join() && c8 === N);
+    feed(S8[1]); check('the next frame keeps the 8-stripes', [0, 1, 2, 3, 4, 5].every(x => col(x, 0).join() === S8[x].join()));
+    const S6 = Array.from({ length: 6 }, (_, j) => [200 - 30 * j, 20 * j, 100]);
+    t = 0; feed(S6[0], 1); for (let j = 1; j < 6; j++) feed(S6[j]); const c6 = feed(S6[0]);
+    check(`a 6-cycle: six stripes (${c6} cycling)`, [0, 1, 2, 3, 4, 5, 6].every(x => rgb(x).join() === S6[x % 6].join()) && c6 === N);
+    // not exact: a jump of 100 with a colour 2 back within 2 is a 2-cycle; a small flicker (distance 3) passes
+    t = 0; feed([98, 0, 0], 1); feed([0, 0, 0]); const ca = feed([100, 0, 0]);
+    check(`an inexact 2-cycle (100 after 0, 98 two back) is striped: ${rgb(0).join(' ')} | ${rgb(1).join(' ')} (${ca} cycling)`, rgb(0).join() === '100,0,0' && rgb(1).join() === '0,0,0' && ca === N);
+    t = 0; feed([10, 20, 30], 1); feed([11, 21, 31]); const cs = feed([10, 20, 30]);
+    check(`a small flicker (channel differences summing to 3) is left alone: ${rgb(0).join(' ')}`, rgb(0).join() === '10,20,30' && cs === 0);
+    t = 0; feed([5, 5, 5], 1); feed([5, 5, 5]); const c1 = feed([5, 5, 5]);
+    check('a constant colour passes unchanged and is not counted', rgb(0).join() === '5,5,5' && c1 === 0);
+    t = 0; feed([1, 2, 3], 1); feed([4, 5, 6]); feed([7, 8, 9]); const c0 = feed([10, 11, 12]);
+    check('no cycle: the frame passes unchanged', rgb(0).join() === '10,11,12' && c0 === 0 && px[3] === 255); }
   // the blend depends only on the colour, not on the alpha byte
   setFrame(() => [37, 0, 0]); px[3] = 7; r = run(65536, 65536, 65535);
   check('alpha is ignored for the flatness test and written back as 255', r.n8 === N && px[3] === 255);
@@ -955,18 +998,18 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
     const base = PIXB, need = base + Band.POST_BYTES * N; if (need > memory.buffer.byteLength) memory.grow(Math.ceil((need - memory.buffer.byteLength) / 65536));
     const frame = new Uint8Array(memory.buffer, base, 4 * N), set = v => { for (let i = 0; i < N; i++) frame.set([v, 0, 0, 255], 4 * i); };
     const P = { stages: 2, sharp: false, k0: 32768, k4: 32768, k8: 32768, k0s: 19195, k4s: 19195, k8s: 19195, ts: 0.25 };   // k = 1/2 and 1 - sqrt(1/2)
-    set(0); Band.postFrame(instance.exports, base, W, H, { ...P, k0: 65536, k4: 65536, k8: 65536, k0s: 65536, k4s: 65536, k8s: 65536 });
+    set(0); Band.postFrame(instance.exports, base, W, H, { ...P, k0: 65536, k4: 65536, k8: 65536, k0s: 65536, k4s: 65536, k8s: 65536, reset: true });
     const three = [], want = [];
     for (let t = 0; t < 4; t++) { set(200); Band.postFrame(instance.exports, base, W, H, P); three.push(frame[0]); }
     { let a1 = 0, a2 = 0, a3 = 0; for (let t = 0; t < 4; t++) { a1 += (200 - a1) / 2; a2 += (Math.round(a1) - a2) / 2; a3 += (Math.round(a2) - a3) * (19195 / 65536); want.push(Math.round(1.25 * a2 - 0.25 * a3)); } }
     check(`two stages and the slow stage: the frame is 1.25 x the second stage - 0.25 x the slow one: ${three.join(', ')} (model ${want.join(', ')})`, three.every((v, i) => Math.abs(v - want[i]) <= 1));
     // one stage and the slow stage: the slow one reads the first stage's output
-    const P1 = { ...P, stages: 1, ts: 1 }; set(0); Band.postFrame(instance.exports, base, W, H, { ...P1, k0: 65536, k4: 65536, k8: 65536, k0s: 65536, k4s: 65536, k8s: 65536 });
+    const P1 = { ...P, stages: 1, ts: 1 }; set(0); Band.postFrame(instance.exports, base, W, H, { ...P1, k0: 65536, k4: 65536, k8: 65536, k0s: 65536, k4s: 65536, k8s: 65536, reset: true });
     const one = []; for (let t = 0; t < 3; t++) { set(200); Band.postFrame(instance.exports, base, W, H, P1); one.push(frame[0]); }
     const w1 = []; { let a1 = 0, a3 = 0; for (let t = 0; t < 3; t++) { a1 += (200 - a1) / 2; a3 += (Math.round(a1) - a3) * (19195 / 65536); w1.push(Math.min(255, Math.round(2 * a1 - a3))); } }
     check(`one stage with sharpening 1: the frame is 2 x the first stage - the slow one: ${one.join(', ')} (model ${w1.join(', ')})`, one.every((v, i) => Math.abs(v - w1[i]) <= 1));
     // no averaging and the slow stage: the frame is 2 x itself - the slow one
-    const P0 = { ...P, stages: 0, ts: 1 }; set(0); Band.postFrame(instance.exports, base, W, H, { ...P0, k0s: 65536, k4s: 65536, k8s: 65536 });
+    const P0 = { ...P, stages: 0, ts: 1 }; set(0); Band.postFrame(instance.exports, base, W, H, { ...P0, k0s: 65536, k4s: 65536, k8s: 65536, reset: true });
     const zero = []; for (let t = 0; t < 3; t++) { set(100); Band.postFrame(instance.exports, base, W, H, P0); zero.push(frame[0]); }
     const w0 = []; { let a3 = 0; for (let t = 0; t < 3; t++) { a3 += (100 - a3) * (19195 / 65536); w0.push(Math.round(200 - a3)); } }
     check(`averaging off with sharpening 1: the frame is 2 x the frame - the slow stage: ${zero.join(', ')} (model ${w0.join(', ')})`, zero.every((v, i) => Math.abs(v - w0[i]) <= 1));
@@ -1187,6 +1230,26 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
     io.setPair(0, 0);
   }
 }
+// ---- wide median neighbourhoods (nbr 3, 4, 5: 7x7, 9x9, 11x11): a majority of 25, 41, 61 votes keeps a straight edge
+// and erodes a convex corner by one pass at threshold max
+{
+  const W2 = 32, H2 = 32, N2 = W2 * H2, SRC = GRID, DST = GRID + 16 * N2 + 64;
+  const wd = new BigUint64Array(memory.buffer, SRC, 2 * N2), out2 = new BigUint64Array(memory.buffer, DST, 2 * N2);
+  const smTab2 = v => { new BigUint64Array(memory.buffer, L.THRY, H2).fill(v); return L.THRY; };
+  for (const nbr of [3, 4, 5]) {
+    const r = nbr, votes = (2 * r + 1) ** 2, need = 2 * r * r + 2 * r + 1;
+    // a quadrant of ones (x < 16, y < 16) in bit 0; the rest zero
+    wd.fill(0n); for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) if (x < 16 && y < 16) wd[2 * (y * W2 + x)] = 1n;
+    const changed = smooth(W2, H2, SRC, DST, smTab2(~0n), 0n, nbr);
+    const b = (x, y) => Number(out2[2 * (y * W2 + x)] & 1n);
+    // straight edge at y = 4 (far from the corner): x = 15 keeps (r+1 columns of ones in the window), x = 16 stays 0 (r columns)
+    // convex corner (15, 15): (r+1)^2 ones < need, eroded; deep inside unchanged
+    check(`${2 * r + 1}x${2 * r + 1} median (${votes} votes, majority ${need}): a straight edge is kept (x 15 -> ${b(15, 4)}, x 16 -> ${b(16, 4)}), the corner erodes (${b(15, 15)}), the inside stays (${b(8, 8)}); ${changed} bits changed`,
+      b(15, 4) === 1 && b(16, 4) === 0 && b(15, 15) === 0 && b(8, 8) === 1 && b(24, 24) === 0 && changed > 0 && (r + 1) ** 2 < need && (r + 1) * (2 * r + 1) >= need);
+  }
+  // a lone set bit in a flat field is removed by every wide neighbourhood, and the clamping at the edges keeps a flat field flat
+  for (const nbr of [3, 4, 5]) { wd.fill(0n); wd[2 * (17 * W2 + 17)] = 1n << 40n; const c = smooth(W2, H2, SRC, DST, smTab2(~0n), 0n, nbr); check(`nbr ${nbr}: a lone bit is removed (${c} changed), the field is flat`, c === 1 && out2.every(v => v === 0n)); }
+}
 // ---- a UTF-8 dictionary: the text is installed as UTF-8 bytes and the LZ decompressor copies those bytes
 {
   const utf = 'Ազատություն αβγ 南國山河 sông núi\n', ub = new TextEncoder().encode(utf);
@@ -1197,6 +1260,74 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
   check(`UTF-8 dictionary: ${utf.length} characters are ${ub.length} bytes (header ${b2.headerBits} bits), and a zero pixel copies its first 16 bytes: ${new TextDecoder().decode(Uint8Array.from(got)).replace(/\uFFFD/g, '?')}`, ub.length > utf.length && b2.bytes.length === ub.length && got.every((b, k) => b === ub[k]) && io2.textLen === ub.length);
   // back to the Declaration for the rest
   Codec.install(memory, built, Codec.byteLut(built.bytes), 1); io.setCursorOffset(0); io.setCursorRead(text.length); io.setChanger(0);
+}
+// ---- DEC Alpha 21064 (43): 64-bit, four 32-bit instructions a cell, R0 at 0, R1 at 8, R2..R14 at 24 + 8 (n - 2), R31 zero
+{
+  const REG = 256;
+  const runA = (words) => { io.setChanger(43); const b = new Uint8Array(16); words.forEach((w, i) => { b[4 * i] = w & 255; b[4 * i + 1] = (w >>> 8) & 255; b[4 * i + 2] = (w >>> 16) & 255; b[4 * i + 3] = w >>> 24; }); m8.set(b, GRID); const r = decode_pixel(GRID, 0, PRM); return { mem: out(), regs: m8.slice(REG, REG + 128), pc: io.lastOffset(), ret: r }; };
+  const q = (r, n) => { const o = n === 0 ? 0 : n === 1 ? 8 : 24 + 8 * (n - 2); let v = 0n; for (let k = 7; k >= 0; k--) v = (v << 8n) | BigInt(r.regs[o + k]); return v; };
+  const MEM = (op, ra, rb, disp) => ((op << 26) | (ra << 21) | (rb << 16) | (disp & 0xffff)) >>> 0;
+  const OPR = (op, ra, rb, fn, rc) => ((op << 26) | (ra << 21) | (rb << 16) | (fn << 5) | rc) >>> 0;
+  const OPL = (op, ra, lit, fn, rc) => ((op << 26) | (ra << 21) | ((lit & 0xff) << 13) | 0x1000 | (fn << 5) | rc) >>> 0;
+  const BR = (op, ra, disp) => ((op << 26) | (ra << 21) | (disp & 0x1fffff)) >>> 0;
+  const NOP = OPR(0x11, 31, 31, 0x20, 31);   // BIS R31,R31,R31
+  // four instructions fill the cell, so a store lands on code: these programs store into the last word, which is data by then
+  let r = runA([MEM(0x08, 1, 31, 0x12), MEM(0x2C, 1, 31, 12), BR(0x30, 31, -2), NOP]);   // LDA; then STL 12h -> bytes 12..15 and BR back to the STL, for ever
+  check(`Alpha LDA R1,12h(R31); STL R1,12(R31); BR -2: longword 12h at bytes 12..15, R1 = 12h, PC ${r.pc} (the STL/BR loop)`, r.mem.slice(12, 16).join() === '18,0,0,0' && q(r, 1) === 0x12n && r.pc === 8 && r.mem[8] === (BR(0x30, 31, -2) & 255));
+  r = runA([MEM(0x08, 1, 31, 3), OPL(0x10, 1, 1, 0x29, 1), BR(0x3D, 1, -2), MEM(0x2C, 1, 31, 12)]);   // count 3 down with SUBQ #1 and BNE, STL the 0 over bytes 12..15
+  check(`Alpha SUBQ/BNE loop counts R1 from 3 to 0 and STL stores it over the last longword (${r.mem.slice(12).join(' ')})`, r.mem.slice(12, 16).join() === '0,0,0,0' && q(r, 1) === 0n);
+  r = runA([MEM(0x08, 1, 31, 0x1234), OPL(0x12, 1, 1, 0x06, 2), MEM(0x2D, 2, 31, 8), BR(0x30, 31, -1)]);
+  check(`Alpha EXTBL R1,#1,R2 takes byte 1 of 1234h: R2 = ${q(r, 2).toString(16)}, stored at 8`, q(r, 2) === 0x12n && r.mem[8] === 0x12 && r.mem[9] === 0);
+  r = runA([MEM(0x08, 1, 31, 0x5a), OPL(0x12, 1, 2, 0x0B, 2), OPL(0x12, 2, 4, 0x31, 3), MEM(0x2D, 3, 31, 8)]);   // INSBL #2 puts 5Ah in byte 2; ZAPNOT #4 keeps only byte 2
+  check(`Alpha INSBL R1,#2,R2; ZAPNOT R2,#4,R3: byte 2 = 5Ah (${r.mem.slice(8, 12).join(' ')})`, r.mem.slice(8, 12).join() === '0,0,90,0' && q(r, 3) === 0x5a0000n);
+  r = runA([MEM(0x08, 1, 31, 0), MEM(0x08, 2, 31, 7), OPR(0x11, 1, 2, 0x24, 3), MEM(0x2D, 3, 31, 8)]);
+  check('Alpha CMOVEQ R1,R2,R3 with R1 = 0 moves 7 into R3', q(r, 3) === 7n && r.mem[8] === 7);
+  r = runA([MEM(0x08, 1, 31, -1), OPR(0x13, 1, 1, 0x30, 2), MEM(0x2D, 2, 31, 8), BR(0x30, 31, -1)]);
+  check(`Alpha UMULH of 2^64-1 squared is 2^64-2: ${q(r, 2).toString(16)}`, q(r, 2) === 0xfffffffffffffffen && r.mem.slice(8, 16).join() === '254,255,255,255,255,255,255,255');
+  r = runA([MEM(0x08, 1, 31, 0x100), OPL(0x10, 1, 0x80, 0x00, 2), OPL(0x12, 2, 8, 0x3C, 3), MEM(0x2D, 3, 31, 8)]);   // ADDL 100h + 80h = 180h; SRA #8 -> 1
+  check(`Alpha ADDL with a literal and SRA: R3 = ${q(r, 3)}`, q(r, 2) === 0x180n && q(r, 3) === 1n);
+  r = runA([MEM(0x08, 16, 31, 5), MEM(0x2C, 0, 31, 12), MEM(0x2C, 31, 31, 8), NOP]);   // R16 aliases R0: 5 lands at 12..15 via R0; STL R31 stores a zero over its own word
+  check('Alpha R16 aliases R0 and R31 stays zero', q(r, 0) === 5n && r.mem.slice(12, 16).join() === '5,0,0,0' && r.mem.slice(8, 12).join() === '0,0,0,0');
+  io.setChanger(0);
+}
+// ---- HP PA-RISC 1.1 (44): big-endian 32-bit words, GR1..GR15 at 64 + 4n, GR0 and GR16 zero, delayed branches
+{
+  const REG = 256;
+  const runP = (words, steps = 256) => { io.setChanger(44); io.setSteps(steps); const b = new Uint8Array(16); words.forEach((w, i) => { b[4 * i] = w >>> 24; b[4 * i + 1] = (w >>> 16) & 255; b[4 * i + 2] = (w >>> 8) & 255; b[4 * i + 3] = w & 255; }); m8.set(b, GRID); decode_pixel(GRID, 0, PRM); io.setSteps(256); return { mem: out(), regs: m8.slice(REG, REG + 128), pc: io.lastOffset() }; };
+  const g = (r, n) => ((r.regs[64 + 4 * n] | r.regs[65 + 4 * n] << 8 | r.regs[66 + 4 * n] << 16 | r.regs[67 + 4 * n] << 24) >>> 0);
+  const LS14 = i => ((i & 0x1fff) << 1) | (i < 0 ? 1 : 0), LS11 = i => ((i & 0x3ff) << 1) | (i < 0 ? 1 : 0), LS5 = i => ((i & 0xf) << 1) | (i < 0 ? 1 : 0);
+  const MEMF = (op, b, t, imm) => ((op << 26) | (b << 21) | (t << 16) | LS14(imm)) >>> 0;   // LDO 0D, LDW 12, STW 1A, STB 18: op b,t,im14
+  const ARI = (ext, r1, r2, t, c = 0, f = 0) => ((2 << 26) | (r2 << 21) | (r1 << 16) | (c << 13) | (f << 12) | (ext << 6) | t) >>> 0;
+  const IMM = (op, r, t, imm, c = 0, f = 0) => ((op << 26) | (r << 21) | (t << 16) | (c << 13) | (f << 12) | LS11(imm)) >>> 0;
+  const D12 = d => { const u = d & 0xfff; return (((((u & 0x3ff) << 1) | ((u >> 10) & 1)) << 2) | ((u >> 11) & 1)) >>> 0; };
+  const CBR = (op, r1, r2, c, d, n = 0) => ((op << 26) | (r2 << 21) | (r1 << 16) | (c << 13) | D12(d) | (n << 1)) >>> 0;
+  const BL = (t, d, n = 0) => { const u = d & 0x1ffff; return ((0x3A << 26) | (t << 21) | (((u >> 11) & 31) << 16) | (((((u & 0x3ff) << 1) | ((u >> 10) & 1))) << 2) | (n << 1) | (u >> 16)) >>> 0; };
+  const EXTRU = (r, p, len, t) => ((0x34 << 26) | (r << 21) | (t << 16) | (6 << 10) | (p << 5) | (32 - len)) >>> 0;
+  const ZDEP = (r, p, len, t) => ((0x35 << 26) | (t << 21) | (r << 16) | (2 << 10) | ((31 - p) << 5) | (32 - len)) >>> 0;
+  const LDIL = (v, t) => ((0x08 << 26) | (t << 21) | ((v >> 20) & 1) | (((v >> 9) & 0x7ff) << 1) | ((v & 3) << 12) | (((v >> 7) & 3) << 14) | (((v >> 2) & 31) << 16)) >>> 0;
+  const NOP = ARI(0x09, 0, 0, 0);   // OR 0,0,0
+  let r = runP([MEMF(0x0D, 0, 1, 0x12), MEMF(0x1A, 0, 1, 12), BL(0, -2), NOP]);   // LDO 12h(r0),r1; STW r1,12(r0); BL back to the STW with the NOP in its slot
+  check(`PA-RISC LDO/STW/BL loop: big-endian 12h at bytes 12..15 (${r.mem.slice(12).join(' ')}), PC ${r.pc}`, r.mem.slice(12, 16).join() === '0,0,0,18' && g(r, 1) === 0x12 && r.pc === 8);
+  const CNT = [MEMF(0x0D, 0, 1, 3), CBR(0x2B, LS5(-1), 1, 1, -2), MEMF(0x1A, 0, 1, 12), NOP];   // LDO 3(r0),r1; ADDIBF,= -1,r1,.; STW r1,12(r0) in the slot (backward, n = 0: always run)
+  r = runP(CNT, 5); const r8 = runP(CNT, 8);
+  check(`PA-RISC ADDIB,<> loop: after 5 steps the slot has stored 1 (${r.mem[15]}), after 8 it has stored 0 and fallen through (r1 ${g(r8, 1)}, PC ${r8.pc})`, r.mem[15] === 1 && g(r, 1) === 1 && r8.mem.slice(12, 16).join() === '0,0,0,0' && g(r8, 1) === 0 && r8.pc === 16);
+  r = runP([MEMF(0x0D, 0, 1, 0x1234), EXTRU(1, 23, 8, 2), ZDEP(2, 15, 8, 3), MEMF(0x1A, 0, 3, 12)]);   // EXTRU r1,23,8,r2 takes byte 1; ZDEP r2,15,8,r3 puts it at bits 16..23
+  check(`PA-RISC EXTRU/ZDEP: r2 = ${g(r, 2).toString(16)}, r3 = ${g(r, 3).toString(16)}, stored ${r.mem.slice(12).join(' ')}`, g(r, 2) === 0x12 && g(r, 3) === 0x120000 && r.mem.slice(12, 16).join() === '0,18,0,0');
+  r = runP([MEMF(0x0D, 0, 1, 5), CBR(0x20, 0, 1, 2, 0, 1), MEMF(0x0D, 0, 2, 7), MEMF(0x0D, 0, 3, 9)]);   // COMBT,< r0,r1,+0,n: taken forward, slot nullified
+  const r0 = runP([MEMF(0x0D, 0, 1, 5), CBR(0x20, 0, 1, 2, 0, 0), MEMF(0x0D, 0, 2, 7), MEMF(0x0D, 0, 3, 9)]);   // the same without n: the slot runs
+  check(`PA-RISC COMBT,< taken forward: with ,n the slot is nullified (r2 ${g(r, 2)}), without it runs (r2 ${g(r0, 2)}); r3 = ${g(r, 3)}`, g(r, 2) === 0 && g(r, 3) === 9 && g(r0, 2) === 7 && g(r0, 3) === 9);
+  r = runP([MEMF(0x0D, 0, 1, 3), MEMF(0x0D, 0, 2, 10), ARI(0x1A, 1, 2, 3), MEMF(0x1A, 0, 3, 12)]);   // SH2ADD r1,r2,r3 = 3 * 4 + 10
+  check(`PA-RISC SH2ADD 3,10 = ${g(r, 3)}`, g(r, 3) === 22 && r.mem.slice(12, 16).join() === '0,0,0,22');
+  r = runP([LDIL(0x12345678 >>> 11, 1), MEMF(0x0D, 1, 1, 0x678), MEMF(0x1A, 0, 1, 12), NOP]);   // LDIL L%12345678,r1; LDO R%(r1),r1; STW
+  check(`PA-RISC LDIL/LDO builds 12345678h: r1 = ${g(r, 1).toString(16)}, bytes ${r.mem.slice(12).map(b => b.toString(16)).join(' ')}`, g(r, 1) === 0x12345678 && r.mem.slice(12, 16).join() === '18,52,86,120');
+  r = runP([MEMF(0x0D, 0, 1, 1), IMM(0x2D, 1, 2, -1, 1, 0), MEMF(0x0D, 0, 3, 9), MEMF(0x0D, 0, 4, 4)]);   // ADDI,= -1,r1,r2: the sum is 0, so the next instruction is nullified
+  check(`PA-RISC ADDI,= nullifies the next instruction: r2 ${g(r, 2)}, r3 ${g(r, 3)} (skipped), r4 ${g(r, 4)}`, g(r, 2) === 0 && g(r, 3) === 0 && g(r, 4) === 4);
+  r = runP([MEMF(0x0D, 0, 1, 5), ((0x3A << 26) | (6 << 13)) >>> 0, MEMF(0x0D, 0, 3, 7), MEMF(0x0D, 0, 4, 9)]);   // BV r0(r0) back to 0 with the slot run; word 3 is never reached
+  check(`PA-RISC BV r0(r0): the slot runs (r3 ${g(r, 3)}), word 3 never does (r4 ${g(r, 4)}), PC ${r.pc}`, g(r, 1) === 5 && g(r, 3) === 7 && g(r, 4) === 0 && r.pc <= 8);
+  r = runP([MEMF(0x0D, 0, 17, 5), MEMF(0x18, 0, 1, 13), NOP, NOP], 2);   // LDO 5(r0),r17 lands in GR1; STB r1,13(r0)
+  const rz = runP([MEMF(0x0D, 0, 16, 9), MEMF(0x18, 0, 16, 12), NOP, NOP]);   // GR16 is zero: STB r16 writes a 0 over the NOP's first byte (8)
+  check('PA-RISC GR17 aliases GR1 and GR16 reads zero', g(r, 1) === 5 && r.mem[13] === 5 && g(rz, 0) === 0 && rz.mem[12] === 0);
+  io.setChanger(0);
 }
 // ---- sorts (41 ascending, 42 primes first)
 {
