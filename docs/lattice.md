@@ -41,15 +41,23 @@ bits differ, the 32 bits neighbouring that position (16 below, 16 above,
 wrapping around the 128-bit ring, the position itself excluded) are hashed
 separately for each pixel with a splitmix64 finaliser and the two 64-bit
 hashes are added with overflow, so the decision is independent of pixel
-order. The first position whose sum is below the threshold has that single
-bit exchanged. Swaps conserve the total number of set bits. Because
-identical contexts hash identically, a uniform boundary is all-or-nothing.
+order. Every position whose sum is below the threshold is exchanged on its
+own, so a pair undergoes a uniform crossover at the rate the threshold
+encodes. The page maps the slider value p to the rate 2 p (1 − p)
+(`Band.mixRate`): exchanging every differing bit would only make the two
+pixels change places, so p = 1 is the identity like p = 0, and p = 0.5 is
+the maximal mixing, half of the differing bits crossing over. The kernel
+itself takes the rate directly: a threshold of 2^64 − 1 exchanges every
+differing bit. Swaps conserve the total number of set bits. Because identical contexts
+hash identically, a uniform boundary is all-or-nothing position by
+position.
 The page passes salt 0 to the swap and smoothing kernels, so the hashes
 see the neighbouring bits only; the salt argument stays for the tests and
 the band pipeline.
 
-The swap probability is a per-column table: a linear gradient from the
+The swap parameter is a per-column table: a linear gradient of p from the
 left-edge value to the right-edge value, each 0 to 1 (defaults 0 and 1),
+mapped to the rate 2 p (1 − p) column by column,
 sampled at pixel centres (column x gets (x + 0.5) / W of the way) so the
 first column is not frozen at exactly 0; a pair uses its first pixel's
 column. `Band.gradient` builds the table, shared with the tests. The kernel

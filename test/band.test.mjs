@@ -109,6 +109,8 @@ for (const [W, H, K, kind, rounds, mode = 1] of [[32, 24, 3, 6, 40], [32, 32, 4,
   check('the order is a permutation of the four phases with LR and UD alternating', [...Band.ORDER].sort().join('') === '0123' && Band.ORDER.every((ph, i) => i === 0 || (ph & 1) !== (Band.ORDER[i - 1] & 1)));
 }
 // Render post-processing in bands: a band's own rows, processed with POST_HALO neighbour rows on each side, must equal
+// mixRate: the page's swap parameter -> exchange rate, identity at both ends, maximal at 1/2
+check('mixRate: 0 and 1 give 0, 1/2 gives 1/2, 1/4 gives 3/8', Band.mixRate(0) === 0 && Band.mixRate(1) === 0 && Band.mixRate(0.5) === 0.5 && Band.mixRate(0.25) === 0.375 && Band.gradient(1, 1, 4, Band.mixRate).every(t => t === 0n));
 // the whole-frame computation bit for bit over a sequence of frames (two stages, the flat tiers, sharpening).
 {
   const { ex } = await mk(), W = 24, H = 40, n = W * H, m8 = new Uint8Array(ex.memory.buffer);

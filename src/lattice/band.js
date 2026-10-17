@@ -156,6 +156,9 @@ const Band = (() => {
   // Linear gradient of n thresholds from probability a at one edge of the image to b at the other,
   // sampled at pixel centres: entry i is a + (b - a) * (i + 0.5) / n, so no pixel sits at exactly a or b
   // and the first and last columns (or rows) are not frozen when an edge value is 0.
-  const gradient = (a, b, n) => { const tab = new BigUint64Array(n); for (let i = 0; i < n; i++) tab[i] = toThreshold(a + (b - a) * (i + 0.5) / n); return tab; };
-  return { PHASE_NAMES, ORDER, order, orderName, edgeParity, leftover, radius, depthFor, runTurn, runHead, runTail, linkBand, linkStateBytes, edges, split, toThreshold, gradient, POST_HALO, POST_BYTES, postFrame };
+  const gradient = (a, b, n, f = v => v) => { const tab = new BigUint64Array(n); for (let i = 0; i < n; i++) tab[i] = toThreshold(f(a + (b - a) * (i + 0.5) / n)); return tab; };
+  // The swap slider p -> the per-position exchange rate 2 p (1 - p): p = 0 and p = 1 are the identity (exchanging every
+  // differing bit only swaps the two pixels' places), p = 1/2 the maximal mixing, half of the differing bits crossing over.
+  const mixRate = p => 2 * p * (1 - p);
+  return { PHASE_NAMES, ORDER, order, orderName, edgeParity, leftover, radius, depthFor, runTurn, runHead, runTail, linkBand, linkStateBytes, edges, split, toThreshold, gradient, mixRate, POST_HALO, POST_BYTES, postFrame };
 })();

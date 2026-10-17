@@ -177,12 +177,12 @@
   <div class="section" role="group" aria-labelledby="sec-swap">
     <span class="sec" id="sec-swap">Entropy increase through gene swapping</span>
     <div class="group">
-      <label for="thrL">p, left edge</label>
+      <label for="thrL" title="the swap parameter at the left edge: each differing bit of a pair crosses over with probability 2 p (1 − p), so 0 and 1 are the identity and 0.5 the maximal mixing">p, left edge</label>
       <input id="thrL" type="range" min="0" max="1" value="0" step="0.01">
       <span id="thrLVal" class="mono val">p = 0.00</span>
     </div>
     <div class="group">
-      <label for="thrR">p, right edge</label>
+      <label for="thrR" title="the swap parameter at the right edge: each differing bit of a pair crosses over with probability 2 p (1 − p), so 0 and 1 are the identity and 0.5 the maximal mixing">p, right edge</label>
       <input id="thrR" type="range" min="0" max="1" value="1" step="0.01">
       <span id="thrRVal" class="mono val">p = 1.00</span>
     </div>
@@ -943,7 +943,7 @@ function workerMain() {
   // ---- thresholds as a per-bit probability p (linear sliders 0..1), thr = p * 2^64.
   const probability = id => Number($(id).value);
   // linear gradients sampled at pixel centres (Band.gradient): the edge values are reached at the image edges, not at the first and last pixel
-  const swapTable = () => Band.gradient(probability('thrL'), probability('thrR'), W);        // per column, left to right
+  const swapTable = () => Band.gradient(probability('thrL'), probability('thrR'), W, Band.mixRate);        // per column, left to right; the exchange rate is 2 p (1 - p), identity at both ends
   const smoothTable = () => Band.gradient(probability('smoothT'), probability('smoothB'), H); // per row, top to bottom
   function showThreshold() {
     for (const id of ['thrL', 'thrR', 'smoothT', 'smoothB']) $(id + 'Val').textContent = 'p = ' + probability(id).toFixed(2);

@@ -30,57 +30,61 @@
     (local.set $x (i64.mul (i64.xor (local.get $x) (i64.shr_u (local.get $x) (i64.const 27))) (i64.const 0x94D049BB133111EB)))
     (i64.xor (local.get $x) (i64.shr_u (local.get $x) (i64.const 31))))
 
-  ;; pair(p, q, d, thr, salt) -> 1 if a bit was exchanged between pixels p and q.
-  ;; The decision is taken on the snapshot copies of the two pixels at p + d and q + d
-  ;; (d = 0 decides on the live pixels): it walks only the positions where the snapshot
-  ;; pixels differ and at each, hash(context of p) + hash(context of q) + salt (mod 2^64)
-  ;; decides, independent of pixel order; the first position below thr is the decision.
-  ;; The exchange is then applied to the live pixels: if they still differ there, the bit
-  ;; is swapped (returns 1); if an earlier phase already moved it, nothing happens (0).
-  ;; thr = 0 never swaps and thr = 2^64-1 always picks the lowest differing bit, both
-  ;; without hashing.
+  ;; pair(p, q, d, thr, salt) -> the number of bits exchanged between pixels p and q.
+  ;; The decision is taken on the snapshot copies of the two pixels at p + d and q + d (d = 0 decides on the
+  ;; live pixels): at every position where the snapshot pixels differ, hash(context of p) + hash(context of q)
+  ;; + salt (mod 2^64) is compared with thr, independent of pixel order, and each position below thr is
+  ;; exchanged on its own: a uniform crossover at rate thr / 2^64. The exchanges are then applied to the live
+  ;; pixels where they still differ (an earlier phase may have moved a bit already). thr = 0 never swaps and
+  ;; thr = 2^64-1 exchanges every differing bit, so the two pixels change places, both without hashing.
   (func $pair (param $p i32) (param $q i32) (param $d i32) (param $thr i64) (param $salt i64) (result i32)
-    (local $a0 i64) (local $a1 i64) (local $b0 i64) (local $b1 i64) (local $x i64) (local $i i32) (local $mask i64) (local $always i32)
-    (local $la i64) (local $lb i64)
+    (local $a0 i64) (local $a1 i64) (local $b0 i64) (local $b1 i64) (local $x i64) (local $i i32) (local $m i64) (local $always i32)
+    (local $la i64) (local $lb i64) (local $n i32)
     (if (i64.eqz (local.get $thr)) (then (return (i32.const 0))))
     (local.set $always (i64.eq (local.get $thr) (i64.const -1)))
     (local.set $a0 (i64.load (i32.add (local.get $p) (local.get $d)))) (local.set $a1 (i64.load offset=8 (i32.add (local.get $p) (local.get $d))))
     (local.set $b0 (i64.load (i32.add (local.get $q) (local.get $d)))) (local.set $b1 (i64.load offset=8 (i32.add (local.get $q) (local.get $d))))
+    ;; low word: the mask of positions to exchange
     (local.set $x (i64.xor (local.get $a0) (local.get $b0)))
-    (block $lo (loop $l0
-      (br_if $lo (i64.eqz (local.get $x)))
-      (local.set $i (i32.wrap_i64 (i64.ctz (local.get $x))))
-      (if (i32.or (local.get $always) (i64.lt_u (i64.add (local.get $salt) (i64.add
-            (call $mix64 (call $ctx (local.get $a0) (local.get $a1) (local.get $i)))
-            (call $mix64 (call $ctx (local.get $b0) (local.get $b1) (local.get $i)))))
-          (local.get $thr)))
-        (then
-          (local.set $mask (i64.shl (i64.const 1) (i64.extend_i32_u (local.get $i))))
-          (local.set $la (i64.load (local.get $p))) (local.set $lb (i64.load (local.get $q)))
-          (if (i64.eqz (i64.and (i64.xor (local.get $la) (local.get $lb)) (local.get $mask))) (then (return (i32.const 0))))
-          (i64.store (local.get $p) (i64.xor (local.get $la) (local.get $mask)))
-          (i64.store (local.get $q) (i64.xor (local.get $lb) (local.get $mask)))
-          (return (i32.const 1))))
-      (local.set $x (i64.and (local.get $x) (i64.sub (local.get $x) (i64.const 1))))
-      (br $l0)))
+    (if (local.get $always) (then (local.set $m (local.get $x))) (else
+      (local.set $m (i64.const 0))
+      (block $lo (loop $l0
+        (br_if $lo (i64.eqz (local.get $x)))
+        (local.set $i (i32.wrap_i64 (i64.ctz (local.get $x))))
+        (if (i64.lt_u (i64.add (local.get $salt) (i64.add
+              (call $mix64 (call $ctx (local.get $a0) (local.get $a1) (local.get $i)))
+              (call $mix64 (call $ctx (local.get $b0) (local.get $b1) (local.get $i)))))
+            (local.get $thr))
+          (then (local.set $m (i64.or (local.get $m) (i64.shl (i64.const 1) (i64.extend_i32_u (local.get $i)))))))
+        (local.set $x (i64.and (local.get $x) (i64.sub (local.get $x) (i64.const 1))))
+        (br $l0)))))
+    (if (i64.ne (local.get $m) (i64.const 0)) (then
+      (local.set $la (i64.load (local.get $p))) (local.set $lb (i64.load (local.get $q)))
+      (local.set $m (i64.and (local.get $m) (i64.xor (local.get $la) (local.get $lb))))   ;; only where the live pixels still differ
+      (i64.store (local.get $p) (i64.xor (local.get $la) (local.get $m)))
+      (i64.store (local.get $q) (i64.xor (local.get $lb) (local.get $m)))
+      (local.set $n (i32.wrap_i64 (i64.popcnt (local.get $m))))))
+    ;; high word
     (local.set $x (i64.xor (local.get $a1) (local.get $b1)))
-    (block $hi (loop $l1
-      (br_if $hi (i64.eqz (local.get $x)))
-      (local.set $i (i32.wrap_i64 (i64.ctz (local.get $x))))
-      (if (i32.or (local.get $always) (i64.lt_u (i64.add (local.get $salt) (i64.add
-            (call $mix64 (call $ctx (local.get $a0) (local.get $a1) (i32.add (local.get $i) (i32.const 64))))
-            (call $mix64 (call $ctx (local.get $b0) (local.get $b1) (i32.add (local.get $i) (i32.const 64))))))
-          (local.get $thr)))
-        (then
-          (local.set $mask (i64.shl (i64.const 1) (i64.extend_i32_u (local.get $i))))
-          (local.set $la (i64.load offset=8 (local.get $p))) (local.set $lb (i64.load offset=8 (local.get $q)))
-          (if (i64.eqz (i64.and (i64.xor (local.get $la) (local.get $lb)) (local.get $mask))) (then (return (i32.const 0))))
-          (i64.store offset=8 (local.get $p) (i64.xor (local.get $la) (local.get $mask)))
-          (i64.store offset=8 (local.get $q) (i64.xor (local.get $lb) (local.get $mask)))
-          (return (i32.const 1))))
-      (local.set $x (i64.and (local.get $x) (i64.sub (local.get $x) (i64.const 1))))
-      (br $l1)))
-    (i32.const 0))
+    (if (local.get $always) (then (local.set $m (local.get $x))) (else
+      (local.set $m (i64.const 0))
+      (block $hi (loop $l1
+        (br_if $hi (i64.eqz (local.get $x)))
+        (local.set $i (i32.wrap_i64 (i64.ctz (local.get $x))))
+        (if (i64.lt_u (i64.add (local.get $salt) (i64.add
+              (call $mix64 (call $ctx (local.get $a0) (local.get $a1) (i32.add (local.get $i) (i32.const 64))))
+              (call $mix64 (call $ctx (local.get $b0) (local.get $b1) (i32.add (local.get $i) (i32.const 64))))))
+            (local.get $thr))
+          (then (local.set $m (i64.or (local.get $m) (i64.shl (i64.const 1) (i64.extend_i32_u (local.get $i)))))))
+        (local.set $x (i64.and (local.get $x) (i64.sub (local.get $x) (i64.const 1))))
+        (br $l1)))))
+    (if (i64.ne (local.get $m) (i64.const 0)) (then
+      (local.set $la (i64.load offset=8 (local.get $p))) (local.set $lb (i64.load offset=8 (local.get $q)))
+      (local.set $m (i64.and (local.get $m) (i64.xor (local.get $la) (local.get $lb))))
+      (i64.store offset=8 (local.get $p) (i64.xor (local.get $la) (local.get $m)))
+      (i64.store offset=8 (local.get $q) (i64.xor (local.get $lb) (local.get $m)))
+      (local.set $n (i32.add (local.get $n) (i32.wrap_i64 (i64.popcnt (local.get $m)))))))
+    (local.get $n))
 
   ;; row_pairs(row, w, x0, thrTab, d, salt) -> bits exchanged: the horizontal pairs (x, x+1), x = x0, x0+2, ...
   ;; of the row at address row, each under the column threshold thrTab[x]

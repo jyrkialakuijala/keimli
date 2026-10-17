@@ -7,7 +7,7 @@ Butteraugli. Keimli is Swiss German for "little germ", in the family of
 Brotli, Zopfli and Guetzli.
 
 Every cell of the lattice is a 128-bit string. Each turn the cells swap
-single bits with their neighbours under a hash rule, smooth themselves bit
+bits with their neighbours under a hash rule (a uniform crossover), smooth themselves bit
 plane by bit plane, and then inflate their own content: the 16 bytes are
 run through an LZ decompressor against a fixed dictionary, a DCT, a
 Brainfuck interpreter, one of twenty-two emulated CPUs, or one of ten

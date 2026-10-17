@@ -654,16 +654,21 @@ check(`byte LUT: 4-bit channels; a-z have ${new Set(lower).size} distinct satura
 stream(100, [[2, 0]]); render(1, GRID, PIX, PAL, 2, PRM);
 check('mode 2 colours by cursor offset', (px[0] & 255) === Math.floor(c300 * 128 / text.length));
 
-// ---- mix: conservation, one swap per pair, thresholds, wrap, order independence
+// ---- mix: conservation, a uniform crossover per pair, thresholds, wrap, order independence
 const thr = (1n << 64n) / 16n;
 words.fill(0n); for (let i = 0; i < N; i += 2) { words[2 * i] = ~0n; words[2 * i + 1] = ~0n; }
 const s = mix(W, H, GRID, 0, 0, thrTab(thr), 0n);
-check('identical contexts decide alike: all pairs or none (' + s + ')', s === 0 || s === 32);
-check('threshold max: one swap in every pair', mix(W, H, GRID, 0, 0, thrTab(~0n), 0n) === 32);
+check('identical contexts decide alike: all pairs or none, and all positions or none (' + s + ' bits)', s === 0 || s === 32 * 128);
+words.fill(0n); for (let i = 0; i < N; i += 2) { words[2 * i] = ~0n; words[2 * i + 1] = ~0n; }
+check('threshold max: every differing bit of every pair is exchanged, the pixels change places', mix(W, H, GRID, 0, 0, thrTab(~0n), 0n) === 32 * 128 && words[0] === 0n && words[2] === (1n << 64n) - 1n && words[3] === (1n << 64n) - 1n);
 check('bits conserved', bits(N, GRID) === 32 * 128);
 words.fill(0n); words[0] = 1n;
 check('threshold 0 no swaps', mix(W, H, GRID, 0, 0, thrTab(0n), 0n) === 0 && words[0] === 1n);
 check('threshold max swaps the differing bit', mix(W, H, GRID, 0, 0, thrTab(~0n), 0n) === 1 && words[0] === 0n && words[2] === 1n);
+// the crossover rate: pairs differing in 64 bits exchange about p of them
+{ words.fill(0n); for (let i = 0; i < N; i += 2) { words[2 * i] = 0x0123456789abcdefn * BigInt(i + 1) & ((1n << 64n) - 1n); words[2 * i + 1] = 0xfedcba9876543210n ^ BigInt(i); words[2 * i + 2] = ~words[2 * i] & ((1n << 64n) - 1n); words[2 * i + 3] = words[2 * i + 1]; }
+  const half = mix(W, H, GRID, 0, 0, thrTab(1n << 63n), 0n);
+  check(`p = 1/2: pairs differing in 64 bits exchange about half of them (${half} of ${32 * 64})`, half > 32 * 64 * 0.35 && half < 32 * 64 * 0.65 && bits(N, GRID) === bits(N, GRID)); }
 words.fill(0n); words[2 * 7] = 1n;
 let sw = mix(W, H, GRID, 2, 1, thrTab(~0n), 0n);
 check('no wrap-around: x=7 has no left-right partner in the odd phase, and with edge offset 1 row 0 has no partner below, bit stays (' + sw + ' swaps)', words[0] === 0n && words[2 * 7] === 1n && sw === 0);
@@ -756,7 +761,7 @@ check('leftover row, offset 0: 4 pairs, the bits stay in the last row (' + sw + 
   const tab = new BigUint64Array(memory.buffer, L.THR, W); for (let x = 0; x < W; x++) tab[x] = x < 4 ? ~0n : 0n;
   words.fill(0n); for (let i = 0; i < N; i++) if (i % 2) { words[2 * i] = ~0n; words[2 * i + 1] = ~0n; }
   const s = mix(W, H, GRID, 0, 0, L.THR, 0n);
-  check('column threshold table: pairs starting in columns 0-3 swap, 4-7 do not (' + s + ' = 16)', s === 16);
+  check('column threshold table: pairs starting in columns 0-3 exchange all 128 bits, 4-7 do not (' + s + ' = 2048)', s === 16 * 128);
 }
 randomize(4 * N, GRID, 1234);
 const snap = Array.from(words);
@@ -775,7 +780,7 @@ console.log('   unseeded halves after 300 turns: ' + JSON.stringify(colBits()));
 check('bits conserved after halves run', bits(N, GRID) === 4 * H * 128);
 halves(); for (let t = 0; t < 300; t++) mix(W, H, GRID, t & 3, 0, thrTab(thr), BigInt(t + 1));
 console.log('   seeded halves after 300 turns:   ' + JSON.stringify(colBits()));
-check('seeded halves reach every column', colBits().every(c => c > 0));
+check('seeded halves: whole pixels change places (uniform pixels have one context at every position, so a pair exchanges all or nothing) and some reach the right half', colBits().every(c => c % 128 === 0) && colBits().slice(4).some(c => c > 0) && bits(N, GRID) === 4 * H * 128);
 
 // ---- smoothing: majority of self and 4-connected neighbours where the hash allows
 {
