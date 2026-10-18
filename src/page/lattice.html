@@ -537,12 +537,13 @@ function workerMain() {
     ensureLinks(l.kind); if (l.reset) wasm.links_reset(LINKS, 4 * rows * W, l.kind);
     const lb = Band.linkBand(st, LINKS);
     for (let r = 0; r < l.rounds; r++) {
-      lb.early();
+      const ph = Band.linkPhases(r);
+      lb.early(ph.early);
       if (down) send(down, lb.bottomRow());
       const back = lb.middle(up ? await recv(upQ, upW) : null);
       if (up) send(up, back);
       if (down) lb.setBottom(await recv(downQ, downW));
-      lb.late();
+      lb.late(ph.late);
     }
     return lb.changed;
   }
@@ -806,7 +807,7 @@ function workerMain() {
         io.setPair(t.pair ? t.pair.mode : 0, t.pair ? t.pair.flip : 0);
         let rewritten = 0, infl = null;
         if (t.influence && t.pair && t.pair.mode && t.changer && !t.links) { wasm.influence(N, GRID, PRM, GRID2, BigInt(t.influence)); infl = Array.from(new Int32Array(wasm.memory.buffer, GRID2, 5)); }
-        if (t.links) { ensureLinks(t.links.kind); if (t.links.reset) wasm.links_reset(LINKS, 4 * N, t.links.kind); for (let r = 0; r < t.links.rounds; r++) for (const ph of t.order) rewritten += wasm.links(W, H, GRID, PRM, ph, LINKS); }   // rounds of one instruction per link, phase by phase
+        if (t.links) { ensureLinks(t.links.kind); if (t.links.reset) wasm.links_reset(LINKS, 4 * N, t.links.kind); for (let r = 0; r < t.links.rounds; r++) for (const ph of Band.linkPhases(r).all) rewritten += wasm.links(W, H, GRID, PRM, ph, LINKS); }   // rounds of one instruction per link, phase by phase, alternating direction
         else if (t.changer) rewritten = wasm.change(N, GRID, PRM);
         const mutated = t.mut && t.mut.lam ? wasm.mutate(N, GRID, 0, t.mut.lam, t.mut.salt) : 0;
         return { moved, smoothed, rewritten, mutated, infl, bits: wasm.bits(N, GRID), hist: histLocal() };

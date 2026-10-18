@@ -361,7 +361,11 @@ nibbles), the B→A machine's the joint cell with B in the first
 role. The joint cell is built when the instruction runs and split back
 straight after, so under the bit and nibble interleavings a store into one
 byte lands in both pixels. A round runs the four link phases in the swap-phase order
-(UD0, LR0, UD1, LR1): in each phase every pair of that phase runs one
+(UD0, LR0, UD1, LR1) on even rounds and in the reverse order (LR1, UD1,
+LR0, UD0) on odd ones, because with one fixed order information travels
+two cells down and right in a round but only one cell up and left, and the
+lattice grew streaks along the down-right diagonal (the VAX link machines
+showed it first): in each phase every pair of that phase runs one
 instruction of its forward machine (left or top pixel first) and then one
 of its backward machine, which sees what the forward one wrote. So a pixel
 is visited by eight machines a round, four of them running code that starts

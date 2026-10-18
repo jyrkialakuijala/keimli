@@ -88,12 +88,18 @@ const Band = (() => {
   // every machine touches only its own two pixels, so a phase splits over bands exactly; only the up-down pairs across
   // a band edge need care. A band owns the left-right pairs of its rows and the up-down pairs whose first row is
   // y0 - 1 .. y1 - 2: the pair across its top edge is its own (its first row is odd, so it belongs to UD1), the one
-  // across its bottom edge is the next band's. A round is early() = UD0, LR0 on the own rows; then middle(above): the
+  // across its bottom edge is the next band's. A round is early(phases) on the own rows; then middle(above): the
   // current row y0 - 1 from the band above goes into halo row D - 1, UD1 runs, and the changed row is handed back
-  // (the band above puts it in place with setBottom); then late() = LR1. The band below needs this band's bottom row
-  // after early() (bottomRow()) and returns it before late(). states: 2 rows W pairs x 256 bytes, the left-right
+  // (the band above puts it in place with setBottom); then late(phases). The band below needs this band's bottom row
+  // after early() (bottomRow()) and returns it before late(). Even rounds run UD0 LR0 | UD1 | LR1 and odd rounds the
+  // reverse, LR1 | UD1 | LR0 UD0 (linkPhases): with one fixed order information travels two cells down and right in a
+  // round but one cell up and left, and the lattice grows streaks along the down-right diagonal; alternating the
+  // direction makes the two-round light cone symmetric. states: 2 rows W pairs x 256 bytes, the left-right
   // pairs first, then the up-down pairs from local row D - 1.
   function linkStateBytes(st) { return 512 * st.rows * st.W; }
+  // the phase order of link round r: the swap order forward on even rounds, reversed on odd ones (UD1 stays the
+  // middle phase, the only one that crosses band edges); as early/late lists and as the flat order
+  const linkPhases = r => r & 1 ? { early: [2], late: [0, 1], all: [2, 3, 0, 1] } : { early: [1, 0], late: [2], all: [1, 0, 3, 2] };
   function linkBand(st, states) {
     const { wasm, W, rows, D, GRID, PRM } = st, S = 16 * W, gy0 = st.y0 - D, top = st.y0 > 0;
     const hst = states, vst = states + 256 * rows * W;
@@ -101,7 +107,7 @@ const Band = (() => {
     const run = (ph, a, b) => wasm.links_zone(W, GRID, gy0, PRM, ph, hst, D, vst, D - 1, a, b);
     let changed = 0;
     return {
-      early() { changed += run(1, D, D + rows) + run(0, D, D + rows); },
+      early(phases = [1, 0]) { for (const ph of phases) changed += run(ph, D, D + rows); },
       bottomRow() { return m8().slice(GRID + (D + rows - 1) * S, GRID + (D + rows) * S); },
       middle(above) {
         if (top) m8().set(above, GRID + (D - 1) * S);
@@ -109,7 +115,7 @@ const Band = (() => {
         return top ? m8().slice(GRID + (D - 1) * S, GRID + D * S) : null;
       },
       setBottom(row) { m8().set(row, GRID + (D + rows - 1) * S); },
-      late() { changed += run(2, D, D + rows); },
+      late(phases = [2]) { for (const ph of phases) changed += run(ph, D, D + rows); },
       get changed() { return changed; },
     };
   }
@@ -172,5 +178,5 @@ const Band = (() => {
   // The swap slider p -> the per-position exchange rate 2 p (1 - p): p = 0 and p = 1 are the identity (exchanging every
   // differing bit only swaps the two pixels' places), p = 1/2 the maximal mixing, half of the differing bits crossing over.
   const mixRate = p => 2 * p * (1 - p);
-  return { PHASE_NAMES, ORDER, order, orderName, edgeParity, leftover, radius, depthFor, runTurn, runHead, runTail, linkBand, linkStateBytes, edges, split, toThreshold, gradient, shape, mixRate, POST_HALO, POST_BYTES, postFrame };
+  return { PHASE_NAMES, ORDER, order, orderName, edgeParity, leftover, radius, depthFor, runTurn, runHead, runTail, linkBand, linkStateBytes, linkPhases, edges, split, toThreshold, gradient, shape, mixRate, POST_HALO, POST_BYTES, postFrame };
 })();
