@@ -75,7 +75,7 @@ the end of the dictionary. V = 1 reads no header bits, so every pixel starts
 at the offset; V = the dictionary size (the default) makes every byte a
 start position with a 13-bit header; the LZ examples above use V = 5, a
 3-bit header. The page starts in the codebook search's setting: a 128 × 128 grid,
-the Brotli-like decoder on single cells with the 4,400-byte "Brotli search 13"
+the Brotli-like decoder on single cells with the 4,400-byte "Swarm search F"
 dictionary, 6 skipped bits, a cursor read of 4096 (a 12-bit header), offset 0 and both
 entropy stages on; the LZ decompressor with the Declaration, 6 skipped
 bits and an offset of 50 is the setting the examples above describe.

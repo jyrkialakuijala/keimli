@@ -677,7 +677,7 @@ function workerMain() {
       else { o.textContent = `${d.titleLatin} (${d.language}${d.script && d.script !== 'Latin' ? ', ' + d.script : ''})`; o.title = [d.title, d.author, d.year].filter(Boolean).join(' · '); texts.appendChild(o); } }
     $('dict').appendChild(texts); if (found.children.length) $('dict').appendChild(found);
   }
-  $('dict').value = DICTS.some(d => d.id === 'ca-brotli-13') ? 'ca-brotli-13' : DICTS[0].id;   // the fresh-page default: the codebook search's 512-byte dictionary
+  $('dict').value = DICTS.some(d => d.id === 'ca-swarm-f') ? 'ca-swarm-f' : DICTS[0].id;   // the fresh-page default: swarm search F
   const dictEntry = () => DICTS.find(d => d.id === $('dict').value) || DICTS[0];
   const dictText = () => dictEntry().text;
   const codecSrc = $('codec-src').textContent, bandSrc = $('band-src').textContent;
@@ -1436,7 +1436,7 @@ function workerMain() {
   };
   // every control's id, saved key and default; the share line and the presets are built on the same list
   const CONTROL_DEFAULTS = [['size', 'size', '1024x1024'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'], ['cph', 'cph', '0.12'],
-            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-brotli-13'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']];
+            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-swarm-f'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']];
   const SHARE_KEYS = [...CONTROL_DEFAULTS.map(([, key]) => key).filter(k => k !== 'threads'), 'lnever', 'swapOn', 'medOn', 'chgOn', 'cread'];   // threads stay with the machine
   const controlState = () => ({
     size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, ts: $('tw').value, sp: $('sp').value, cph: $('cph').value, thrL: $('thrL').value, thrR: $('thrR').value, gpow: $('gpow').value, mut: $('mut').value,
@@ -1457,7 +1457,7 @@ function workerMain() {
       }
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
       if ($('changer').value === '') { $('changer').value = 'dec'; $('dec').value = '0'; }   // the former "LZ decompressor" mode: the decoder menu's first entry
-      if ($('dict').value === '') $('dict').value = DICTS.some(d => d.id === 'ca-brotli-13') ? 'ca-brotli-13' : DICTS[0].id;
+      if ($('dict').value === '') $('dict').value = DICTS.some(d => d.id === 'ca-swarm-f') ? 'ca-swarm-f' : DICTS[0].id;
       applyDict();
       setCursorReadExact(Number(saved.cread) || 4096);   // saved as the range V: exact in the box, the slider at its nearest stop (default 4096)
       if ($('pair').value === '') $('pair').value = saved.pair === '6' ? '1' : saved.pair === '4' ? '3' : '0';   // the former "Links" entry: concatenated pairs; the former add-then-subtract: nibbles

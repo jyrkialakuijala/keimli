@@ -502,5 +502,77 @@
   "year": "2026",
   "source": "",
   "note": "The crossover run's final best after two hours from Brotli search 11 with crossovers against every dictionary: 13.6 effective regimes on the 64 x 64 harness (Brotli search 13: 12.5, 14: 12.8), 20 % of bits changing a turn, neighbours differing in 14 of 128 bits, byte entropy 4.13 bits. Not a text."
+ },
+ {
+  "id": "ca-swarm-a",
+  "file": "ca-swarm-a.txt",
+  "title": "Swarm search A",
+  "titleLatin": "Swarm search A (4,400 bytes; from the eight-worker swarm, 32.4 modes on the 64 x 64 harness)",
+  "author": "tools/ca-swarm.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Swarm search from Brotli searches 13, 15, 14, 12, 11, 9, 1 and 2 under the modes score, generation 178: 32.4 modes (Brotli search 13: 21.3), 12.4 regimes, 20 % of bits changing a turn, byte entropy 4.06 bits, 75 % whitespace. Not a text."
+ },
+ {
+  "id": "ca-swarm-b",
+  "file": "ca-swarm-b.txt",
+  "title": "Swarm search B",
+  "titleLatin": "Swarm search B (4,400 bytes; from the eight-worker swarm, 16.7 modes on the 64 x 64 harness)",
+  "author": "tools/ca-swarm.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Swarm search from Brotli searches 13, 15, 14, 12, 11, 9, 1 and 2 under the modes score, generation 9426: 16.7 modes (Brotli search 13: 21.3), 8.4 regimes, 31 % of bits changing a turn, byte entropy 4.36 bits, 34 % whitespace. Not a text."
+ },
+ {
+  "id": "ca-swarm-c",
+  "file": "ca-swarm-c.txt",
+  "title": "Swarm search C",
+  "titleLatin": "Swarm search C (4,400 bytes; from the eight-worker swarm, 24.9 modes on the 64 x 64 harness)",
+  "author": "tools/ca-swarm.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Swarm search from Brotli searches 13, 15, 14, 12, 11, 9, 1 and 2 under the modes score, generation 0: 24.9 modes (Brotli search 13: 21.3), 9.9 regimes, 25 % of bits changing a turn, byte entropy 3.61 bits, 4 % whitespace. Not a text."
+ },
+ {
+  "id": "ca-swarm-d",
+  "file": "ca-swarm-d.txt",
+  "title": "Swarm search D",
+  "titleLatin": "Swarm search D (4,400 bytes; from the eight-worker swarm, 21.3 modes on the 64 x 64 harness)",
+  "author": "tools/ca-swarm.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Swarm search from Brotli searches 13, 15, 14, 12, 11, 9, 1 and 2 under the modes score, generation 0: 21.3 modes (Brotli search 13: 21.3), 9.8 regimes, 27 % of bits changing a turn, byte entropy 3.48 bits, 53 % whitespace. Not a text."
+ },
+ {
+  "id": "ca-swarm-e",
+  "file": "ca-swarm-e.txt",
+  "title": "Swarm search E",
+  "titleLatin": "Swarm search E (4,400 bytes; the second swarm's current best on the 128 x 128 harness)",
+  "author": "tools/ca-swarm.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "The second swarm's best so far, with the alphabet transforms and the 128 x 128 harness. Not a text."
+ },
+ {
+  "id": "ca-swarm-f",
+  "file": "ca-swarm-f.txt",
+  "title": "Swarm search F",
+  "titleLatin": "Swarm search F (4,400 bytes; candidate A's shape moved onto parentheses by the alphabet transform)",
+  "author": "tools/ca-swarm.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "The second swarm, generation 679: the whitespace lineage after an add-constant transform turned its spaces into parentheses, 14.3 modes, 6.4 regimes, 33 % of bits changing a turn. A maroon field crossed by thin blue contour lines under a granular sky; the page's default dictionary. Not a text."
  }
 ]
