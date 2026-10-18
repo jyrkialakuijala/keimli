@@ -55,7 +55,7 @@ export function metrics(sim, prev) {
   // how many different kinds of behaviour the picture holds at once
   let regimes = null;
   if (prev && prev[0]) {
-    const cls = new Map(); const B = 8, nbx = Math.floor(W / B), nby = Math.floor(H / B);
+    const cls = new Map(); const B = 8, nbx = Math.floor(W / B), nby = Math.floor(H / B), blocks = [];
     for (let by = 0; by < nby; by++) for (let bx = 0; bx < nbx; bx++) {
       let ch = 0, nd = 0, np = 0; const bc = new Float64Array(256);
       for (let y = by * B; y < by * B + B; y++) for (let x = bx * B; x < bx * B + B; x++) {
@@ -65,14 +65,14 @@ export function metrics(sim, prev) {
       }
       const a = ch / (B * B * 128), s = np ? nd / (np * 128) : 0; let e = 0; for (let v = 0; v < 256; v++) if (bc[v]) { const p = bc[v] / (B * B * 16); e -= p * Math.log2(p); }
       const la = a < 0.01 ? 0 : a < 0.08 ? 1 : a < 0.25 ? 2 : 3, ls = s < 0.04 ? 0 : s < 0.12 ? 1 : s < 0.3 ? 2 : 3, le = e < 1.5 ? 0 : e < 3.5 ? 1 : 2;
-      const key = la * 12 + ls * 3 + le; cls.set(key, (cls.get(key) || 0) + 1);
+      const key = la * 12 + ls * 3 + le; cls.set(key, (cls.get(key) || 0) + 1); blocks.push(key);
     }
     const total = nbx * nby; let Hc = 0; for (const v of cls.values()) { const p = v / total; Hc -= p * Math.log(p); }
-    regimes = { classes: cls.size, effective: Math.exp(Hc) };
+    regimes = { classes: cls.size, effective: Math.exp(Hc), blocks };
   }
   return { ent, spatial, d1: d1 / (128 * N), d2: d2 / (128 * N), zip: z, distinct: seen.size / N, regimes };
 }
-export function evaluate(sim, text, { turns = 200, seed = 1, every = 10 } = {}) {
+export function evaluate(sim, text, { turns = 200, seed = 1, every = 10, keepFrom = turns - 3 } = {}) {   // frames are kept from turn keepFrom on, so samples after it have their previous frames
   sim.setDict(text); sim.reset(seed);
   const hist = [null, null], rows = [];
   for (let t = 0; t < turns; t++) {
@@ -80,7 +80,7 @@ export function evaluate(sim, text, { turns = 200, seed = 1, every = 10 } = {}) 
     if (t % every === every - 1 || t >= turns - 3) {
       const m = metrics(sim, hist); rows.push({ t: t + 1, act: r.rewritten / sim.N, moved: r.moved / (128 * sim.N), ...m });
     }
-    if (t >= turns - 3) { hist[1] = hist[0]; hist[0] = sim.grid().slice(); }
+    if (t >= keepFrom) { hist[1] = hist[0]; hist[0] = sim.grid().slice(); }
   }
   return rows;
 }

@@ -1,4 +1,4 @@
-# The twenty-four machines
+# The twenty-five machines
 
 Source: `src/changers/cpu/` — `common.wat` (register file and pixel memory
 helpers shared by every core), `driver.wat` (the run loop, register load
@@ -220,6 +220,25 @@ branches and the variable shifts (VSHD, VEXTR, VDEP) are NOPs. The tests
 cover a store loop through BL, an ADDIB countdown with the store in the
 slot, EXTRU and ZDEP, forward nullification, SH2ADD, LDIL with LDO, ADDI
 nullifying its successor, BV, and the register aliasing.
+
+## Redcode
+
+Kind 47, `redcode.wat`: the language of Core War, A. K. Dewdney's 1984
+game of programs fighting in a shared memory, here in a 16-bit form so a
+cell is a core of 8 instructions and a pair one of 16. An instruction is
+a little-endian word op:4, A-mode:2, B-mode:2, A:4, B:4, with the opcodes
+DAT, MOV, ADD, SUB, MUL, DIV, MOD, JMP, JMZ, JMN, DJN, SEQ (CMP), SNE, SLT,
+SPL and NOP and the modes immediate, direct, B-indirect and predecrement
+B-indirect. Fields are unsigned offsets relative to the instruction, taken
+mod the core size, so 7 is −1 in a core of 8, and field arithmetic is mod
+16. The 1988 rules apply: an immediate A operates on the target's B-field,
+otherwise MOV copies the whole instruction and the arithmetic acts on both
+fields; DIV and MOD by zero kill the process, as DAT does. A task queue of
+up to four processes lives in the register file (byte 20 the count, 21 the
+current one, 24 onward the PCs, 22 a mirror of the current PC); SPL adds a
+process, the processes run round robin, and when the last one dies the
+core restarts with one process at 0. The tests run the Imp, the Dwarf's
+first round, an SPL pair, a dying core and a DJN loop.
 
 ## Adding a machine
 

@@ -478,5 +478,29 @@
   "year": "2026",
   "source": "",
   "note": "The crossover run's best at 51 minutes, from the punctuation lineage that also gave Brotli search 12: 12.8 effective regimes on the 64 x 64 harness (Brotli search 13: 12.5), 22 % of bits changing a turn, neighbours differing in 15 of 128 bits, byte entropy 4.11 bits. Not a text."
+ },
+ {
+  "id": "ca-codebook-9",
+  "file": "ca-codebook-9.txt",
+  "title": "Codebook search 9",
+  "titleLatin": "Codebook search 9 (512 bytes; codebook, entropy stages on, each cell on its own, 6 skip bits, 8-bit cursor read, many regimes at once)",
+  "author": "tools/ca-lattice-search.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Found by tools/ca-lattice-search.mjs with the variety score for the codebook decoder (kind 45) with the entropy stages at the page defaults, each cell on its own, 6 skip bits and an 8-bit header: 8.1 effective regimes on the 64 x 64 harness (Codebook search 6: about 4), 16 % of bits changing a turn, neighbours differing in 20 of 128 bits, byte entropy 2.95 bits. Not a text."
+ },
+ {
+  "id": "ca-brotli-15",
+  "file": "ca-brotli-15.txt",
+  "title": "Brotli search 15",
+  "titleLatin": "Brotli search 15 (4,400 bytes; the crossover run from Brotli search 11 at its end, many regimes at once)",
+  "author": "tools/ca-lattice-search.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "The crossover run's final best after two hours from Brotli search 11 with crossovers against every dictionary: 13.6 effective regimes on the 64 x 64 harness (Brotli search 13: 12.5, 14: 12.8), 20 % of bits changing a turn, neighbours differing in 14 of 128 bits, byte entropy 4.13 bits. Not a text."
  }
 ]

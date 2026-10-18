@@ -12,7 +12,7 @@ plane by bit plane, and then inflate their own content: the 16 bytes are
 run through an LZ decompressor against a fixed dictionary (the US
 Declaration of Independence or one of seventeen short public-domain texts in
 many scripts, as UTF-8 bytes), a DCT, a
-Brainfuck interpreter, one of twenty-four emulated CPUs, or one of ten
+Brainfuck interpreter, one of twenty-five emulated CPUs, or one of ten
 decoders (Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse,
 Rice residuals, WebP's boolean decoder, PNG filters, a JPEG block), and
 whatever comes out becomes the cell's new content. The whole thing is an experiment in
@@ -50,7 +50,7 @@ tree.
 |---|---|---|---|
 | Lattice | 128-bit cells, entropy increase through gene swapping, the swap order, entropy decrease through median filtering, mutation, the worker band pipeline | [docs/lattice.md](docs/lattice.md) | `src/lattice/` |
 | Local changers | Entropy decrease through local changers, which rewrite every cell each turn: the LZ decompressor and its code tables, Brainfuck, simple transforms, DCT, the ten decoders; cell pair joinings and the persistent per-link CPUs that run on them | [docs/changers.md](docs/changers.md) | `src/changers/` |
-| CPUs | Twenty-two emulated machines that run a cell's 16 bytes as their whole memory, from the 4004 to the CDC 6600 | [docs/cpus.md](docs/cpus.md) | `src/changers/cpu/` |
+| CPUs | Twenty-five emulated machines that run a cell's 16 bytes as their whole memory, from the 4004 to the CDC 6600 | [docs/cpus.md](docs/cpus.md) | `src/changers/cpu/` |
 | Rendering | Views and the byte colour LUT, the temporal render buffer, spatial sharpening, drawing, the byte histogram and entropy trace | [docs/rendering.md](docs/rendering.md) | `src/render/`, `src/page/` |
 | Life | Conway's Game of Life in 600 bytes of wasm | [docs/life.md](docs/life.md) | `src/life/` |
 

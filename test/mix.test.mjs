@@ -1333,6 +1333,24 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
   check('PA-RISC GR17 aliases GR1 and GR16 reads zero', g(r, 1) === 5 && r.mem[13] === 5 && g(rz, 0) === 0 && rz.mem[12] === 0);
   io.setChanger(0);
 }
+// ---- Redcode (47): 16-bit instructions op:4 am:2 bm:2 A:4 B:4 in a core of 8, a process queue in the register file
+{
+  const REG = 256;
+  const I = (op, am, bm, a, b) => (op << 12) | (am << 10) | (bm << 8) | (a << 4) | b;
+  const runR = (words, steps = 256) => { io.setChanger(47); io.setSteps(steps); const bts = new Uint8Array(16); words.forEach((w, i) => { bts[2 * i] = w & 255; bts[2 * i + 1] = w >> 8; }); m8.set(bts, GRID); decode_pixel(GRID, 0, PRM); io.setSteps(256); const o = out(); return { words: Array.from({ length: 8 }, (_, i) => o[2 * i] | (o[2 * i + 1] << 8)), regs: m8.slice(REG, REG + 128) }; };
+  const DAT = I(0, 0, 0, 0, 0), IMP = I(1, 1, 1, 0, 1);   // MOV $0, $1
+  let r = runR([IMP, DAT, DAT, DAT, DAT, DAT, DAT, DAT], 7);
+  check(`Redcode: the Imp (MOV 0, 1) copies itself through the core in 7 steps (${r.words.map(w => w.toString(16)).join(' ')}), one process at PC ${r.regs[22]}`, r.words.every(w => w === IMP) && r.regs[20] === 1 && r.regs[22] === 7);
+  r = runR([I(2, 0, 1, 4, 3), I(1, 1, 2, 2, 2), I(7, 1, 0, 14, 0), I(0, 0, 0, 0, 4), DAT, DAT, DAT, DAT], 3);   // the Dwarf: ADD #4, 3; MOV 2, @2; JMP -2; DAT #0, #4
+  check(`Redcode: the Dwarf's first round bumps its pointer to 8 = 0 and drops a bomb on itself at 3 (${r.words.map(w => w.toString(16)).join(' ')})`, r.words[3] === I(0, 0, 0, 0, 8 & 15) && r.regs[22] === 0);
+  r = runR([I(14, 1, 0, 3, 0), I(7, 1, 0, 0, 0), DAT, I(7, 1, 0, 0, 0), DAT, DAT, DAT, DAT], 5);   // SPL 3; JMP 0 ... JMP 0: two processes spinning
+  check(`Redcode: SPL makes a second process; both spin on their JMP 0 (processes ${r.regs[20]}, PCs ${r.regs[24]} ${r.regs[26]})`, r.regs[20] === 2 && r.regs[24] === 1 && r.regs[26] === 3);
+  r = runR([DAT, I(7, 1, 0, 0, 0), DAT, DAT, DAT, DAT, DAT, DAT], 4);   // DAT at 0 kills the only process; the core restarts at 0 and dies again
+  check(`Redcode: a dying last process restarts the core at 0 (processes ${r.regs[20]}, PC ${r.regs[22]})`, r.regs[20] === 1 && r.regs[22] === 0);
+  r = runR([I(10, 1, 1, 2, 3), DAT, I(0, 0, 0, 0, 7), I(0, 0, 0, 0, 2), DAT, DAT, DAT, DAT], 2);   // DJN 2, 3: decrements word 3's B (2 -> 1), jumps to 2 (DAT, dies); then restarts
+  check(`Redcode: DJN decrements the B-field and jumps while it is not zero (word 3 B = ${r.words[3] & 15}, processes ${r.regs[20]}, PC ${r.regs[22]})`, (r.words[3] & 15) === 1 && r.regs[22] === 0);
+  io.setChanger(0);
+}
 // ---- sorts (41 ascending, 42 primes first)
 {
   io.setPair(0, 0); io.setChanger(41);

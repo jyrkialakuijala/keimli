@@ -41,6 +41,7 @@ PARTS="
   src/changers/cpu/pic1640.wat
   src/changers/cpu/alpha.wat
   src/changers/cpu/parisc.wat
+  src/changers/cpu/redcode.wat
 "
 {
   echo ";; Assembled by build.sh from the parts under src/; edit those, not this file."

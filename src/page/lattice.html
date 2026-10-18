@@ -347,6 +347,7 @@
         <option value="14">Motorola 6809</option>
         <option value="21">Motorola 68000</option>
         <option value="25">Motorola 68020</option>
+        <option value="47">Redcode (Core War, 8 two-byte instructions)</option>
         <option value="15">RISC-V RV32EC</option>
         <option value="9">Subleq one-instruction machine</option>
         <option value="6" selected>Zilog Z80</option>
@@ -739,11 +740,11 @@ function workerMain() {
   // local changer: 'none' keeps the LZ decompressor for the views but skips the rewrite phase
   // The local changer is chosen in two steps: a mode (none / transform / decoder / CPU) and, for the last three,
   // the processor in its own box. changerId() is the wasm processor number (0 LZ, 1..21 as listed in the boxes).
-  const CPU_IDS = [2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 43, 44], XF_IDS = [3, 4, 5, 16, 17, 18, 41, 42], DEC_IDS = [0, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46];
+  const CPU_IDS = [2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 43, 44, 47], XF_IDS = [3, 4, 5, 16, 17, 18, 41, 42], DEC_IDS = [0, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46];
   const changerId = () => { const m = $('changer').value; return m === 'cpu' ? Number($('cpu').value) : m === 'xf' ? Number($('xf').value) : m === 'dec' ? Number($('dec').value) : 0; };
   const changerActive = () => $('chgOn').checked && $('changer').value !== 'none';   // the section's on/off box and the menu's None entry both switch the changer off
   // links: with Cells set to any pair joining and a CPU changer, every pair of neighbouring pixels gets two persistent CPUs whose memory is the joined pair
-  const linkKind = k => k === 0 || k === 43 || k === 44 || (k >= 6 && k <= 30 && (k < 16 || k > 18));   // the CPUs and the LZ decompressor, which runs one copy command a step
+  const linkKind = k => k === 0 || k === 43 || k === 44 || k === 47 || (k >= 6 && k <= 30 && (k < 16 || k > 18));   // the CPUs and the LZ decompressor, which runs one copy command a step
   const linkMode = () => Number($('pair').value) > 0;
   const linksActive = () => linkMode() && changerActive() && linkKind(changerId());
   const skipBits = () => Math.max(0, Math.min(16, Math.floor(Number($('skip').value)) || 0));   // bits skipped before the LZ header
@@ -964,7 +965,7 @@ function workerMain() {
       }[changerId()];
       return;
     }
-    if ((changerId() >= 9 && changerId() <= 30 || changerId() === 43 || changerId() === 44) && !XF_IDS.includes(changerId())) {   // the CPUs (16..18 are transforms)
+    if ((changerId() >= 9 && changerId() <= 30 || changerId() === 43 || changerId() === 44 || changerId() === 47) && !XF_IDS.includes(changerId())) {   // the CPUs (16..18 are transforms)
       $('codeNote').textContent = {
         9: 'Subleq: one instruction, three byte operands a b c; mem[b] -= mem[a] and PC jumps to c when the result is <= 0, else advances by 3. Every instruction rewrites memory.',
         10: 'CHIP-8: 2-byte big-endian instructions, 16 V registers, I, a 16-level stack and timers in the register file; the 16 bytes are the whole memory. V0..VF are loaded from the 16 bytes at the start and written back over them at the end, so the registers live in the pixel. No display or keypad: DXYN only clears VF, EX9E never skips, EXA1 always skips, FX0A is a NOP.',
@@ -984,6 +985,7 @@ function workerMain() {
         25: 'Motorola 68020: the 68000 core with the 68020 additions. The full extension word (16- and 32-bit base displacements, index scaled by 1, 2, 4 or 8, suppressed base or index, memory indirect pre- and post-indexed with an outer displacement), MULU.L/MULS.L and DIVU.L/DIVS.L with their 64-bit forms, the bit field instructions (BFTST BFEXTU BFEXTS BFCHG BFCLR BFSET BFFFO BFINS on registers and memory), EXTB.L, LINK.L, Bcc.L, RTD, CAS, CMP2/CHK2. TRAPcc, PACK/UNPK, CAS2, CALLM/RTM, MOVEC/MOVES, BKPT and the coprocessor line are NOPs.',
         22: 'ERA / UNIVAC 1101: the pixel is 5 words of 24 bits (word k = bits 24k..24k+23); A (48 bits), Q and X start at zero. The 38 operations of the January 1950 ERA list by their octal codes: clear/hold add and subtract, the absolute, split (multiple precision) and Q forms, fill Q, substitute digits and execution address, circular shifts of A and Q, store A and Q, the four jumps, logical multiply, multiply, multiply-add and divide; print and the three stops are NOPs. Operands and jumps take y mod 5 and the skip field chooses the next word.',
         23: 'DEC VAX-11/780: R0..R14 (AP, FP, SP), PC and the PSL condition codes; 16 little-endian bytes with every operand specifier (literal, register, deferred, autoincrement/decrement, displacement, indexed, PC relative, immediate, absolute). The integer and address instruction set: MOV/MOVZ/CVT/MNEG/MCOM/CLR/TST/INC/DEC, ADD/SUB/MUL/DIV/BIS/BIC/XOR in the 2- and 3-operand forms, CMP/BIT, ASHL/ROTL, ADWC/SBWC, MOVA/PUSHA/PUSHL/PUSHR/POPR, MOVQ/CLRQ, branches, JMP/JSB/RSB/BSB, SOB/AOB/ACB/CASE, the bit-field group (EXTV/EXTZV/INSV/CMPV/FFS/FFC, BBS/BBC and relatives, BLBS/BLBC), BISPSW/BICPSW/MOVPSL. CALLS/CALLG push the argument and the PC without a frame, RET pops; HALT, floating point, EMUL/EDIV, packed decimal, strings, queues and the privileged instructions are NOPs.',
+        47: 'Redcode, the language of Core War (A. K. Dewdney, 1984), in a 16-bit form: the cell is a core of 8 instructions (16 on a pair), each op:4 A-mode:2 B-mode:2 A:4 B:4 with DAT MOV ADD SUB MUL DIV MOD JMP JMZ JMN DJN SEQ SNE SLT SPL NOP, the modes # $ @ <, fields as offsets relative to the instruction mod the core size and field arithmetic mod 16, under the 1988 rules (an immediate A acts on the B-field). Up to four processes run round robin; DAT and division by zero kill one, SPL adds one, and an empty core restarts at 0.',
         44: 'HP PA-RISC 1.1 (PA-7100, 1992): 32-bit big-endian RISC, 32-bit instructions four to a cell, delayed branches with nullification. GR1..GR15 in the register file (GR16..GR31 alias GR0..GR15, so GR0 and GR16 are zero). LDO/LDI, LDIL, ADDIL, LDW/LDH/LDB/STW/STH/STB and the modify forms, the three-register arithmetic and logical group with its conditions nullifying the next instruction, ADDI/SUBI/COMICLR, SHD/EXTRU/EXTRS/ZDEP/DEP/ZDEPI/DEPI, BL/BLR/BV, COMB/COMIB/ADDB/ADDIB/BB/MOVB/MOVIB each with a delay slot. System, coprocessor, floating point and the variable shifts are NOPs.',
         43: 'DEC Alpha 21064 (EV4, 1992): 64-bit RISC, 32-bit little-endian instructions, four to a cell. Fifteen 64-bit registers R0..R14 in the register file (R16..R30 alias them, R15 and R31 are the zero register). LDA/LDAH, LDL/LDQ/LDQ_U and STL/STQ/STQ_U (the locked and conditional forms as plain), the integer arithmetic with S4/S8 and compare forms and CMPBGE, the logical group with CMOVxx, SLL/SRL/SRA, the byte-manipulation group EXT/INS/MSK/ZAP that stands in for the byte loads the EV4 lacks, MULL/MULQ/UMULH, BR/BSR, the integer conditional branches, JMP/JSR/RET. CALL_PAL, floating point, the miscellaneous group and the later opcodes (BWX, CIX, MVI) are NOPs.',
         24: 'CDC 6600: the pixel is 2 words of 60 bits (word w = bits 60w..60w+59), each four 15-bit parcels executed from the high end; X0..X7 (60 bits), A0..A7 and B0..B7 (18 bits) start at zero. The whole central processor set: PS, RJ, JP, the Xj and Bi Bj branches, the boolean BX forms, LX/AX shifts, NX/ZX/UX/PX, FX/DX/RX add, subtract, multiply and divide in the 6600 floating format (RX is not rounded), IX add and subtract, MX and CX, and the SA/SB/SX address arithmetic with the A1..A5 loads and A6/A7 stores. Memory addresses are taken mod 2.',
@@ -1117,7 +1119,7 @@ function workerMain() {
     if (sel < 0) return;
     const pairIns = linkMode() && changerActive() && !linksActive() ? { mode: Number($('pair').value), flip: turn & 1 } : null;   // decoders and transforms on pairs: inspect the joint cell
     const r = await engine.inspect(sel, pairIns), textLen = built.bytes.length, hb = HB, coff = Number($('coff').value), nbits = r.bits.length * 8;
-    const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18) || ch === 41 || ch === 42, dec = (ch >= 31 && ch <= 40) || ch === 45 || ch === 46, z80 = (ch >= 6 && ch <= 15) || (ch >= 19 && ch <= 30) || ch === 43 || ch === 44 || (ch === 0 && linksActive());
+    const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18) || ch === 41 || ch === 42, dec = (ch >= 31 && ch <= 40) || ch === 45 || ch === 46, z80 = (ch >= 6 && ch <= 15) || (ch >= 19 && ch <= 30) || ch === 43 || ch === 44 || ch === 47 || (ch === 0 && linksActive());
     $('selPos').textContent = `x ${sel % W}, y ${Math.floor(sel / W)}` + (r.pair ? ` · paired with x ${(sel % W) + (r.pair.left ? 1 : -1)}: the ${nbits}-bit joint cell below is ${({ 1: 'the two concatenated', 2: 'bit-interleaved', 3: 'nibble-interleaved', 5: 'byte-interleaved' })[r.pair.mode] || 'joined'}, this pixel in the ${r.pair.left !== !!r.pair.flip ? 'first' : 'second'} role this turn` : '');
     $('selHex').textContent = Array.from(r.bits, b => b.toString(16).padStart(2, '0')).join(' ');
     if (z80) {
@@ -1151,6 +1153,7 @@ function workerMain() {
         28: () => `EAX=${x32(0)} EBX=${x32(3)} ECX=${x32(1)} EDX=${x32(2)} ESP=${x32(4)} EBP=${x32(5)} ESI=${x32(6)} EDI=${x32(7)} FLAGS=${['C','','P','','A','','Z','S','','','D','O'].filter((f, k) => f && (g[20] | (g[21] << 8)) & (1 << k)).join('') || '-'} IP=${h4(22, 23)}`,
         29: () => { const f = n => { const o = n <= 6 ? 4 * (n - 2) : 24 + 4 * (n - 7); return ((g[o] | (g[o + 1] << 8) | (g[o + 2] << 16) | (g[o + 3] << 24)) >>> 0).toString(16).padStart(8, '0'); }; return `r1..r15=${Array.from({ length: 15 }, (_, k) => x32(k)).join(' ')} f2..f15=${Array.from({ length: 14 }, (_, k) => f(k + 2)).join(' ')} CC=${g[20] & 1} LCC=${(g[20] >> 1) & 1} PC=${h4(22, 23)}${g[21] ? ' (branch pending)' : ''}`; },
         30: () => `W=${h2(g[0])} PC=${g[22] | (g[23] << 8)} (word) stack=${h4(24, 25)} ${h4(26, 27)} (STATUS is byte 3 of the cell: C DC Z; FSR byte 4)`,
+        47: () => { const n = g[20] || 1, cur = g[21]; const pcs = Array.from({ length: n }, (_, k) => g[24 + 2 * k] | (g[25 + 2 * k] << 8)); return `processes ${n}, running ${cur}: PCs ${pcs.join(' ')}`; },
         44: () => { const w = n => (g[64 + 4 * n] | g[65 + 4 * n] << 8 | g[66 + 4 * n] << 16 | g[67 + 4 * n] << 24) >>> 0; return `GR1..GR15=${Array.from({ length: 15 }, (_, k) => w(k + 1).toString(16).padStart(8, '0')).join(' ')} PC=${h4(22, 23)}${g[21] & 1 ? ' nullify' : ''}${g[21] & 2 ? ' branch pending' : ''} (GR16..GR31 alias GR0..GR15)`; },
         43: () => { const q = n => { const o = n === 0 ? 0 : n === 1 ? 8 : 24 + 8 * (n - 2); let v = 0n; for (let k = 7; k >= 0; k--) v = (v << 8n) | BigInt(g[o + k]); return v.toString(16).padStart(16, '0'); }; return `R0..R14=${Array.from({ length: 15 }, (_, k) => q(k)).join(' ')} PC=${h4(22, 23)} (R16..R30 alias R0..R14, R15/R31 zero)`; },
         21: () => `D0..D7=${Array.from({ length: 8 }, (_, k) => x32(k)).join(' ')} A0..A7=${Array.from({ length: 8 }, (_, k) => x32(8 + k)).join(' ')} SR=${['X','N','Z','V','C'].filter((_, k) => g[20] & (16 >> k)).join('') || '-'} PC=${h4(22, 23)}`,
@@ -1176,7 +1179,8 @@ function workerMain() {
         23: 'little-endian, every operand specifier; HALT, floating point, decimal, strings, queues and privileged instructions are NOPs',
         24: '2 words of 60 bits in 15-bit parcels; the full central processor set with 6600 floating point, addresses mod 2',
         43: 'four 32-bit instructions a cell; R16..R30 alias R0..R14, R15 and R31 are zero; CALL_PAL, floating point and the miscellaneous group are NOPs',
-        44: 'big-endian, four 32-bit instructions a cell, delayed branches with nullification; GR16..GR31 alias GR0..GR15; system, coprocessor and floating point are NOPs' };
+        44: 'big-endian, four 32-bit instructions a cell, delayed branches with nullification; GR16..GR31 alias GR0..GR15; system, coprocessor and floating point are NOPs',
+        47: 'a core of 8 two-byte instructions (16 on a pair), relative addressing mod the core, fields mod 16; up to four processes round robin, an empty core restarts at 0' };
       if (linksActive()) {   // the cell is changed by the link machines, not by a run over the cell alone: show the four whose code starts here
         const x = sel % W, y = Math.floor(sel / W), rounds = linkRoundCount(), n = linkResetEvery();
         const own = [x + 1 < W && ['→', 'pair with the right neighbour, forward machine', engine.linkState(x, y, false, false)],
