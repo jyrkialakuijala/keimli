@@ -52,6 +52,11 @@
   .section:first-child { border-top: 0; padding-top: 0; }
   .sec { flex: 0 0 100%; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
   .sec .chk { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .sec .sub { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .sec-help, .help-text { display: none; flex: 0 0 100%; font-size: 12.5px; color: var(--muted); line-height: 1.45; margin: 0 0 6px; }
+  .help-text { font-size: 12px; margin: -4px 0 6px; }
+  body.help .sec-help, body.help .help-text { display: block; }
+  #help[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   .layout, .main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
   /* landscape screens: the controls in a column on the left, the square takes the rest of the width and the height */
   @media (min-width: 1000px) {
@@ -71,6 +76,12 @@
     .inspect, .hint { grid-column: 1 / -1; }
   }
   .group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .adv { flex: 0 0 100%; display: block; }
+  .adv summary { cursor: pointer; font-size: 12px; color: var(--muted); list-style: none; }
+  .adv summary::before { content: '▸ '; }
+  .adv[open] summary::before { content: '▾ '; }
+  .adv[open] { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  .adv[open] summary { flex: 0 0 100%; margin-bottom: 2px; }
   [hidden] { display: none !important; }
   label { font-size: 13px; color: var(--muted); white-space: nowrap; }
   button, select {
@@ -84,6 +95,7 @@
   button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; min-width: 84px; }
   input[type=range] { width: 110px; accent-color: var(--accent); }
   .group .chk { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted, inherit); white-space: nowrap; }
+  #share { flex: 1; min-width: 0; font: 12px var(--font-mono); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
   input[type=number] { font: 500 14px var(--font-mono); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 9ch; }
   .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   .val { min-width: 7ch; font-size: 13px; }
@@ -107,6 +119,7 @@
     background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
     display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 13px; min-width: 0;
   }
+  .inspect .ihead { grid-column: 1 / -1; font-weight: 600; font-size: 13px; color: var(--fg); padding-bottom: 2px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
   .inspect .k { color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; padding-top: 3px; }
   .inspect .v { font-family: var(--font-mono); overflow-wrap: anywhere; min-width: 0; }
   .inspect .text { font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
@@ -120,6 +133,8 @@
   @media (max-width: 520px) { .inspect { grid-template-columns: 1fr; } .inspect .k { padding-top: 6px; } }
 
   .hint { font-size: 13px; color: var(--muted); margin: 0; max-width: 76ch; }
+  .what { font-size: 13px; color: var(--muted); margin: 0 0 8px; max-width: 90ch; line-height: 1.45; }
+  .what b { color: var(--fg); font-weight: 600; }
   .hint kbd { font: 12px var(--font-mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; background: var(--panel); }
 </style>
 
@@ -132,15 +147,31 @@
 <div class="toolbar" role="toolbar" aria-label="Simulation controls">
   <div class="section" role="group" aria-labelledby="sec-run">
     <span class="sec" id="sec-run">Run</span>
+    <p class="sec-help">Start chooses the first lattice; Reset starts again from it, Random from random bits. A turn runs the four swap phases, the median passes and the rewriting, then one frame is drawn; Speed sets how many turns a second. Threads splits the grid into horizontal bands, one Web Worker each, bit-identical to a single thread. Click a pixel to inspect it; shift-drag paints ones, ctrl-shift-drag zeros. Keys: space play/pause, n step, r random.</p>
     <div class="group">
       <button id="play" class="primary" type="button">Pause</button>
       <button id="step" type="button">Step</button>
       <button id="reset" type="button" title="start again from the chosen Start pattern: turn 0, a new random seed, fresh link machines and render history">Reset</button>
       <button id="random" type="button">Random</button>
+      <button id="help" type="button" aria-pressed="false" title="show what each section and control does">Help</button>
+    </div>
+    <div class="group">
+      <label for="preset">Preset</label>
+      <select id="preset" title="a named setting of every control; the Settings line below carries the same and can be shared"><option value="">Choose a preset…</option></select>
+    </div>
+    <div class="group">
+      <label for="share">Settings</label>
+      <input id="share" type="text" class="mono" spellcheck="false" autocomplete="off" placeholder="keimli1 … paste a settings line here and press Apply" title="every control as one line of text: Copy it to share, paste one in and press Apply to use it">
+    </div>
+    <div class="group">
+      <button id="shareCopy" type="button" title="put the current settings in the box and copy them">Copy settings</button>
+      <button id="shareLink" type="button" title="copy a link that opens the public page with the current settings">Copy link</button>
+      <button id="shareApply" type="button" title="apply the settings line in the box (Enter does the same)">Apply</button>
+      <span id="shareNote" class="note"></span>
     </div>
     <div class="group">
       <label for="pattern">Start</label>
-      <select id="pattern">
+      <select id="pattern" title="the first lattice: random bits, halves, a square, a pixel, stripes, or random bytes 0 to 7 (Brainfuck programs)">
         <option value="halves">Left half set, right half clear</option>
         <option value="square">Centre square of ones</option>
         <option value="pixel">Single pixel of ones</option>
@@ -151,7 +182,7 @@
     </div>
     <div class="group">
       <label for="size">Grid</label>
-      <select id="size">
+      <select id="size" title="the lattice size in pixels; 1024 × 1024 wants 16 cores or more, 512 × 512 runs well on a laptop (a fresh page picks 512 on 8 cores or fewer)">
         <option value="64x64">64 × 64</option>
         <option value="128x128">128 × 128</option>
         <option value="256x256">256 × 256</option>
@@ -162,12 +193,12 @@
     </div>
     <div class="group">
       <label for="speed">Speed</label>
-      <input id="speed" type="range" min="0" max="5" value="5" step="1">
+      <input id="speed" type="range" min="0" max="5" value="5" step="1" title="turns a second when the display keeps up; one turn is drawn per frame, never more">
       <span id="speedVal" class="mono val">60 turns/s</span>
     </div>
     <div class="group">
       <label for="threads">Threads</label>
-      <select id="threads">
+      <select id="threads" title="Web Workers, one horizontal band each, bit-identical to a single thread">
         <option value="1">1 (in page)</option>
         <option value="2">2 workers</option>
         <option value="4">4 workers</option>
@@ -179,7 +210,8 @@
     </div>
   </div>
   <div class="section" role="group" aria-labelledby="sec-swap">
-    <span class="sec" id="sec-swap">Entropy increase through gene swapping <label class="chk" for="swapOn" title="off: no bits are exchanged between neighbours"><input id="swapOn" type="checkbox" checked> on</label></span>
+    <span class="sec" id="sec-swap">Mixing <span class="sub">neighbours trade bits · entropy increase through gene swapping</span> <label class="chk" for="swapOn" title="off: no bits are exchanged between neighbours"><input id="swapOn" type="checkbox" checked> on</label></span>
+    <p class="sec-help">Every pixel is a 128-bit string on a plane with edges. A swap phase pairs each pixel with one neighbour, left–right or up–down at an even or odd offset, so in a turn it exchanges once with each of its four neighbours. Where two strings differ, the 32 bits around that position in each pixel are hashed together, and every position whose hash falls below the threshold is exchanged: a uniform crossover that conserves the set bits. p runs along the x axis from the left-edge to the right-edge value, shaped by the Gradient power; the crossover rate is 2p(1 − p), so 0 and 1 are the identity and 0.5 the strongest mixing. Mutation flips a random share of all bits.</p>
     <div class="group">
       <label for="thrL" title="the swap parameter at the left edge: each differing bit of a pair crosses over with probability 2 p (1 − p), so 0 and 1 are the identity and 0.5 the maximal mixing">p, left edge</label>
       <input id="thrL" type="range" min="0" max="1" value="0" step="0.01">
@@ -190,31 +222,34 @@
       <input id="thrR" type="range" min="0" max="1" value="1" step="0.01">
       <span id="thrRVal" class="mono val">p = 1.00</span>
     </div>
-    <div class="group">
+              <details class="adv"><summary>More settings</summary>
+<div class="group">
       <label for="gpow" title="shapes the left-to-right gradient: the column's position is taken to [−1, 1], its magnitude raised to this power and the sign put back; below 1 the gradient is steep at the centre and flat towards the edges, 1 is linear, 0 two flat halves">Gradient power</label>
       <input id="gpow" type="range" min="0" max="1" value="0.2" step="0.01">
       <span id="gpowVal" class="mono val">0.20</span>
     </div>
-    <div class="group">
+<div class="group">
       <label for="mut">Mutation, % of bits flipped per turn</label>
       <input id="mut" type="number" min="0" max="100" step="0.01" value="0" class="mono" title="per cent of all bits flipped per turn; the arrows step by 0.01 %, any value can be typed">
     </div>
+    </details>
   </div>
   <div class="section" role="group" aria-labelledby="sec-smooth">
-    <span class="sec" id="sec-smooth">Entropy decrease through median filtering <label class="chk" for="medOn" title="off: the median passes leave every bit as it is"><input id="medOn" type="checkbox" checked> on</label></span>
+    <span class="sec" id="sec-smooth">Settling <span class="sub">majority vote per bit plane · entropy decrease through median filtering</span> <label class="chk" for="medOn" title="off: the median passes leave every bit as it is"><input id="medOn" type="checkbox" checked> on</label></span>
+    <p class="sec-help">A pass works on each of the 128 bit planes separately: a bit that disagrees with the majority of its neighbourhood, the 3 × 3 block by default, takes the majority value when the hash of the pixel's 32 surrounding bits falls below the threshold. p runs along the y axis from the top-edge to the bottom-edge value; Passes sets how many passes a turn.</p>
     <div class="group">
       <label for="smoothT">p, top edge</label>
-      <input id="smoothT" type="range" min="0" max="1" value="0" step="0.01">
+      <input id="smoothT" type="range" min="0" max="1" value="0" step="0.01" title="the median probability at the top edge of the grid (0 leaves the bits alone, 1 always takes the majority)">
       <span id="smoothTVal" class="mono val">p = 0.00</span>
     </div>
     <div class="group">
       <label for="smoothB">p, bottom edge</label>
-      <input id="smoothB" type="range" min="0" max="1" value="1" step="0.01">
+      <input id="smoothB" type="range" min="0" max="1" value="1" step="0.01" title="the median probability at the bottom edge; the probability runs linearly down the rows">
       <span id="smoothBVal" class="mono val">p = 1.00</span>
     </div>
     <div class="group">
       <label for="nbr">Neighbourhood</label>
-      <select id="nbr">
+      <select id="nbr" title="the bits that vote: the 4-connected cross, the 3 × 3 block, or wider blocks">
         <option value="0">4-connected (5 votes)</option>
         <option value="1" selected>8-connected (9 votes)</option>
         <option value="2">5 × 5 (25 votes)</option>
@@ -225,7 +260,7 @@
     </div>
     <div class="group">
       <label for="iters">Passes</label>
-      <select id="iters">
+      <select id="iters" title="median passes a turn, each over all 128 bit planes">
         <option value="0">0 per turn</option>
         <option value="1">1 per turn</option>
         <option value="2">2 per turn</option>
@@ -235,19 +270,11 @@
     </div>
   </div>
   <div class="section" role="group" aria-labelledby="sec-algo">
-    <span class="sec" id="sec-algo">Entropy decrease through local changer <label class="chk" for="chgOn" title="off: no changer runs; the views still decode with the selected decoder"><input id="chgOn" type="checkbox" checked> on</label></span>
-    <div class="group">
-      <label for="changer">Changer</label>
-      <select id="changer">
-        <option value="none">None (view only)</option>
-        <option value="xf">Transform</option>
-        <option value="dec" selected>Decoder</option>
-        <option value="cpu">CPU</option>
-      </select>
-    </div>
+    <span class="sec" id="sec-algo">Rewriting <span class="sub">a decoder or CPU rewrites every cell · the local changer</span> <label class="chk" for="chgOn" title="off: no changer runs; the views still decode with the selected decoder"><input id="chgOn" type="checkbox" checked> on</label></span>
+    <p class="sec-help">Every pixel's 16 bytes are replaced by what the changer makes of them. A Decoder reads them as a coded stream and writes what it decodes back: the LZ decompressor copying from the dictionary, Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse, Rice residuals, WebP's boolean decoder, PNG filters, a JPEG block or the codebooks. A Transform applies a fixed rule such as invert, reverse, sort or a DCT. A CPU runs the bytes as its whole memory for the chosen number of instructions and writes the memory back. With Cells set to pairs, two neighbouring cells are joined into one 32-byte cell for the changer and split back afterwards; with a CPU or the LZ decompressor, pairs instead carry persistent link machines, one per direction, each running one instruction per phase. The dictionary, the skipped bits, the cursor read range and offset and the longest copy shape the decoders that use them; the inspector below the lattice shows what the selected cell decodes to.</p>
     <div class="group">
       <label for="pair">Cells</label>
-      <select id="pair">
+      <select id="pair" title="each cell on its own, or neighbouring pairs joined for the changer (concatenated, or interleaved by bit, nibble or byte), the roles alternating by turn">
         <option value="0" selected>Each cell on its own</option>
         <option value="1">Pairs, concatenated: A then B (B then A for the other role)</option>
         <option value="2">Pairs, bit-interleaved: A on the even bits and B on the odd (swapped for the other role)</option>
@@ -255,9 +282,18 @@
         <option value="5">Pairs, byte-interleaved: A on the even bytes and B on the odd (swapped for the other role)</option>
       </select>
     </div>
+    <div class="group">
+      <label for="changer">Changer</label>
+      <select id="changer" title="what rewrites every cell each turn: nothing, a transform, a decoder or a CPU">
+        <option value="none">None (view only)</option>
+        <option value="xf">Transform</option>
+        <option value="dec" selected>Decoder</option>
+        <option value="cpu">CPU</option>
+      </select>
+    </div>
     <div class="group" id="xfGroup" hidden>
       <label for="xf">Transform</label>
-      <select id="xf">
+      <select id="xf" title="a fixed rule applied to the 16 bytes">
         <option value="3">Do nothing</option>
         <option value="4" selected>Invert</option>
         <option value="5">Reverse bytes</option>
@@ -270,7 +306,7 @@
     </div>
     <div class="group" id="decGroup" hidden>
       <label for="dec">Decoder</label>
-      <select id="dec">
+      <select id="dec" title="the coded stream the 16 bytes are read as; what it decodes to becomes the cell">
         <option value="0">LZ decompressor: copies from the dictionary (no literals, no distances)</option>
         <option value="33">Deflate, fixed Huffman block (gzip's static block)</option>
         <option value="34">LZ4 block format</option>
@@ -288,83 +324,86 @@
     </div>
     <div class="group" id="cpuGroup" hidden>
       <label for="cpu">CPU</label>
-      <select id="cpu">
+      <select id="cpu" title="the machine that runs the 16 bytes as its whole memory">
         <option value="2">Brainfuck (the tape starts as a copy of the pixel)</option>
-        <option value="6" selected>Zilog Z80</option>
-        <option value="7">MOS 6502</option>
-        <option value="8">Intel 8080</option>
-        <option value="9">Subleq one-instruction machine</option>
+        <option value="24">CDC 6600 (2 words of 60 bits)</option>
         <option value="10">CHIP-8 virtual machine</option>
-        <option value="11">Intel 4004 (4-bit, 32 nibbles)</option>
-        <option value="12">Game Boy SM83</option>
-        <option value="13">Intel 8051</option>
-        <option value="14">Motorola 6809</option>
-        <option value="15">RISC-V RV32EC</option>
+        <option value="43">DEC Alpha 21064 (EV4, 64-bit)</option>
         <option value="19">DEC PDP-8 (8 words of 12 bits)</option>
         <option value="20">DEC PDP-11</option>
-        <option value="21">Motorola 68000</option>
-        <option value="25">Motorola 68020</option>
+        <option value="23">DEC VAX-11/780</option>
+        <option value="22">ERA / UNIVAC 1101 (5 words of 24 bits)</option>
+        <option value="12">Game Boy SM83</option>
+        <option value="30">General Instrument PIC1640 (12-bit words)</option>
+        <option value="44">HP PA-RISC 1.1 (PA-7100)</option>
+        <option value="11">Intel 4004 (4-bit, 32 nibbles)</option>
+        <option value="13">Intel 8051</option>
+        <option value="8">Intel 8080</option>
         <option value="26">Intel 8086</option>
         <option value="27">Intel 80286</option>
         <option value="28">Intel 80386</option>
         <option value="29">Intel i860</option>
-        <option value="30">General Instrument PIC1640 (12-bit words)</option>
-        <option value="22">ERA / UNIVAC 1101 (5 words of 24 bits)</option>
-        <option value="23">DEC VAX-11/780</option>
-        <option value="24">CDC 6600 (2 words of 60 bits)</option>
-        <option value="43">DEC Alpha 21064 (EV4, 64-bit)</option>
-        <option value="44">HP PA-RISC 1.1 (PA-7100)</option>
+        <option value="7">MOS 6502</option>
+        <option value="14">Motorola 6809</option>
+        <option value="21">Motorola 68000</option>
+        <option value="25">Motorola 68020</option>
+        <option value="15">RISC-V RV32EC</option>
+        <option value="9">Subleq one-instruction machine</option>
+        <option value="6" selected>Zilog Z80</option>
       </select>
     </div>
-    <div class="group" id="stepsGroup" hidden>
+                <div class="group">
+      <label for="dict" title="the static dictionary the LZ decompressor copies from and the LZ77 decoders and the VP8 model draw on, as UTF-8 bytes">Dictionary</label>
+      <select id="dict"></select>
+    </div>
+                      <details class="adv"><summary>More settings</summary>
+<div class="group" id="stepsGroup" hidden>
       <label for="steps">CPU steps</label>
-      <select id="steps">
+      <select id="steps" title="instructions run per cell and turn before the memory is written back">
         <option value="32">32 per pixel</option>
         <option value="64">64 per pixel</option>
         <option value="128">128 per pixel</option>
         <option value="256" selected>256 per pixel</option>
       </select>
     </div>
-    <div class="group" id="roundsGroup" hidden>
+<div class="group" id="roundsGroup" hidden>
       <label for="rounds">CPU cycles per frame</label>
       <input id="rounds" type="number" min="0" step="1" value="2" class="mono" title="instructions each link machine runs in a frame (one per round of the four phases): any whole number, 0 leaves the machines idle">
     </div>
-    <div class="group" id="lresetGroup" hidden>
+<div class="group" id="lresetGroup" hidden>
       <label for="lreset">CPU reset</label>
       <input id="lreset" type="number" min="1" step="1" value="1" class="mono" disabled title="fresh link machines (PC 0, registers 0) at the start of every nth frame: any whole number">
       <label class="chk" for="lnever" title="keep the registers for good: the machines are never reset"><input id="lnever" type="checkbox" checked> never</label>
     </div>
-    <div class="group">
-      <label for="dict" title="the static dictionary the LZ decompressor copies from and the LZ77 decoders and the VP8 model draw on, as UTF-8 bytes">Dictionary</label>
-      <select id="dict"></select>
-    </div>
-    <div class="group">
-      <label for="skip" title="bits of the pixel every decoder skips before it starts reading (the LZ decompressor before its cursor header); a byte-oriented format then reads its bytes from that bit on. Not used by the CPUs or the transforms">Skip bits</label>
+<div class="group">
+      <label for="skip" title="the docs call this the skip bits: bits of the pixel every decoder skips before it starts reading (the LZ decompressor before its cursor header); a byte-oriented format then reads its bytes from that bit on. Not used by the CPUs or the transforms">Bits skipped before reading</label>
       <input id="skip" type="range" min="0" max="16" value="6" step="1">
       <span id="skipVal" class="mono val">6</span>
     </div>
-    <div class="group">
-      <label for="cread" title="the cursor read range V: the LZ decompressor, and Deflate, LZ4, Snappy and the Brotli-like decoder for their preset dictionary, read ceil(log2 V) bits of the pixel first as a position among V bytes of the dictionary (a value of V or more wraps round: with V = 5, 6 and 7 read as 0 and 1); V = 1 reads no bits, the dictionary size makes every byte a start position">LZ cursor read</label>
+<div class="group">
+      <label for="cread" title="the docs call this the LZ cursor read: the cursor read range V: the LZ decompressor, and Deflate, LZ4, Snappy and the Brotli-like decoder for their preset dictionary, read ceil(log2 V) bits of the pixel first as a position among V bytes of the dictionary (a value of V or more wraps round: with V = 5, 6 and 7 read as 0 and 1); V = 1 reads no bits, the dictionary size makes every byte a start position">Dictionary window range</label>
       <input id="cread" type="range" min="0" max="60" value="60" step="1">
       <input id="creadNum" type="number" min="1" max="8122" step="1" value="4096" class="mono" style="width: 7ch" title="the exact cursor read range V; the slider moves to its nearest stop, and moving the slider fills this box">
       <span id="creadVal" class="mono val">→ 12 bits</span>
     </div>
-    <div class="group">
-      <label for="coff" title="a constant added to the start cursor, not read from the pixel">LZ cursor offset</label>
+<div class="group">
+      <label for="coff" title="the docs call this the LZ cursor offset: a constant added to the start cursor, not read from the pixel">Dictionary window offset</label>
       <input id="coff" type="range" min="0" max="8122" value="0" step="1">
       <span id="coffVal" class="mono val">+0</span>
     </div>
-    <div class="group">
-      <label for="maxlen" title="the longest copy the LZ decompressor can make, 2 to 16 bytes; the length code adapts to it">Max copy length</label>
+<div class="group">
+      <label for="maxlen" title="the docs call this the max copy length or Decompression N: the longest copy the LZ decompressor can make, 2 to 16 bytes; the length code adapts to it">Longest LZ copy</label>
       <input id="maxlen" type="range" min="2" max="16" value="3" step="1">
       <span id="maxlenVal" class="mono val">N = 3</span>
     </div>
+    </details>
   </div>
   <div class="section" role="group" aria-labelledby="sec-render">
-    <span class="sec" id="sec-render">Rendering</span>
+    <span class="sec" id="sec-render">Display <span class="sub">rendering</span></span>
+    <p class="sec-help">Each pixel's colour is the average of its 16 bytes' colours through the palette, stretched around the previous frame's mean. Frames pass through a render buffer, an exponential average with a half-time of 200 ms or 4 turns in two stages, so flicker is damped; temporal sharpening adds back what a slower third stage has not yet followed; cycles of 2 to 8 turns show as column phases mixed with the cycle mean; spatial sharpening comes last. None of this feeds back into the lattice. Scale 1:1 maps one pixel to one device pixel.</p>
     <div class="group">
       <label for="view">View</label>
-      <select id="view">
+      <select id="view" title="how the bits become colour: byte colours through the palette, decoded text, cursor position, raw bits or bit density">
         <option value="4" selected>Byte colours, raw bytes (LUT average)</option>
         <option value="5">Byte colours, decoded bytes (LUT average)</option>
         <option value="0">Decoded text, hashed in thirds</option>
@@ -375,7 +414,7 @@
     </div>
     <div class="group">
       <label for="scale">Scale</label>
-      <select id="scale">
+      <select id="scale" title="fit to width, or 1:1 and whole-number zooms, one lattice pixel to one or more device pixels">
         <option value="fit" selected>Fit to width</option>
         <option value="one">1:1 device pixels</option>
         <option value="2">2:1 device pixels (zoom ×2)</option>
@@ -386,52 +425,56 @@
     </div>
     <div class="group">
       <label for="avg">Temporal averaging</label>
-      <select id="avg">
+      <select id="avg" title="the temporal render buffer: off, one stage, or two stages in cascade">
         <option value="0">Off, show every frame</option>
         <option value="1">One stage, half-time 200 ms or 4 turns, whichever is longer</option>
         <option value="2" selected>Two stages in cascade, same half-time each</option>
       </select>
     </div>
-    <div class="group" id="twGroup">
-      <label for="tw" title="the sharpening s: when it is not 0 one more stage integrates the last averaging stage (the frame itself with averaging off) at twice the half-time, and the frame shown is (1 + s) × the last stage − s × the slow one; 0 shows the averaging alone and computes nothing more, −1 the slow stage itself, positive values sharpen in time">Temporal sharpening</label>
-      <input id="tw" type="range" min="-1" max="5" value="1" step="0.05">
-      <span id="twVal" class="mono val">1.00</span>
-    </div>
-    <div class="group">
-      <label for="cph" title="a pixel whose colour cycles with a period of 2 to 8 is shown as its cycle's mean mixed with this share of the phase its column selects (x mod the period), so stripes as wide as the period show the cycle and phase shifts show as shifted stripes; 0 shows the plain mean, 1 the phases alone">Cycle phase share</label>
-      <input id="cph" type="range" min="0" max="1" value="0.12" step="0.01">
-      <span id="cphVal" class="mono val">0.12</span>
-    </div>
-    <div class="group">
+            <div class="group">
       <label for="sp" title="spatial sharpening p: each channel becomes the pixel + p × (the pixel − the mean of its 4 neighbours); 0 is off, 1 the classic 2 × pixel − mean, −1 the mean itself (a blur)">Sharpening</label>
       <input id="sp" type="range" min="-1" max="5" value="0" step="0.05">
       <span id="spVal" class="mono val">0.00</span>
     </div>
+      <details class="adv"><summary>More settings</summary>
+<div class="group" id="twGroup">
+      <label for="tw" title="the sharpening s: when it is not 0 one more stage integrates the last averaging stage (the frame itself with averaging off) at twice the half-time, and the frame shown is (1 + s) × the last stage − s × the slow one; 0 shows the averaging alone and computes nothing more, −1 the slow stage itself, positive values sharpen in time">Temporal sharpening</label>
+      <input id="tw" type="range" min="-1" max="5" value="1" step="0.05">
+      <span id="twVal" class="mono val">1.00</span>
+    </div>
+<div class="group">
+      <label for="cph" title="a pixel whose colour cycles with a period of 2 to 8 is shown as its cycle's mean mixed with this share of the phase its column selects (x mod the period), so stripes as wide as the period show the cycle and phase shifts show as shifted stripes; 0 shows the plain mean, 1 the phases alone">Cycle phase share</label>
+      <input id="cph" type="range" min="0" max="1" value="0.12" step="0.01">
+      <span id="cphVal" class="mono val">0.12</span>
+    </div>
+    </details>
   </div>
 </div>
 
 <div class="main">
 <div class="stage">
+  <p class="what"><b>What you see.</b> Every pixel is a 128-bit string. Each turn its bits are traded with the neighbours, a median filter settles some of them, and a decoder rewrites the whole cell from a dictionary. The colour is the average of the cell's 16 bytes through a palette, so like bytes make like colours. Click a cell to read it; Help, at the top of the controls, explains every section and control.</p>
   <canvas id="view-canvas" tabindex="0" aria-label="Bit swap lattice. Click to inspect a pixel, shift-drag to paint."></canvas>
 </div>
 
 <dl class="stats">
   <div><dt>Turn</dt><dd id="turn">0</dd></div>
-  <div><dt>Swap order</dt><dd id="phase">UD0 LR0 UD1 LR1</dd></div>
-  <div><dt>Bits median-filtered last turn</dt><dd id="smoothed">0</dd></div>
-  <div><dt>Render half-time</dt><dd id="halfT">–</dd></div>
   <div><dt>Bits moved last turn</dt><dd id="moved">0</dd></div>
-  <div><dt>Bits mutated last turn</dt><dd id="mutated">0</dd></div>
+  <div><dt>Bits median-filtered last turn</dt><dd id="smoothed">0</dd></div>
   <div><dt>Pixels rewritten last turn</dt><dd id="rewritten">0</dd></div>
+  <div class="chart"><dt>Entropy of the byte distribution</dt><dd id="entropy">–</dd><dd><canvas id="entChart" aria-label="Entropy in bits per byte, turn by turn"></canvas></dd></div>
+  <div class="chart"><dt>Byte histogram <span id="histInfo" class="sub"></span></dt><dd><canvas id="histChart" aria-label="Histogram of the 256 byte values over the lattice, log scale, coloured as in the byte view"></canvas></dd></div>
+  <div><dt>Render half-time</dt><dd id="halfT">–</dd></div>
   <div><dt>Segment influence <span class="sub">bits of the other half's new content that change when one half is replaced by random bits</span></dt><dd id="infl">–</dd></div>
   <div><dt>Link CPUs</dt><dd id="linkN">off</dd></div>
   <div><dt>Total set bits</dt><dd id="total">0</dd></div>
   <div><dt>Turn time</dt><dd id="turnTime">–</dd></div>
-  <div class="chart"><dt>Byte histogram <span id="histInfo" class="sub"></span></dt><dd><canvas id="histChart" aria-label="Histogram of the 256 byte values over the lattice, log scale, coloured as in the byte view"></canvas></dd></div>
-  <div class="chart"><dt>Entropy of the byte distribution</dt><dd id="entropy">–</dd><dd><canvas id="entChart" aria-label="Entropy in bits per byte, turn by turn"></canvas></dd></div>
+  <div><dt>Swap order</dt><dd id="phase">UD0 LR0 UD1 LR1</dd></div>
+  <div><dt>Bits mutated last turn</dt><dd id="mutated">0</dd></div>
 </dl>
 
 <div class="inspect" aria-live="polite">
+  <div class="ihead">This cell: what it holds and what it decodes to</div>
   <div class="k">Pixel</div><div class="v" id="selPos">–</div>
   <div class="k">128 bits</div><div class="v" id="selHex">–</div>
   <div class="k">Dictionary</div><div class="v" id="selWindow">–</div>
@@ -442,50 +485,7 @@
     <div id="lutAlpha" aria-label="Colours of the dictionary's characters"></div></div>
 </div>
 
-<p class="hint">
-  Every pixel holds a 128-bit string on a plane with edges (no wrap-around). Each turn runs the four swap phases in the fixed order UD0, LR0, UD1, LR1; the edge column or row that a phase's brick pattern leaves out pairs along the edge instead, with a brick offset that alternates by turn, so every pixel takes part in four exchanges a turn (a corner in three).
-  Then comes a block of bit-plane median filtering passes (entropy decrease), then the local changer: every pixel's 16
-  bytes are replaced by what the changer makes of them, so the decompressed text or the Brainfuck tape becomes the
-  pixel's new content. A Decoder changer reads the 16 bytes as a coded stream instead, Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse, Rice-coded residuals, WebP's boolean decoder, PNG filters or a JPEG block, and writes what it decodes back over the pixel. With Cells set to pairs, the transforms and Brainfuck see the two cells of a column pair joined into one 32-byte
-  cell, the roles alternating by turn; a CPU changer or the LZ decompressor instead gives every pair of neighbouring pixels (left–right and up–down) two persistent machines of its own,
-  one per direction, each of which runs one instruction (one copy command for the decompressor) per phase on the two pixels joined as the Cells box says, its own pixel in the first role, as its 32-byte memory; a turn makes 2 such rounds of the four
-  phases by default (the CPU cycles per frame box) before the lattice is drawn, and the machines keep their registers from frame to frame (the never box),
-  unless the CPU reset box starts them fresh, PC 0 and registers 0, every n frames.
-  Last, mutation flips a random share of all bits (off by default, 0 %; 0.001 % would be about 335 bits a turn on a
-  512 × 512 grid).
-  A swap phase pairs every pixel with one neighbour, left–right (LR) or up–down (UD), at an even (0) or odd (1)
-  offset, so within one turn every pixel exchanges once with each of its four neighbours. For each pair the two
-  strings are compared position by position; where the bits differ, the 32 bits around that position in each pixel are
-  taken, the two contexts packed without regard to order and hashed once, so the decision does not depend on which pixel is which. Every
-  position whose hash falls below the threshold is exchanged, a uniform crossover; swaps conserve the total number of set bits. The slider value p
-  runs along the x axis from the left-edge value to the right-edge value, each 0 to 1, with the column's position taken to [−1, 1], its magnitude raised to the Gradient power (0.2 by default, so the gradient is steep at the centre and nearly flat towards the edges) and the sign put back; the crossover rate is 2 p (1 − p), so p = 0 and p = 1 are the identity and p = 0.5 the maximal mixing. A median filtering pass
-  works on each of the 128 bit planes separately: it looks at every bit that disagrees with the majority of its neighbourhood (the 3 × 3 block by default, or itself and its four 4-connected neighbours, or the 5 × 5 block), hashes the
-  pixel's 32 bits around that position, and if the hash is below the smoothing threshold the bit takes the majority
-  value. The median filtering probability is a linear gradient along the y axis from the top-edge value to the bottom-edge value.
-  The image is drawn through a render buffer: each pixel's colour is an exponential average of the rendered frames
-  whose half-time is 200 ms or 4 turns, whichever is longer at the current turn rate, and a second buffer integrates
-  the output of the first in the same way (two stages in cascade), so flicker is damped and the slower
-  dynamics carry more weight. With a temporal sharpening s other than 0 one more buffer integrates the last stage's output (the frame itself when averaging is off) at twice the half-time and the frame shown is (1 + s) × the last stage − s × the slow one (s = 1 by default: the average plus what the slow stage has not yet followed; 0 the average alone, −1 the slow stage itself, 5 a strong sharpening). The accumulators are f32x4 vectors, one per pixel and stage. The averaged image can then be sharpened spatially: each channel becomes the pixel plus p × (the pixel − the mean of its four 4-connected neighbours), clamped to 0–255, with p from the Sharpening slider (0 by default, off; 1 the classic 2 × pixel − mean; −1 the mean itself, a blur). Neither step feeds back into the lattice.
-  Each pixel's bits are also read as a stream of copy commands against a static dictionary (by default the Declaration of
-  Independence; the Dictionary box offers short public-domain texts in many scripts, each as UTF-8 bytes), and expanded to exactly 128 bits. The first ⌈log₂ V⌉ bits (the "LZ cursor read" range V, the whole dictionary by default: 13 bits for the Declaration's 8,122 bytes) select a start byte, the "LZ cursor offset" is added, and the cursor wraps at the end of the text. Every command is
-  a prefix-coded copy length of 2 to N bytes followed by a 3-bit skip: the cursor skips that many bytes, the copy is
-  taken from the dictionary at the cursor, and the cursor moves past it. Copies are the only way to make output; there
-  are no literals and no distances, and neither the image nor the output is ever read back. The decompression slider
-  sets N, the longest copy. Optionally two neighbouring cells (columns 2i and 2i + 1) are changed together: their 256 bits are
-  joined, either concatenated (A then B on even turns, B then A on odd turns) or bit-interleaved (A on the even bit positions and
-  B on the odd ones, swapped on odd turns), the changer runs once on the 32-byte joint cell (a CPU then has 32 bytes of memory, the
-  decompressor 256 input bits and 32 output bytes), and the result is split back by the same mapping in reverse. The changers defined
-  on exactly 128 bits (PDP-8, UNIVAC 1101, CDC 6600) see the joint cell as two consecutive 16-byte cells; the DCT becomes a 32-point transform over it. The local changer can instead be a Brainfuck interpreter: the 16 bytes are a program (values 0–7
-  are the eight commands, anything else a comment) run on a 16-cell tape, and the tape afterwards is the new content; the
-  "Random bytes 0–7" start fills the field with programs. Simpler processors are available too: do nothing, invert, reverse bytes, the extremes rule, 17 to the byte after it, 5 to the byte before it), a DCT and its inverse (16-point on a cell, 32-point on a pair). And sixteen machines, a Zilog Z80, MOS 6502, Intel 8080, Subleq, CHIP-8, Intel 4004, Game Boy SM83, Intel 8051, Motorola 6809,
-  RISC-V RV32EC, DEC PDP-8 (8 words of 12 bits), DEC PDP-11 and Motorola 68000: the 16 bytes are the whole memory, the selected number of instructions run, the memory is written
-  back, and halting instructions are NOPs.
-  Threads splits the grid into horizontal bands, one Web Worker with its own wasm instance per band; each band receives a
-  few halo rows from its neighbours once per turn and runs the whole turn locally, bit-identical to the single-threaded run. Scale 1:1 maps one lattice pixel to one
-  device pixel and blits the wasm pixel buffer straight to the canvas.
-  Click a pixel to inspect it; shift-drag paints pixels to all ones, ctrl-shift-drag to all zeros.
-  Keys: <kbd>space</kbd> play/pause, <kbd>n</kbd> step, <kbd>r</kbd> random.
-</p>
+<p class="hint">Help, at the top of the controls, explains every section and control; the repository's docs folder goes deeper.</p>
 </div>
 </div>
 
@@ -669,7 +669,13 @@ function workerMain() {
   const declText = $('decl').textContent.trim();
   // the dictionaries: the manifest embedded by the build (id, title, language, text), the Declaration first
   const DICTS = (() => { try { const d = JSON.parse($('dicts').textContent); if (Array.isArray(d) && d.length) return d; } catch (e) {} return [{ id: 'declaration', titleLatin: 'US Declaration of Independence', language: 'English', text: declText }]; })();
-  for (const d of DICTS) { const o = document.createElement('option'); o.value = d.id; o.textContent = `${d.titleLatin} (${d.language}${d.script && d.script !== 'Latin' ? ', ' + d.script : ''})`; $('dict').appendChild(o); }
+  {   // texts first, then the byte strings found by the searches, each with its description as a tooltip and its length
+    const texts = document.createElement('optgroup'), found = document.createElement('optgroup'); texts.label = 'Texts'; found.label = 'Found by search (not texts)';
+    for (const d of DICTS) { const o = document.createElement('option'); o.value = d.id; const bytes = d.text ? new TextEncoder().encode(d.text).length : 0;
+      if (/^ca-/.test(d.id)) { o.textContent = `${d.title}${bytes ? ` · ${bytes.toLocaleString()} bytes` : ''}`; o.title = d.titleLatin + (d.note ? '. ' + d.note : ''); found.appendChild(o); }
+      else { o.textContent = `${d.titleLatin} (${d.language}${d.script && d.script !== 'Latin' ? ', ' + d.script : ''})`; o.title = [d.title, d.author, d.year].filter(Boolean).join(' · '); texts.appendChild(o); } }
+    $('dict').appendChild(texts); if (found.children.length) $('dict').appendChild(found);
+  }
   $('dict').value = DICTS.some(d => d.id === 'ca-brotli-13') ? 'ca-brotli-13' : DICTS[0].id;   // the fresh-page default: the codebook search's 512-byte dictionary
   const dictEntry = () => DICTS.find(d => d.id === $('dict').value) || DICTS[0];
   const dictText = () => dictEntry().text;
@@ -1424,12 +1430,27 @@ function workerMain() {
     const c = (navigator.hardwareConcurrency || 2) - 1;
     return [32, 24, 16, 8, 4, 2, 1].find(v => v <= c) || 1;   // the largest option below the core count: 24 on a 32-core machine
   };
-  async function start(saved) {
-    const selftest = location.hash === '#selftest' || location.hash === '#selftest-workers';
-    if (saved && saved.w) {
-      for (const [id, key, dflt] of [['size', 'size', '1024x1024'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'], ['cph', 'cph', '0.12'],
-            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-brotli-13'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']])
+  // every control's id, saved key and default; the share line and the presets are built on the same list
+  const CONTROL_DEFAULTS = [['size', 'size', '1024x1024'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'], ['cph', 'cph', '0.12'],
+            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-brotli-13'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']];
+  const SHARE_KEYS = [...CONTROL_DEFAULTS.map(([, key]) => key).filter(k => k !== 'threads'), 'lnever', 'swapOn', 'medOn', 'chgOn', 'cread'];   // threads stay with the machine
+  const controlState = () => ({
+    size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, ts: $('tw').value, sp: $('sp').value, cph: $('cph').value, thrL: $('thrL').value, thrR: $('thrR').value, gpow: $('gpow').value, mut: $('mut').value,
+    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, dict: $('dict').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, dec: $('dec').value, steps: $('steps').value, rounds: $('rounds').value, lreset: $('lreset').value, lnever: $('lnever').checked, swapOn: $('swapOn').checked, medOn: $('medOn').checked, chgOn: $('chgOn').checked, coff: $('coff').value, cread: cursorRead(), skip: $('skip').value, pair: $('pair').value,
+  });
+  // the settings line: "keimli1 key=value ..." over SHARE_KEYS, booleans as 1 and 0; unknown keys are ignored on the way back
+  const encodeSettings = o => 'keimli1 ' + SHARE_KEYS.map(k => `${k}=${typeof o[k] === 'boolean' ? (o[k] ? 1 : 0) : o[k]}`).join(' ');
+  const decodeSettings = str => {
+    const m = String(str || '').trim().match(/keimli1\s+(.*)$/s); if (!m) return null;
+    const o = { w: 1 };
+    for (const tok of m[1].split(/\s+/)) { const eq = tok.indexOf('='); if (eq < 1) continue; const k = tok.slice(0, eq), v = tok.slice(eq + 1); o[k] = ['lnever', 'swapOn', 'medOn', 'chgOn'].includes(k) ? (v === '1' || v === 'true') : v; }
+    return o;
+  };
+  function restoreControls(saved) {   // every control from a saved state, a settings line or a preset (missing keys take the defaults)
+      for (const [id, key, dflt] of CONTROL_DEFAULTS) {
+        if (key === 'threads' && saved[key] === undefined) continue;   // a settings line or preset carries no thread count: keep the machine's
         $(id).value = saved[key] ?? dflt;
+      }
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
       if ($('changer').value === '') { $('changer').value = 'dec'; $('dec').value = '0'; }   // the former "LZ decompressor" mode: the decoder menu's first entry
       if ($('dict').value === '') $('dict').value = DICTS.some(d => d.id === 'ca-brotli-13') ? 'ca-brotli-13' : DICTS[0].id;
@@ -1442,10 +1463,62 @@ function workerMain() {
       if (Number($('lreset').value) < 1) $('lreset').value = '1';
       $('lreset').disabled = $('lnever').checked;
       if (!$('size').value) { const w = parseInt(saved.size) || 512; $('size').value = [...$('size').options].some(o => o.value === `${w}x${w}`) ? `${w}x${w}` : '512x512'; }
+  }
+  const PUBLIC_URL = location.protocol === 'https:' && !/claude\.ai$/.test(location.hostname) ? location.origin + location.pathname : 'https://jyrkialakuijala.github.io/keimli/';
+  const defaultSettings = () => { const o = { lnever: true, swapOn: true, medOn: true, chgOn: true, cread: 4096 }; for (const [, key, dflt] of CONTROL_DEFAULTS) o[key] = String(dflt); return o; };
+  const PRESETS = [
+    ['Brotli front and islands (the default)', {}],
+    ['Dissolving cloud (Brotli search 1)', { dict: 'ca-brotli-1' }],
+    ['Foam (Brotli search 2)', { dict: 'ca-brotli-2' }],
+    ['Landmass and sea (Brotli search 12)', { dict: 'ca-brotli-12' }],
+    ['Codebook cycles on pairs, no mixing', { changer: 'dec', dec: '45', dict: 'ca-codebook-5', size: '128x128', pair: '1', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false, scale: '4' }],
+    ['Bit codebook, many short cycles', { changer: 'dec', dec: '46', dict: 'ca-codebook-8', size: '128x128', pair: '1', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false, scale: '4' }],
+    ['Motorola 68000 link machines, no mixing or settling', { changer: 'cpu', cpu: '21', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '256x256', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: '2', swapOn: false, medOn: false }],
+    ['DEC PDP-11 link machines, no mixing or settling', { changer: 'cpu', cpu: '20', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '256x256', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: '2', swapOn: false, medOn: false }],
+    ['VAX-11/780 link machines, no mixing or settling', { changer: 'cpu', cpu: '23', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '256x256', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: '2', swapOn: false, medOn: false }],
+    ['The Declaration through the LZ decompressor', { changer: 'dec', dec: '0', dict: 'declaration', skip: '6', cread: 5, coff: '50', maxlen: '3', pair: '0', size: '512x512' }],
+  ];
+  for (const [name, over] of PRESETS) { const opt = document.createElement('option'); opt.value = encodeSettings({ ...defaultSettings(), ...over }); opt.textContent = name; $('preset').appendChild(opt); }
+  async function applySettings(str) {
+    const o = decodeSettings(str);
+    if (!o) { $('shareNote').textContent = 'not a settings line (it starts with keimli1)'; return; }
+    restoreControls(o);
+    showCread(); showChangerBoxes(); showAvgBoxes(); codeNote(); showThreshold(); showSpeed();
+    sel = -1;
+    await rebuild($('pattern').value);
+    $('share').value = encodeSettings(controlState());
+  }
+  const copyText = async (text, note) => {
+    try { await navigator.clipboard.writeText(text); $('shareNote').textContent = note; }
+    catch (e) { $('share').value = text; $('share').select(); $('shareNote').textContent = 'select the box and copy'; }
+    setTimeout(() => { $('shareNote').textContent = ''; }, 3000);
+  };
+  $('help').addEventListener('click', () => {   // inline help: every section's paragraph and every control's tooltip as text under its row
+    const on = !document.body.classList.contains('help');
+    document.body.classList.toggle('help', on); $('help').setAttribute('aria-pressed', String(on));
+    if (on && !document.querySelector('.help-text')) {
+      for (const g of document.querySelectorAll('.group')) {
+        const tips = [...new Set([...g.querySelectorAll('[title]')].map(e => e.getAttribute('title')).filter(t => t && t.length > 12))];
+        if (!tips.length) continue;
+        const d = document.createElement('div'); d.className = 'help-text'; d.textContent = tips.join(' · '); g.appendChild(d);
+      }
+    }
+  });
+  $('preset').addEventListener('change', () => { const v = $('preset').value; if (v) run(() => applySettings(v)); });
+  $('shareCopy').addEventListener('click', () => { const t = encodeSettings(controlState()); $('share').value = t; copyText(t, 'copied'); });
+  $('shareLink').addEventListener('click', () => { const t = encodeSettings(controlState()); $('share').value = t; copyText(PUBLIC_URL + '#s=' + encodeURIComponent(t), 'link copied'); });
+  $('shareApply').addEventListener('click', () => run(() => applySettings($('share').value)));
+  $('share').addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); run(() => applySettings($('share').value)); } });
+  async function start(saved) {
+    const selftest = location.hash === '#selftest' || location.hash === '#selftest-workers';
+    if (location.hash.startsWith('#s=')) { const o = decodeSettings(decodeURIComponent(location.hash.slice(3))); if (o) saved = o; }   // a shared link
+    if (saved && saved.w) {
+      restoreControls(saved);
       sel = saved.sel ?? -1; turn = saved.turn || 0;
       setRunning(saved.running ?? running);
     } else {
       $('threads').value = selftest ? (location.hash === '#selftest-workers' ? 4 : 1) : defaultThreads();
+      if (!selftest && (navigator.hardwareConcurrency || 2) <= 8) $('size').value = '512x512';   // a fresh page on a small machine: a quarter of the pixels
       if (selftest) $('size').value = '128x128';   // the self-test runs 50 turns at boot: a small grid, whatever the default
       setRunning(running);
     }
@@ -1458,9 +1531,7 @@ function workerMain() {
     requestAnimationFrame(t => { lastT = t; frame(t); });
   }
   window.claude?.hot?.snapshot?.(() => ({
-    w: W, h: H, turn, running, sel,
-    size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, ts: $('tw').value, sp: $('sp').value, cph: $('cph').value, thrL: $('thrL').value, thrR: $('thrR').value, gpow: $('gpow').value, mut: $('mut').value,
-    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, dict: $('dict').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, dec: $('dec').value, steps: $('steps').value, rounds: $('rounds').value, lreset: $('lreset').value, lnever: $('lnever').checked, swapOn: $('swapOn').checked, medOn: $('medOn').checked, chgOn: $('chgOn').checked, coff: $('coff').value, cread: cursorRead(), skip: $('skip').value, pair: $('pair').value,
+    w: W, h: H, turn, running, sel, ...controlState(),
     cells: engine && engine.cellsSync() ? Array.from(engine.cellsSync()) : null,   // the worker pool keeps no copy on the main thread
   }));
   window.claude?.hot?.ready ? window.claude.hot.ready(d => run(() => start(d))) : run(() => start(window.claude?.hot?.data ?? null));

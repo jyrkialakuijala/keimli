@@ -466,5 +466,17 @@
   "year": "2026",
   "source": "",
   "note": "The crossover run's peak so far: Brotli search 11's opening followed by Brotli search 1's four words, scored 12.5 effective regimes on the 64 x 64 harness (Brotli search 11: 9.2, Brotli search 12: 12.1), 24 % of bits changing a turn, neighbours differing in 19 of 128 bits, byte entropy 4.28 bits. Not a text."
+ },
+ {
+  "id": "ca-brotli-14",
+  "file": "ca-brotli-14.txt",
+  "title": "Brotli search 14",
+  "titleLatin": "Brotli search 14 (4,400 bytes; the crossover run from Brotli search 11 at 51 minutes, many regimes at once)",
+  "author": "tools/ca-lattice-search.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "The crossover run's best at 51 minutes, from the punctuation lineage that also gave Brotli search 12: 12.8 effective regimes on the 64 x 64 harness (Brotli search 13: 12.5), 22 % of bits changing a turn, neighbours differing in 15 of 128 bits, byte entropy 4.11 bits. Not a text."
  }
 ]

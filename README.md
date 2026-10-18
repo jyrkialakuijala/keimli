@@ -29,6 +29,18 @@ and smaller demo) in a browser, or build them yourself (below). Click a
 cell to inspect it, shift-drag to paint ones, ctrl-shift-drag to paint
 zeros.
 
+The **Preset** menu at the top of the controls sets every control at once
+to a named picture: the Brotli front, the dissolving cloud, the foam, the
+codebook cycles on pairs, the Motorola 68000, PDP-11 and VAX-11/780 link machines
+with the mixing and settling off, the Declaration through the LZ
+decompressor. The **Settings** line below it is the same thing as
+text, `keimli1 size=1024x1024 dict=ca-brotli-13 ...`: Copy settings puts
+the current state there and on the clipboard, Apply (or Enter) sets the
+page from whatever is pasted in, and Copy link gives a URL to the public
+page that opens with those settings, as `#s=` after the address. Unknown
+keys in a line are ignored and missing ones take the defaults, so lines
+survive page updates.
+
 ## How it works
 
 The documentation follows the layers of the system, and so does the source
@@ -43,8 +55,8 @@ tree.
 | Life | Conway's Game of Life in 600 bytes of wasm | [docs/life.md](docs/life.md) | `src/life/` |
 
 A turn, in order: snapshot, four swap phases, smoothing passes, byte
-changer, mutation, render. The page's own hint paragraph gives the same story in a
-few sentences.
+changer, mutation, render. The page's Help button tells the same story section by
+section, under the controls it explains.
 
 ## Repository map
 
