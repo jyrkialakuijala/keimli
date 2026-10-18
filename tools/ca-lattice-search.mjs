@@ -4,13 +4,16 @@
 // kinds of behaviour the picture holds at once (the effective number of 8 x 8 block regimes by change, neighbour
 // difference and entropy), behind guards against frozen, blinking, uniform and pure-noise fields. Simulated
 // annealing with word-level moves and restarts, within a time budget.
-// Usage: node tools/ca-lattice-search.mjs [seed] [seeds] [hours] [kind] [skip] [dictLen] [cursorRead] [pairMode] [grid] [turns]
-// Defaults: 1 120 1 45 6 512 256 0 64 150. Writes build/ca-lattice-best*.json and appends to build/ca-lattice*.log.
+// Usage: node tools/ca-lattice-search.mjs [seed] [seeds] [hours] [kind] [skip] [dictLen] [cursorRead] [pairMode] [grid] [turns] [start]
+// Defaults: 1 120 1 45 6 512 256 0 64 150. With [start], a dictionary id such as ca-brotli-11, every elite begins from that
+// dictionary and a third of the moves are crossovers with the pool of every dictionary in src/changers/dict (splices at a
+// random point, same-position segment transplants, scattered 8-byte block blends). Writes build/ca-lattice-best*.json and appends to build/ca-lattice*.log.
 import fs from 'node:fs';
 import { makeSim, evaluate } from './ca-harness.mjs';
 const dir = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const [SEED, N_SEED, HOURS, KIND, SKIP, DLEN, CREAD, PAIR, GRIDN, TURNS] = [1, 120, 1, 45, 6, 512, 256, 0, 64, 150].map((d, i) => Number(process.argv[2 + i] ?? d));
-const TAG = `-k${KIND}-s${SKIP}-l${DLEN}-v${CREAD}-p${PAIR}-g${GRIDN}`;
+const START = process.argv[12] || '';
+const TAG = `-k${KIND}-s${SKIP}-l${DLEN}-v${CREAD}-p${PAIR}-g${GRIDN}` + (START ? '-from-' + START : '');
 const OUT = dir + `/build/ca-lattice-best${TAG}.json`;
 const LOG = m => { console.log(m); fs.appendFileSync(dir + `/build/ca-lattice${TAG}.log`, m + '\n'); };
 let seed = SEED;
@@ -44,7 +47,18 @@ const wordMoves = t => {
   if (r < 0.7) { const i = ri(words.length), j = ri(words.length); [words[i], words[j]] = [words[j], words[i]]; return fit(words.join(' ')); }
   const a = pick(vocab), k = ri(a.length), b = a.slice(0, k) + String.fromCharCode(97 + ri(6)) + a.slice(k + 1); return fit(words.map(w => w === a ? b : w).join(' '));
 };
+// the pool: every dictionary in src/changers/dict, fitted to DLEN (the texts filtered to ASCII), for crossovers
+const POOL = (() => { const dd = dir + '/src/changers/dict/'; const out = [];
+  for (const f of fs.readdirSync(dd).filter(f => f.endsWith('.txt')).concat(['../declaration.txt'])) { const t = fit(fs.readFileSync(dd + f, 'utf8')); if (t.length === DLEN) out.push(t); } return out; })();
+const poolMoves = t => {
+  if (!POOL.length) return null;
+  const o = pick(POOL), r = rand();
+  if (r < 0.35) { const k = ri(DLEN); return fit(rand() < 0.5 ? t.slice(0, k) + o.slice(k) : o.slice(0, k) + t.slice(k)); }   // a splice at a random point, either way round
+  if (r < 0.7) { const i = ri(DLEN), n = 8 + ri(Math.max(8, DLEN >> 3)); return fit(t.slice(0, i) + o.slice(i, i + n) + t.slice(i + n)); }   // a segment of the other at the same place
+  const f = 0.03 + rand() * 0.3; let s = ''; for (let i = 0; i < DLEN; i += 8) s += rand() < f ? o.slice(i, i + 8) : t.slice(i, i + 8); return fit(s);   // scattered blocks
+};
 const mutate = t => {
+  if (START && rand() < 0.33) { const c = poolMoves(t); if (c) return c; }
   if (rand() < 0.35) { const w = wordMoves(t); if (w) return w; }
   const a = t.split(''); const r = rand();
   if (r < 0.4) { a[ri(DLEN)] = String.fromCharCode(32 + ri(95)); }
@@ -79,6 +93,11 @@ pool.sort((a, b) => b.m.score - a.m.score);
 LOG(`seeds done in ${((performance.now() - t0) / 1000).toFixed(0)} s; best per family:`);
 for (const f of names) { const b = pool.find(p => p.fam === f); if (b) LOG(`  ${f.padEnd(14)} ${fmt(b)} | ${JSON.stringify(b.text.slice(0, 50))}`); }
 const ELITES = 6; let elite = pool.slice(0, ELITES).map(p => ({ ...p, stale: 0 }));
+if (START) {   // every elite begins from the start dictionary; the family seeds stay as restart material
+  const text = fit(fs.readFileSync(dir + '/src/changers/dict/' + START + '.txt', 'utf8')); const m = assess(text);
+  LOG(`start ${START}: ${fmt({ m })}`);
+  elite = Array.from({ length: ELITES }, () => ({ text, fam: START, m, stale: 0 }));
+}
 const T0 = 0.6, T1 = 0.05;   // the score is now a regime count of a few units   // annealing: a worse candidate is accepted with probability exp(-loss / T), T falling over the run
 const temperature = () => T0 * (T1 / T0) ** Math.min(1, (Date.now() - (deadline - HOURS * 3600e3)) / (HOURS * 3600e3));
 const archive = new Map(); const remember = e => { archive.set(e.text, { text: e.text, fam: e.fam, m: e.m }); if (archive.size > 30) { const worst = [...archive.values()].sort((a, b) => a.m.score - b.m.score)[0]; archive.delete(worst.text); } };

@@ -442,5 +442,29 @@
   "script": "Latin",
   "year": "2026",
   "source": ""
+ },
+ {
+  "id": "ca-brotli-12",
+  "file": "ca-brotli-12.txt",
+  "title": "Brotli search 12",
+  "titleLatin": "Brotli search 12 (4,400 bytes; Brotli search 11 crossed with the dictionary pool, many regimes at once)",
+  "author": "tools/ca-lattice-search.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Found by tools/ca-lattice-search.mjs starting from Brotli search 11 with crossovers against every dictionary and the usual mutations, scored by the effective number of 8 x 8 block regimes: 12.1 regimes on the 64 x 64 harness (Brotli search 11: 9.2), 19 % of bits changing a turn, neighbours differing in 16 of 128 bits, byte entropy 4.26 bits; 3756 bytes differ from Brotli search 11. Not a text."
+ },
+ {
+  "id": "ca-brotli-13",
+  "file": "ca-brotli-13.txt",
+  "title": "Brotli search 13",
+  "titleLatin": "Brotli search 13 (4,400 bytes; Brotli search 11 crossed with Brotli search 1, many regimes at once)",
+  "author": "tools/ca-lattice-search.mjs",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "The crossover run's peak so far: Brotli search 11's opening followed by Brotli search 1's four words, scored 12.5 effective regimes on the 64 x 64 harness (Brotli search 11: 9.2, Brotli search 12: 12.1), 24 % of bits changing a turn, neighbours differing in 19 of 128 bits, byte entropy 4.28 bits. Not a text."
  }
 ]

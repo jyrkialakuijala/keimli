@@ -173,6 +173,8 @@
         <option value="4">4 workers</option>
         <option value="8">8 workers</option>
         <option value="16">16 workers</option>
+        <option value="24">24 workers</option>
+        <option value="32">32 workers</option>
       </select>
     </div>
   </div>
@@ -668,7 +670,7 @@ function workerMain() {
   // the dictionaries: the manifest embedded by the build (id, title, language, text), the Declaration first
   const DICTS = (() => { try { const d = JSON.parse($('dicts').textContent); if (Array.isArray(d) && d.length) return d; } catch (e) {} return [{ id: 'declaration', titleLatin: 'US Declaration of Independence', language: 'English', text: declText }]; })();
   for (const d of DICTS) { const o = document.createElement('option'); o.value = d.id; o.textContent = `${d.titleLatin} (${d.language}${d.script && d.script !== 'Latin' ? ', ' + d.script : ''})`; $('dict').appendChild(o); }
-  $('dict').value = DICTS.some(d => d.id === 'ca-brotli-9') ? 'ca-brotli-9' : DICTS[0].id;   // the fresh-page default: the codebook search's 512-byte dictionary
+  $('dict').value = DICTS.some(d => d.id === 'ca-brotli-13') ? 'ca-brotli-13' : DICTS[0].id;   // the fresh-page default: the codebook search's 512-byte dictionary
   const dictEntry = () => DICTS.find(d => d.id === $('dict').value) || DICTS[0];
   const dictText = () => dictEntry().text;
   const codecSrc = $('codec-src').textContent, bandSrc = $('band-src').textContent;
@@ -1420,17 +1422,17 @@ function workerMain() {
   // ---- boot ----
   const defaultThreads = () => {
     const c = (navigator.hardwareConcurrency || 2) - 1;
-    return [16, 8, 4, 2, 1].find(v => v <= c) || 1;
+    return [32, 24, 16, 8, 4, 2, 1].find(v => v <= c) || 1;   // the largest option below the core count: 24 on a 32-core machine
   };
   async function start(saved) {
     const selftest = location.hash === '#selftest' || location.hash === '#selftest-workers';
     if (saved && saved.w) {
       for (const [id, key, dflt] of [['size', 'size', '1024x1024'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'], ['cph', 'cph', '0.12'],
-            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-brotli-9'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']])
+            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-brotli-13'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']])
         $(id).value = saved[key] ?? dflt;
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
       if ($('changer').value === '') { $('changer').value = 'dec'; $('dec').value = '0'; }   // the former "LZ decompressor" mode: the decoder menu's first entry
-      if ($('dict').value === '') $('dict').value = DICTS.some(d => d.id === 'ca-brotli-9') ? 'ca-brotli-9' : DICTS[0].id;
+      if ($('dict').value === '') $('dict').value = DICTS.some(d => d.id === 'ca-brotli-13') ? 'ca-brotli-13' : DICTS[0].id;
       applyDict();
       setCursorReadExact(Number(saved.cread) || 4096);   // saved as the range V: exact in the box, the slider at its nearest stop (default 4096)
       if ($('pair').value === '') $('pair').value = saved.pair === '6' ? '1' : saved.pair === '4' ? '3' : '0';   // the former "Links" entry: concatenated pairs; the former add-then-subtract: nibbles
