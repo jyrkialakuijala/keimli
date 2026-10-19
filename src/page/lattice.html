@@ -229,6 +229,15 @@
       <span id="gpowVal" class="mono val">0.20</span>
     </div>
 <div class="group">
+      <label for="salt" title="what the swap and median decisions are hashed from. Content only: the neighbouring bits alone, so the rule is the same everywhere and always (the default, and the only setting under which the lattice is a cellular automaton in the strict sense). By turn: a turn number is added, so the same bits decide differently from turn to turn (annealed rather than quenched noise). By position: the cell's coordinates are added, so the same bits decide differently from place to place. Both: turn and position. The last three are experimental controls for the article: they break the rule's invariance in time or space and are expected to change the pictures.">Hash salt</label>
+      <select id="salt" class="mono">
+        <option value="0">Content only (the rule is the same everywhere, always)</option>
+        <option value="1">By turn (annealed noise)</option>
+        <option value="2">By position</option>
+        <option value="3">By turn and position</option>
+      </select>
+    </div>
+<div class="group">
       <label for="mut">Mutation, % of bits flipped per turn</label>
       <input id="mut" type="number" min="0" max="100" step="0.01" value="0" class="mono" title="per cent of all bits flipped per turn; the arrows step by 0.01 %, any value can be typed">
     </div>
@@ -271,7 +280,7 @@
   </div>
   <div class="section" role="group" aria-labelledby="sec-algo">
     <span class="sec" id="sec-algo">Rewriting <span class="sub">a decoder or CPU rewrites every cell · the local changer</span> <label class="chk" for="chgOn" title="off: no changer runs; the views still decode with the selected decoder"><input id="chgOn" type="checkbox" checked> on</label></span>
-    <p class="sec-help">Every pixel's 16 bytes are replaced by what the changer makes of them. A Decoder reads them as a coded stream and writes what it decodes back: the LZ decompressor copying from the dictionary, Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse, Rice residuals, WebP's boolean decoder, PNG filters, a JPEG block or the codebooks. A Transform applies a fixed rule such as invert, reverse, sort or a DCT. A CPU runs the bytes as its whole memory for the chosen number of instructions and writes the memory back. With Cells set to pairs, two neighbouring cells are joined into one 32-byte cell for the changer and split back afterwards; with a CPU or the LZ decompressor, pairs instead carry persistent link machines, one per direction, each running one instruction per phase. The dictionary, the skipped bits, the cursor read range and offset and the longest copy shape the decoders that use them; the inspector below the lattice shows what the selected cell decodes to.</p>
+    <p class="sec-help">Every pixel's 16 bytes are replaced by what the changer makes of them. A Decoder reads them as a coded stream and writes what it decodes back: the LZ decompressor copying from the dictionary, Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse, Rice residuals, WebP's boolean decoder, PNG filters, a JPEG block or the codebooks. A Transform applies a fixed rule such as invert, reverse, sort or a DCT. A CPU runs the bytes as its whole memory for the chosen number of instructions and writes the memory back. With Cells set to pairs, two neighbouring cells are joined into one 32-byte cell for the changer and split back afterwards; with a CPU or the LZ decompressor, pairs instead carry persistent link machines, one per direction, each running one instruction per phase. The dictionary, the skipped bits, the cursor read range and offset and the longest copy shape the decoders that use them; the inspector below the lattice shows what the selected cell decodes to. With "random start on change" ticked, choosing another dictionary starts again from random bits; otherwise the running lattice keeps its cells and the new dictionary takes over from them.</p>
     <div class="group">
       <label for="pair">Cells</label>
       <select id="pair" title="each cell on its own, or neighbouring pairs joined for the changer (concatenated, or interleaved by bit, nibble or byte), the roles alternating by turn">
@@ -356,6 +365,7 @@
                 <div class="group">
       <label for="dict" title="the static dictionary the LZ decompressor copies from and the LZ77 decoders and the VP8 model draw on, as UTF-8 bytes">Dictionary</label>
       <select id="dict"></select>
+      <label class="chk" for="dictRandom" title="when the dictionary is changed, start again from random bits (a new seed, turn 0); off: the lattice keeps its cells and the new dictionary takes over from them"><input id="dictRandom" type="checkbox"> random start on change</label>
     </div>
                       <details class="adv"><summary>More settings</summary>
 <div class="group" id="stepsGroup" hidden>
@@ -384,12 +394,12 @@
 <div class="group">
       <label for="cread" title="the docs call this the LZ cursor read: the cursor read range V: the LZ decompressor, and Deflate, LZ4, Snappy and the Brotli-like decoder for their preset dictionary, read ceil(log2 V) bits of the pixel first as a position among V bytes of the dictionary (a value of V or more wraps round: with V = 5, 6 and 7 read as 0 and 1); V = 1 reads no bits, the dictionary size makes every byte a start position">Dictionary window range</label>
       <input id="cread" type="range" min="0" max="60" value="60" step="1">
-      <input id="creadNum" type="number" min="1" max="8122" step="1" value="4096" class="mono" style="width: 7ch" title="the exact cursor read range V; the slider moves to its nearest stop, and moving the slider fills this box">
+      <input id="creadNum" type="number" min="1" max="65535" step="1" value="4096" class="mono" style="width: 7ch" title="the exact cursor read range V; the slider moves to its nearest stop, and moving the slider fills this box">
       <span id="creadVal" class="mono val">→ 12 bits</span>
     </div>
 <div class="group">
       <label for="coff" title="the docs call this the LZ cursor offset: a constant added to the start cursor, not read from the pixel">Dictionary window offset</label>
-      <input id="coff" type="range" min="0" max="8122" value="0" step="1">
+      <input id="coff" type="range" min="0" max="65535" value="0" step="1">
       <span id="coffVal" class="mono val">+0</span>
     </div>
 <div class="group">
@@ -671,14 +681,17 @@ function workerMain() {
   const declText = $('decl').textContent.trim();
   // the dictionaries: the manifest embedded by the build (id, title, language, text), the Declaration first
   const DICTS = (() => { try { const d = JSON.parse($('dicts').textContent); if (Array.isArray(d) && d.length) return d; } catch (e) {} return [{ id: 'declaration', titleLatin: 'US Declaration of Independence', language: 'English', text: declText }]; })();
-  {   // texts first, then the byte strings found by the searches, each with its description as a tooltip and its length
-    const texts = document.createElement('optgroup'), found = document.createElement('optgroup'); texts.label = 'Texts'; found.label = 'Found by search (not texts)';
+  {   // three groups: the texts; the byte strings bred by the genetic searches; the dictionaries built by design-dict.mjs; each with its description as a tooltip and its length
+    const texts = document.createElement('optgroup'), found = document.createElement('optgroup'), designed = document.createElement('optgroup');
+    texts.label = 'Text'; found.label = 'Genetic Search Dictionaries'; designed.label = 'Designed Dictionaries';
     for (const d of DICTS) { const o = document.createElement('option'); o.value = d.id; const bytes = d.text ? new TextEncoder().encode(d.text).length : 0;
-      if (/^ca-/.test(d.id)) { o.textContent = `${d.title}${bytes ? ` · ${bytes.toLocaleString()} bytes` : ''}`; o.title = d.titleLatin + (d.note ? '. ' + d.note : ''); found.appendChild(o); }
+      if (/design-dict/.test(d.author || '')) { o.textContent = `${d.title.replace(/^Designed: /, '')}${bytes ? ` · ${bytes.toLocaleString()} bytes` : ''}`; o.title = d.titleLatin + (d.note ? '. ' + d.note : ''); designed.appendChild(o); }
+      else if (/^ca-/.test(d.id)) { o.textContent = `${d.title}${bytes ? ` · ${bytes.toLocaleString()} bytes` : ''}`; o.title = d.titleLatin + (d.note ? '. ' + d.note : ''); found.appendChild(o); }
       else { o.textContent = `${d.titleLatin} (${d.language}${d.script && d.script !== 'Latin' ? ', ' + d.script : ''})`; o.title = [d.title, d.author, d.year].filter(Boolean).join(' · '); texts.appendChild(o); } }
-    $('dict').appendChild(texts); if (found.children.length) $('dict').appendChild(found);
+    $('dict').appendChild(texts); if (found.children.length) $('dict').appendChild(found); if (designed.children.length) $('dict').appendChild(designed);
   }
-  $('dict').value = DICTS.some(d => d.id === 'ca-swarm-f') ? 'ca-swarm-f' : DICTS[0].id;   // the fresh-page default: swarm search F
+  const DEFAULT_DICT = DICTS.some(d => d.id === 'ca-gray20c') ? 'ca-gray20c' : DICTS.some(d => d.id === 'ca-swarm-f') ? 'ca-swarm-f' : DICTS[0].id;   // the fresh-page default: the designed twenty Gray 8-cycles
+  $('dict').value = DEFAULT_DICT;
   const dictEntry = () => DICTS.find(d => d.id === $('dict').value) || DICTS[0];
   const dictText = () => dictEntry().text;
   const codecSrc = $('codec-src').textContent, bandSrc = $('band-src').textContent;
@@ -801,6 +814,7 @@ function workerMain() {
         new BigUint64Array(wasm.memory.buffer, LAYOUT.THR, W).set(t.thrSwap);
         new BigUint64Array(wasm.memory.buffer, LAYOUT.THRY, H).set(t.thrSmooth);
         let moved = 0, smoothed = 0, k = 0;
+        wasm.salt_by_position(t.posalt ? 1 : 0);
         m8.copyWithin(GRID2, GRID, GRID + 16 * N);   // snapshot: all swap decisions of the turn come from the map before the first phase
         for (const ph of t.order) moved += wasm.mix_from(W, H, GRID, GRID2, ph, Band.edgeParity(ph, t.alt), LAYOUT.THR, t.salts[k++]);
         for (let i = 0; i < t.passes; i++) { smoothed += wasm.smooth(W, H, GRID, GRID2, LAYOUT.THRY, t.salts[k++], t.nbr); m8.copyWithin(GRID, GRID2, GRID2 + 16 * N); }
@@ -1314,9 +1328,10 @@ function workerMain() {
   async function doTurn() {
     const t0 = performance.now();
     const passes = Number($('iters').value);
-    const salts = Array.from({ length: 4 + passes }, () => 0n);   // the swap and smoothing hashes see the neighbouring bits only, no turn salt
+    const saltMode = Number($('salt').value) || 0;   // 0 content only; bit 0: by turn; bit 1: by position (see the Hash salt control)
+    const salts = Array.from({ length: 4 + passes }, (_, k) => saltMode & 1 ? BigInt.asUintN(64, BigInt(turn + 1) * 0x9E3779B97F4A7C15n + BigInt(k + 1) * 0xD1B54A32D192ED03n) : 0n);   // content only: salt 0, the hashes see the neighbouring bits alone
     const mut = { lam: mutationLam(), salt: BigInt(turn * 64 + 63) };   // mutation is always salted by the turn, or the same bits would flip every turn
-    const r = await engine.turn({ order: Band.order(turn), alt: turn & 1, passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, changer: changerActive(), pair: { mode: Number($('pair').value), flip: turn & 1 }, influence: N <= 65536 ? BigInt(turn * 64 + 61) : 0n, mut, links: linksActive() ? { kind: changerId(), rounds: linkRoundCount(), reset: linkResetDue() } : null });
+    const r = await engine.turn({ order: Band.order(turn), alt: turn & 1, passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, posalt: !!(saltMode & 2), changer: changerActive(), pair: { mode: Number($('pair').value), flip: turn & 1 }, influence: N <= 65536 ? BigInt(turn * 64 + 61) : 0n, mut, links: linksActive() ? { kind: changerId(), rounds: linkRoundCount(), reset: linkResetDue() } : null });
     moved = r.moved; smoothed = r.smoothed; rewritten = r.rewritten; mutated = r.mutated || 0; totalBits = r.bits; noteHist(r.hist);
     influence = r.infl || null;
     turn++;
@@ -1400,7 +1415,7 @@ function workerMain() {
   for (const id of ['iters', 'nbr']) $(id).addEventListener('change', () => { if (engine && engine.threads > 1) run(() => rebuild($('pattern').value, true)); });   // the halo depth depends on the pass count and the neighbourhood
   $('steps').addEventListener('change', () => run(async () => { await engine.setSteps(Number($('steps').value)); await draw(); }));
   for (const id of ['rounds', 'lreset', 'lnever']) $(id).addEventListener('change', () => { $('rounds').value = linkRoundCount(); if (!$('lnever').checked) $('lreset').value = linkResetEvery(); $('lreset').disabled = $('lnever').checked; run(draw); });   // read at each turn; redraw refreshes the statistics line
-  $('dict').addEventListener('change', () => { applyDict(); codeNote(); run(async () => { await engine.setN(Number($('maxlen').value)); await draw(); }); });
+  $('dict').addEventListener('change', () => { applyDict(); if (dictEntry().cread) setCursorReadExact(dictEntry().cread); codeNote(); run(async () => { await engine.setN(Number($('maxlen').value)); if ($('dictRandom').checked) await reset('random'); else await draw(); }); });   // a designed dictionary brings its window range
   $('cread').addEventListener('input', () => { CREAD_EXACT = null; showCread(); codeNote(); run(async () => { await engine.setCursorRead(cursorRead()); await draw(); }); });
   $('creadNum').addEventListener('change', () => { setCursorReadExact($('creadNum').value); codeNote(); run(async () => { await engine.setCursorRead(cursorRead()); await draw(); }); });
   $('skip').addEventListener('input', () => { $('skipVal').textContent = skipBits(); codeNote(); run(async () => { await engine.setSkipBits(skipBits()); await draw(); }); });
@@ -1437,18 +1452,18 @@ function workerMain() {
   };
   // every control's id, saved key and default; the share line and the presets are built on the same list
   const CONTROL_DEFAULTS = [['size', 'size', '1024x1024'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'], ['cph', 'cph', '0.12'],
-            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-swarm-f'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']];
-  const SHARE_KEYS = [...CONTROL_DEFAULTS.map(([, key]) => key).filter(k => k !== 'threads'), 'lnever', 'swapOn', 'medOn', 'chgOn', 'cread'];   // threads stay with the machine
+            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['salt', 'salt', '0'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-gray20c'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']];
+  const SHARE_KEYS = [...CONTROL_DEFAULTS.map(([, key]) => key).filter(k => k !== 'threads'), 'lnever', 'swapOn', 'medOn', 'chgOn', 'dictRandom', 'cread'];   // threads stay with the machine
   const controlState = () => ({
-    size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, ts: $('tw').value, sp: $('sp').value, cph: $('cph').value, thrL: $('thrL').value, thrR: $('thrR').value, gpow: $('gpow').value, mut: $('mut').value,
-    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, dict: $('dict').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, dec: $('dec').value, steps: $('steps').value, rounds: $('rounds').value, lreset: $('lreset').value, lnever: $('lnever').checked, swapOn: $('swapOn').checked, medOn: $('medOn').checked, chgOn: $('chgOn').checked, coff: $('coff').value, cread: cursorRead(), skip: $('skip').value, pair: $('pair').value,
+    size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, ts: $('tw').value, sp: $('sp').value, cph: $('cph').value, thrL: $('thrL').value, thrR: $('thrR').value, gpow: $('gpow').value, salt: $('salt').value, mut: $('mut').value,
+    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, dict: $('dict').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, dec: $('dec').value, steps: $('steps').value, rounds: $('rounds').value, lreset: $('lreset').value, lnever: $('lnever').checked, swapOn: $('swapOn').checked, medOn: $('medOn').checked, chgOn: $('chgOn').checked, dictRandom: $('dictRandom').checked, coff: $('coff').value, cread: cursorRead(), skip: $('skip').value, pair: $('pair').value,
   });
   // the settings line: "keimli1 key=value ..." over SHARE_KEYS, booleans as 1 and 0; unknown keys are ignored on the way back
   const encodeSettings = o => 'keimli1 ' + SHARE_KEYS.map(k => `${k}=${typeof o[k] === 'boolean' ? (o[k] ? 1 : 0) : o[k]}`).join(' ');
   const decodeSettings = str => {
     const m = String(str || '').trim().match(/keimli1\s+(.*)$/s); if (!m) return null;
     const o = { w: 1 };
-    for (const tok of m[1].split(/\s+/)) { const eq = tok.indexOf('='); if (eq < 1) continue; const k = tok.slice(0, eq), v = tok.slice(eq + 1); o[k] = ['lnever', 'swapOn', 'medOn', 'chgOn'].includes(k) ? (v === '1' || v === 'true') : v; }
+    for (const tok of m[1].split(/\s+/)) { const eq = tok.indexOf('='); if (eq < 1) continue; const k = tok.slice(0, eq), v = tok.slice(eq + 1); o[k] = ['lnever', 'swapOn', 'medOn', 'chgOn', 'dictRandom'].includes(k) ? (v === '1' || v === 'true') : v; }
     return o;
   };
   function restoreControls(saved) {   // every control from a saved state, a settings line or a preset (missing keys take the defaults)
@@ -1458,21 +1473,23 @@ function workerMain() {
       }
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
       if ($('changer').value === '') { $('changer').value = 'dec'; $('dec').value = '0'; }   // the former "LZ decompressor" mode: the decoder menu's first entry
-      if ($('dict').value === '') $('dict').value = DICTS.some(d => d.id === 'ca-swarm-f') ? 'ca-swarm-f' : DICTS[0].id;
+      if ($('dict').value === '') $('dict').value = DEFAULT_DICT;
       applyDict();
-      setCursorReadExact(Number(saved.cread) || 4096);   // saved as the range V: exact in the box, the slider at its nearest stop (default 4096)
+      setCursorReadExact(Number(saved.cread) || dictEntry().cread || 4096);   // saved as the range V: exact in the box, the slider at its nearest stop; a dictionary built for one window range carries it in the manifest (default 4096)
       if ($('pair').value === '') $('pair').value = saved.pair === '6' ? '1' : saved.pair === '4' ? '3' : '0';   // the former "Links" entry: concatenated pairs; the former add-then-subtract: nibbles
       if ($('avg').value === '') $('avg').value = '2';   // the former three-stage entry: two stages, the slow stage comes with the sharpening
-      for (const [id, key, dflt] of [['swapOn', 'swapOn', true], ['medOn', 'medOn', true], ['chgOn', 'chgOn', true]]) $(id).checked = saved[key] === undefined ? dflt : saved[key] === true || saved[key] === 'true';
+      for (const [id, key, dflt] of [['swapOn', 'swapOn', true], ['medOn', 'medOn', true], ['chgOn', 'chgOn', true], ['dictRandom', 'dictRandom', false]]) $(id).checked = saved[key] === undefined ? dflt : saved[key] === true || saved[key] === 'true';
       $('lnever').checked = saved.lnever === undefined ? true : saved.lnever === true || saved.lnever === 'true' || String(saved.lreset) === '0';   // a saved 0 meant never; older states take the default
       if (Number($('lreset').value) < 1) $('lreset').value = '1';
       $('lreset').disabled = $('lnever').checked;
       if (!$('size').value) { const w = parseInt(saved.size) || 512; $('size').value = [...$('size').options].some(o => o.value === `${w}x${w}`) ? `${w}x${w}` : '512x512'; }
   }
   const PUBLIC_URL = location.protocol === 'https:' && !/claude\.ai$/.test(location.hostname) ? location.origin + location.pathname : 'https://jyrkialakuijala.github.io/keimli/';
-  const defaultSettings = () => { const o = { lnever: true, swapOn: true, medOn: true, chgOn: true, cread: 4096 }; for (const [, key, dflt] of CONTROL_DEFAULTS) o[key] = String(dflt); return o; };
+  const defaultSettings = () => { const o = { lnever: true, swapOn: true, medOn: true, chgOn: true, dictRandom: false, cread: null }; for (const [, key, dflt] of CONTROL_DEFAULTS) o[key] = String(dflt); return o; };   // cread null: the dictionary's own window range, else 4096
   const PRESETS = [
-    ['Brotli front and islands (the default)', {}],
+    ['Twenty Gray 8-cycles (the default)', {}],
+    ['Twelve Gray 8-cycles', { dict: 'ca-gray12c', cread: 60000 }],
+    ['Brotli front and islands (Swarm search F)', { dict: 'ca-swarm-f', cread: 4096 }],
     ['Dissolving cloud (Brotli search 1)', { dict: 'ca-brotli-1' }],
     ['Foam (Brotli search 2)', { dict: 'ca-brotli-2' }],
     ['Landmass and sea (Brotli search 12)', { dict: 'ca-brotli-12' }],
@@ -1525,6 +1542,7 @@ function workerMain() {
       $('threads').value = selftest ? (location.hash === '#selftest-workers' ? 4 : 1) : defaultThreads();
       if (!selftest && (navigator.hardwareConcurrency || 2) <= 8) $('size').value = '512x512';   // a fresh page on a small machine: a quarter of the pixels
       if (selftest) $('size').value = '128x128';   // the self-test runs 50 turns at boot: a small grid, whatever the default
+      applyDict(); if (dictEntry().cread) setCursorReadExact(dictEntry().cread);   // a fresh page: the default dictionary's own window range
       setRunning(running);
     }
     showCread(); showChangerBoxes(); showAvgBoxes(); codeNote(); showThreshold(); showSpeed();

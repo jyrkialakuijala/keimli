@@ -1,0 +1,28 @@
+start: score 1.370 designed 100.0 % transient 5.0 unsettled 0
+# Designed dictionary ca-cyc567
+
+3 species, V = 4096 (12 header bits), 4400 bytes, mode const, patterns "1" "2" "3", blocks 128, 2304, 3328, bounds 1365, 2730, d = 16, tail Gray 1. Census: 10000 random cells, cap 4000.
+
+| species | pattern | reading (bits) | H0 | cycle length | state 0 | Hamming per step |
+|---|---|---|---|---|---|---|
+| A | `1` | 72 | 128 | 5 | `0 0?0@1111111111` | 2 |
+| B | `2` | 60 | 2304 | 6 | `1@2?0@2222222222` | 2 |
+| C | `3` | 44 | 3328 | 7 | `2@3?0@3333333333` | 2 |
+
+Planes constant along the cycle: 124 of 128 (42 are read by the decoder). Hamming between species (min, max over state pairs): {"AB":[24,28],"AC":[15,19],"BC":[13,17]}.
+
+Filler: the patterns tiled over the regions [[0,1365],[1365,2730],[2730,4096]]; landing pads: A 1211..1216 (reads 72 bits, lands on off-cycle (head of state 0)); B 2235..2240 (reads 60 bits, lands on off-cycle (head of state 0)); C 3263..3268 (reads 44 bits, lands on off-cycle (head of state 0))
+
+## Funnel
+
+On a designed cycle after 1..8 steps from random cells: 0.0 %, 1.2 %, 20.5 %, 48.9 %, 67.3 %, 78.3 %, 85.9 %, 94.0 %. After one bit flip of a cycle state (2304 cases): return in 1.6 steps mean, p90 3, max 10, lost (> 100) 0, same species 93.9 %.
+
+## Census
+
+Shares (%): A 42.8, B 30.5, C 26.6, stray 0.00, unsettled 0. Transient mean 5.1, p90 8, max 17.
+
+| cycle | length | basin | species |
+|---|---|---|---|
+| `"0 0?0@1111111111"` | 5 | 42.84 % | A |
+| `"1@2?0@2222222222"` | 6 | 30.54 % | B |
+| `"2@3?0@3333333333"` | 7 | 26.62 % | C |

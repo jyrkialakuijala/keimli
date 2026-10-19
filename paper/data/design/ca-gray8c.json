@@ -1,0 +1,1458 @@
+{
+ "name": "ca-gray8c",
+ "mode": "const",
+ "species": 8,
+ "V": 60000,
+ "len": 61440,
+ "headerBits": 16,
+ "letters": null,
+ "patterns": [
+  "+#7",
+  ";'/",
+  "3#3",
+  "'?/",
+  "+",
+  "3'",
+  "'#",
+  "/#"
+ ],
+ "blocks": [
+  37124,
+  39040,
+  42116,
+  49412,
+  53516,
+  54404,
+  55432,
+  57472
+ ],
+ "bounds": [
+  7500,
+  15000,
+  22500,
+  30000,
+  37500,
+  45000,
+  52500
+ ],
+ "pads": [
+  {
+   "pattern": "+#7",
+   "reading": 64,
+   "full": true,
+   "rots": [
+    {
+     "ok": true,
+     "pos": [
+      56447,
+      56448,
+      56449,
+      56450,
+      56451,
+      56452,
+      56453
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDDDD"
+    },
+    {
+     "ok": true,
+     "pos": [
+      44223,
+      44224,
+      44225,
+      44226,
+      44227,
+      44228,
+      44245
+     ],
+     "consumed": 64,
+     "src": "DDDDDDDDDDDDDSDD"
+    },
+    {
+     "ok": true,
+     "pos": [
+      35967,
+      35968,
+      35969,
+      35970,
+      35971,
+      35972,
+      35973
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDDDD"
+    }
+   ],
+   "lands": [
+    "off-cycle (head of state 0)",
+    "off-cycle (head wrong: \"0a$3$#D3'3'3'0'3\")",
+    "off-cycle (head of state 0)"
+   ]
+  },
+  {
+   "pattern": ";'/",
+   "reading": 48,
+   "full": true,
+   "rots": [
+    {
+     "ok": true,
+     "pos": [
+      48255,
+      48256,
+      48257,
+      48258,
+      48259,
+      48260,
+      48261
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDDDD"
+    },
+    {
+     "ok": true,
+     "pos": [
+      543,
+      544,
+      545,
+      546,
+      547,
+      548,
+      549
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDDDD"
+    },
+    {
+     "ok": true,
+     "pos": [
+      40127,
+      40128,
+      40129,
+      40130,
+      40131,
+      40132,
+      40133
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDDDD"
+    }
+   ],
+   "lands": [
+    "off-cycle (head of state 0)",
+    "off-cycle (head of state 0)",
+    "off-cycle (head wrong: \"1 &3$#d3'3'3'3'3\")"
+   ]
+  },
+  {
+   "pattern": "3#3",
+   "reading": 48,
+   "full": true,
+   "rots": [
+    {
+     "ok": true,
+     "pos": [
+      52351,
+      52352,
+      52353,
+      52354,
+      52355,
+      52356,
+      52357
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDSSS"
+    },
+    {
+     "ok": true,
+     "pos": [
+      52415,
+      52416,
+      52417,
+      52418,
+      52419,
+      52420,
+      52421
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDSSS"
+    },
+    {
+     "ok": true,
+     "pos": [
+      36031,
+      36032,
+      36033,
+      36034,
+      36035,
+      36036,
+      36037
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDSSS"
+    }
+   ],
+   "lands": [
+    "off-cycle (head of state 0)",
+    "off-cycle (head of state 0)",
+    "off-cycle (head wrong: \"2!)3$#d++++++2!)\")"
+   ]
+  },
+  {
+   "pattern": "'?/",
+   "reading": 48,
+   "full": true,
+   "rots": [
+    {
+     "ok": true,
+     "pos": [
+      48319,
+      48320,
+      48321,
+      48322,
+      48323,
+      48324,
+      48325
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDDDD"
+    },
+    {
+     "ok": true,
+     "pos": [
+      40063,
+      40064,
+      40065,
+      40066,
+      40067,
+      40068,
+      40069
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDDDD"
+    },
+    {
+     "ok": true,
+     "pos": [
+      4639,
+      4640,
+      4641,
+      4642,
+      4643,
+      4644,
+      4645
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDDDD"
+    }
+   ],
+   "lands": [
+    "off-cycle (head wrong: \"3a03$#d'#'#'#'#'\")",
+    "off-cycle (head of state 0)",
+    "off-cycle (head of state 0)"
+   ]
+  },
+  {
+   "pattern": "+",
+   "reading": 48,
+   "full": true,
+   "rots": [
+    {
+     "ok": true,
+     "pos": [
+      44159,
+      44160,
+      44161,
+      44162,
+      44163,
+      44164,
+      44165
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDDDD"
+    }
+   ],
+   "lands": [
+    "off-cycle (head of state 0)"
+   ]
+  },
+  {
+   "pattern": "3'",
+   "reading": 62,
+   "full": true,
+   "rots": [
+    {
+     "ok": true,
+     "pos": [
+      52367,
+      52368,
+      52369,
+      52370,
+      52371,
+      52372,
+      52373
+     ],
+     "consumed": 62,
+     "src": "DDDDDDDDDDDDDSSS"
+    },
+    {
+     "ok": true,
+     "pos": [
+      40111,
+      40112,
+      40113,
+      40114,
+      40115,
+      40116,
+      40117
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDDDD"
+    }
+   ],
+   "lands": [
+    "off-cycle (head wrong: \"5!53$#d'#'#'#5!5\")",
+    "state 0 of F"
+   ]
+  },
+  {
+   "pattern": "'#",
+   "reading": 64,
+   "full": true,
+   "rots": [
+    {
+     "ok": true,
+     "pos": [
+      40047,
+      40048,
+      40049,
+      40050,
+      40051,
+      40052,
+      40053
+     ],
+     "consumed": 64,
+     "src": "DDDDDDDDDDDDDDDD"
+    },
+    {
+     "ok": true,
+     "pos": [
+      35983,
+      35984,
+      35985,
+      35986,
+      35987,
+      35988,
+      35989
+     ],
+     "consumed": 62,
+     "src": "DDDDDDDDDDDDDSSS"
+    }
+   ],
+   "lands": [
+    "off-cycle (head of state 0)",
+    "off-cycle (head of state 0)"
+   ]
+  },
+  {
+   "pattern": "/#",
+   "reading": 64,
+   "full": true,
+   "rots": [
+    {
+     "ok": true,
+     "pos": [
+      48207,
+      48208,
+      48209,
+      48210,
+      48211,
+      48212,
+      48213
+     ],
+     "consumed": 64,
+     "src": "DDDDDDDDDDDDDDDD"
+    },
+    {
+     "ok": true,
+     "pos": [
+      36015,
+      36016,
+      36017,
+      36018,
+      36019,
+      36020,
+      36021
+     ],
+     "consumed": 48,
+     "src": "DDDDDDDDDDDDDSSS"
+    }
+   ],
+   "lands": [
+    "off-cycle (head of state 0)",
+    "off-cycle (head of state 0)"
+   ]
+  }
+ ],
+ "steep": {
+  "onCycle": [
+   0,
+   0.00485,
+   0.1725,
+   0.46175,
+   0.64365,
+   0.78315,
+   0.85755,
+   0.8979
+  ],
+  "flipReturnMean": 1.628860944939568,
+  "flipReturnP90": 3,
+  "flipReturnMax": 14,
+  "flipLost": 1,
+  "flipSameSpecies": 0.8544921875
+ },
+ "d": 17,
+ "tailgray": 1,
+ "iters": 0,
+ "N": 400,
+ "seed": 1,
+ "speciesTable": [
+  {
+   "name": "A",
+   "H0": 37124,
+   "b0": 48,
+   "P": [
+    43,
+    35,
+    55
+   ],
+   "tail": [
+    68,
+    43,
+    35,
+    55,
+    43,
+    35,
+    55,
+    43,
+    35,
+    55
+   ],
+   "alt": [
+    68,
+    47,
+    39,
+    51,
+    47,
+    39,
+    51,
+    47,
+    39,
+    51
+   ]
+  },
+  {
+   "name": "B",
+   "H0": 39040,
+   "b0": 49,
+   "P": [
+    59,
+    39,
+    47
+   ],
+   "tail": [
+    68,
+    59,
+    39,
+    47,
+    59,
+    39,
+    47,
+    59,
+    39,
+    47
+   ],
+   "alt": [
+    68,
+    63,
+    35,
+    43,
+    63,
+    35,
+    43,
+    63,
+    35,
+    43
+   ]
+  },
+  {
+   "name": "C",
+   "H0": 42116,
+   "b0": 50,
+   "P": [
+    51,
+    35,
+    51
+   ],
+   "tail": [
+    68,
+    51,
+    35,
+    51,
+    51,
+    35,
+    51,
+    51,
+    35,
+    51
+   ],
+   "alt": [
+    68,
+    55,
+    39,
+    55,
+    55,
+    39,
+    55,
+    55,
+    39,
+    55
+   ]
+  },
+  {
+   "name": "D",
+   "H0": 49412,
+   "b0": 51,
+   "P": [
+    39,
+    63,
+    47
+   ],
+   "tail": [
+    68,
+    39,
+    63,
+    47,
+    39,
+    63,
+    47,
+    39,
+    63,
+    47
+   ],
+   "alt": [
+    68,
+    35,
+    59,
+    43,
+    35,
+    59,
+    43,
+    35,
+    59,
+    43
+   ]
+  },
+  {
+   "name": "E",
+   "H0": 53516,
+   "b0": 52,
+   "P": [
+    43
+   ],
+   "tail": [
+    68,
+    43,
+    43,
+    43,
+    43,
+    43,
+    43,
+    43,
+    43,
+    43
+   ],
+   "alt": [
+    68,
+    47,
+    47,
+    47,
+    47,
+    47,
+    47,
+    47,
+    47,
+    47
+   ]
+  },
+  {
+   "name": "F",
+   "H0": 54404,
+   "b0": 53,
+   "P": [
+    51,
+    39
+   ],
+   "tail": [
+    68,
+    51,
+    39,
+    51,
+    39,
+    51,
+    39,
+    51,
+    39,
+    51
+   ],
+   "alt": [
+    68,
+    55,
+    35,
+    55,
+    35,
+    55,
+    35,
+    55,
+    35,
+    55
+   ]
+  },
+  {
+   "name": "G",
+   "H0": 55432,
+   "b0": 54,
+   "P": [
+    39,
+    35
+   ],
+   "tail": [
+    68,
+    39,
+    35,
+    39,
+    35,
+    39,
+    35,
+    39,
+    35,
+    39
+   ],
+   "alt": [
+    68,
+    35,
+    39,
+    35,
+    39,
+    35,
+    39,
+    35,
+    39,
+    35
+   ]
+  },
+  {
+   "name": "H",
+   "H0": 57472,
+   "b0": 55,
+   "P": [
+    47,
+    35
+   ],
+   "tail": [
+    68,
+    47,
+    35,
+    47,
+    35,
+    47,
+    35,
+    47,
+    35,
+    47
+   ],
+   "alt": [
+    68,
+    43,
+    39,
+    43,
+    39,
+    43,
+    39,
+    43,
+    39,
+    43
+   ]
+  }
+ ],
+ "regions": [
+  [
+   0,
+   7500
+  ],
+  [
+   7500,
+   15000
+  ],
+  [
+   15000,
+   22500
+  ],
+  [
+   22500,
+   30000
+  ],
+  [
+   30000,
+   37500
+  ],
+  [
+   37500,
+   45000
+  ],
+  [
+   45000,
+   52500
+  ],
+  [
+   52500,
+   60000
+  ]
+ ],
+ "fillers": null,
+ "searchScore": 1.105775,
+ "states": [
+  {
+   "species": "A",
+   "H0": 37124,
+   "pattern": "+#7",
+   "states": [
+    {
+     "k": 0,
+     "pos": 37171,
+     "header": 37124,
+     "text": "0A$3$#D+#7+#7+#7",
+     "hammingToNext": 1
+    },
+    {
+     "k": 1,
+     "pos": 37107,
+     "header": 37140,
+     "text": "0E$3$#D+#7+#7+#7",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 37123,
+     "header": 37172,
+     "text": "0M$3$#D/#7+#7+#7",
+     "hammingToNext": 1
+    },
+    {
+     "k": 3,
+     "pos": 37155,
+     "header": 37156,
+     "text": "0I$3$#D/#7+#7+#7",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 37139,
+     "header": 37220,
+     "text": "0Y$3$#D/'7+#7+#7",
+     "hammingToNext": 1
+    },
+    {
+     "k": 5,
+     "pos": 37203,
+     "header": 37236,
+     "text": "0]$3$#D/'7+#7+#7",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 37219,
+     "header": 37204,
+     "text": "0U$3$#D+'7+#7+#7",
+     "hammingToNext": 1
+    },
+    {
+     "k": 7,
+     "pos": 37187,
+     "header": 37188,
+     "text": "0Q$3$#D+'7+#7+#7",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "B",
+   "H0": 39040,
+   "pattern": ";'/",
+   "states": [
+    {
+     "k": 0,
+     "pos": 39087,
+     "header": 39040,
+     "text": "1 &3$#D;'/;'/;'/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 1,
+     "pos": 39023,
+     "header": 39056,
+     "text": "1$&3$#D;'/;'/;'/",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 39039,
+     "header": 39088,
+     "text": "1,&3$#D?'/;'/;'/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 3,
+     "pos": 39071,
+     "header": 39072,
+     "text": "1(&3$#D?'/;'/;'/",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 39055,
+     "header": 39136,
+     "text": "18&3$#D?#/;'/;'/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 5,
+     "pos": 39119,
+     "header": 39152,
+     "text": "1<&3$#D?#/;'/;'/",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 39135,
+     "header": 39120,
+     "text": "14&3$#D;#/;'/;'/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 7,
+     "pos": 39103,
+     "header": 39104,
+     "text": "10&3$#D;#/;'/;'/",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "C",
+   "H0": 42116,
+   "pattern": "3#3",
+   "states": [
+    {
+     "k": 0,
+     "pos": 42163,
+     "header": 42116,
+     "text": "2!)3$#D3#33#33#3",
+     "hammingToNext": 1
+    },
+    {
+     "k": 1,
+     "pos": 42099,
+     "header": 42132,
+     "text": "2%)3$#D3#33#33#3",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 42115,
+     "header": 42164,
+     "text": "2-)3$#D7#33#33#3",
+     "hammingToNext": 1
+    },
+    {
+     "k": 3,
+     "pos": 42147,
+     "header": 42148,
+     "text": "2))3$#D7#33#33#3",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 42131,
+     "header": 42212,
+     "text": "29)3$#D7'33#33#3",
+     "hammingToNext": 1
+    },
+    {
+     "k": 5,
+     "pos": 42195,
+     "header": 42228,
+     "text": "2=)3$#D7'33#33#3",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 42211,
+     "header": 42196,
+     "text": "25)3$#D3'33#33#3",
+     "hammingToNext": 1
+    },
+    {
+     "k": 7,
+     "pos": 42179,
+     "header": 42180,
+     "text": "21)3$#D3'33#33#3",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "D",
+   "H0": 49412,
+   "pattern": "'?/",
+   "states": [
+    {
+     "k": 0,
+     "pos": 49459,
+     "header": 49412,
+     "text": "3A03$#D'?/'?/'?/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 1,
+     "pos": 49395,
+     "header": 49428,
+     "text": "3E03$#D'?/'?/'?/",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 49411,
+     "header": 49460,
+     "text": "3M03$#D#?/'?/'?/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 3,
+     "pos": 49443,
+     "header": 49444,
+     "text": "3I03$#D#?/'?/'?/",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 49427,
+     "header": 49508,
+     "text": "3Y03$#D#;/'?/'?/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 5,
+     "pos": 49491,
+     "header": 49524,
+     "text": "3]03$#D#;/'?/'?/",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 49507,
+     "header": 49492,
+     "text": "3U03$#D';/'?/'?/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 7,
+     "pos": 49475,
+     "header": 49476,
+     "text": "3Q03$#D';/'?/'?/",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "E",
+   "H0": 53516,
+   "pattern": "+",
+   "states": [
+    {
+     "k": 0,
+     "pos": 53563,
+     "header": 53516,
+     "text": "4C43$#D+++++++++",
+     "hammingToNext": 1
+    },
+    {
+     "k": 1,
+     "pos": 53499,
+     "header": 53532,
+     "text": "4G43$#D+++++++++",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 53515,
+     "header": 53564,
+     "text": "4O43$#D/++++++++",
+     "hammingToNext": 1
+    },
+    {
+     "k": 3,
+     "pos": 53547,
+     "header": 53548,
+     "text": "4K43$#D/++++++++",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 53531,
+     "header": 53612,
+     "text": "4[43$#D//+++++++",
+     "hammingToNext": 1
+    },
+    {
+     "k": 5,
+     "pos": 53595,
+     "header": 53628,
+     "text": "4_43$#D//+++++++",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 53611,
+     "header": 53596,
+     "text": "4W43$#D+/+++++++",
+     "hammingToNext": 1
+    },
+    {
+     "k": 7,
+     "pos": 53579,
+     "header": 53580,
+     "text": "4S43$#D+/+++++++",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "F",
+   "H0": 54404,
+   "pattern": "3'",
+   "states": [
+    {
+     "k": 0,
+     "pos": 54451,
+     "header": 54404,
+     "text": "5!53$#D3'3'3'3'3",
+     "hammingToNext": 1
+    },
+    {
+     "k": 1,
+     "pos": 54387,
+     "header": 54420,
+     "text": "5%53$#D3'3'3'3'3",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 54403,
+     "header": 54452,
+     "text": "5-53$#D7'3'3'3'3",
+     "hammingToNext": 1
+    },
+    {
+     "k": 3,
+     "pos": 54435,
+     "header": 54436,
+     "text": "5)53$#D7'3'3'3'3",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 54419,
+     "header": 54500,
+     "text": "5953$#D7#3'3'3'3",
+     "hammingToNext": 1
+    },
+    {
+     "k": 5,
+     "pos": 54483,
+     "header": 54516,
+     "text": "5=53$#D7#3'3'3'3",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 54499,
+     "header": 54484,
+     "text": "5553$#D3#3'3'3'3",
+     "hammingToNext": 1
+    },
+    {
+     "k": 7,
+     "pos": 54467,
+     "header": 54468,
+     "text": "5153$#D3#3'3'3'3",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "G",
+   "H0": 55432,
+   "pattern": "'#",
+   "states": [
+    {
+     "k": 0,
+     "pos": 55479,
+     "header": 55432,
+     "text": "6\"63$#D'#'#'#'#'",
+     "hammingToNext": 1
+    },
+    {
+     "k": 1,
+     "pos": 55415,
+     "header": 55448,
+     "text": "6&63$#D'#'#'#'#'",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 55431,
+     "header": 55480,
+     "text": "6.63$#D##'#'#'#'",
+     "hammingToNext": 1
+    },
+    {
+     "k": 3,
+     "pos": 55463,
+     "header": 55464,
+     "text": "6*63$#D##'#'#'#'",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 55447,
+     "header": 55528,
+     "text": "6:63$#D#''#'#'#'",
+     "hammingToNext": 1
+    },
+    {
+     "k": 5,
+     "pos": 55511,
+     "header": 55544,
+     "text": "6>63$#D#''#'#'#'",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 55527,
+     "header": 55512,
+     "text": "6663$#D'''#'#'#'",
+     "hammingToNext": 1
+    },
+    {
+     "k": 7,
+     "pos": 55495,
+     "header": 55496,
+     "text": "6263$#D'''#'#'#'",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "H",
+   "H0": 57472,
+   "pattern": "/#",
+   "states": [
+    {
+     "k": 0,
+     "pos": 57519,
+     "header": 57472,
+     "text": "7 83$#D/#/#/#/#/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 1,
+     "pos": 57455,
+     "header": 57488,
+     "text": "7$83$#D/#/#/#/#/",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 57471,
+     "header": 57520,
+     "text": "7,83$#D+#/#/#/#/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 3,
+     "pos": 57503,
+     "header": 57504,
+     "text": "7(83$#D+#/#/#/#/",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 57487,
+     "header": 57568,
+     "text": "7883$#D+'/#/#/#/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 5,
+     "pos": 57551,
+     "header": 57584,
+     "text": "7<83$#D+'/#/#/#/",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 57567,
+     "header": 57552,
+     "text": "7483$#D/'/#/#/#/",
+     "hammingToNext": 1
+    },
+    {
+     "k": 7,
+     "pos": 57535,
+     "header": 57536,
+     "text": "7083$#D/'/#/#/#/",
+     "hammingToNext": 2
+    }
+   ]
+  }
+ ],
+ "between": {
+  "AB": [
+   17,
+   20
+  ],
+  "AC": [
+   15,
+   20
+  ],
+  "AD": [
+   25,
+   26
+  ],
+  "AE": [
+   15,
+   20
+  ],
+  "AF": [
+   18,
+   21
+  ],
+  "AG": [
+   18,
+   21
+  ],
+  "AH": [
+   20,
+   23
+  ],
+  "BC": [
+   22,
+   25
+  ],
+  "BD": [
+   22,
+   25
+  ],
+  "BE": [
+   20,
+   23
+  ],
+  "BF": [
+   19,
+   24
+  ],
+  "BG": [
+   19,
+   20
+  ],
+  "BH": [
+   17,
+   18
+  ],
+  "CD": [
+   30,
+   31
+  ],
+  "CE": [
+   24,
+   29
+  ],
+  "CF": [
+   13,
+   16
+  ],
+  "CG": [
+   19,
+   22
+  ],
+  "CH": [
+   21,
+   24
+  ],
+  "DE": [
+   20,
+   21
+  ],
+  "DF": [
+   23,
+   26
+  ],
+  "DG": [
+   21,
+   24
+  ],
+  "DH": [
+   17,
+   20
+  ],
+  "EF": [
+   23,
+   26
+  ],
+  "EG": [
+   19,
+   22
+  ],
+  "EH": [
+   17,
+   20
+  ],
+  "FG": [
+   20,
+   21
+  ],
+  "FH": [
+   24,
+   25
+  ],
+  "GH": [
+   10,
+   15
+  ]
+ },
+ "sharedPlanes": [
+  123,
+  123,
+  123,
+  123,
+  123,
+  123,
+  123,
+  123
+ ],
+ "census": {
+  "N": 10000,
+  "cap": 4000,
+  "n": 10000,
+  "unsettled": 0,
+  "cycles": [
+   {
+    "len": 8,
+    "count": 2592,
+    "species": "E",
+    "example": "\"4C43$#D+++++++++\""
+   },
+   {
+    "len": 8,
+    "count": 1824,
+    "species": "F",
+    "example": "\"5!53$#D3'3'3'3'3\""
+   },
+   {
+    "len": 8,
+    "count": 1564,
+    "species": "G",
+    "example": "\"6\\\"63$#D'#'#'#'#'\""
+   },
+   {
+    "len": 8,
+    "count": 1039,
+    "species": "A",
+    "example": "\"0A$3$#D+#7+#7+#7\""
+   },
+   {
+    "len": 8,
+    "count": 978,
+    "species": "D",
+    "example": "\"3A03$#D'?/'?/'?/\""
+   },
+   {
+    "len": 8,
+    "count": 785,
+    "species": "H",
+    "example": "\"7 83$#D/#/#/#/#/\""
+   },
+   {
+    "len": 8,
+    "count": 710,
+    "species": "C",
+    "example": "\"2!)3$#D3#33#33#3\""
+   },
+   {
+    "len": 8,
+    "count": 488,
+    "species": "B",
+    "example": "\"1 &3$#D;'/;'/;'/\""
+   },
+   {
+    "len": 2,
+    "count": 10,
+    "species": null,
+    "example": "\"33#3333^33\""
+   },
+   {
+    "len": 9,
+    "count": 8,
+    "species": null,
+    "example": "\"\\\"óÉÈ\\t\\\"óÉÈrd\\t\\\"R\""
+   },
+   {
+    "len": 1,
+    "count": 1,
+    "species": null,
+    "example": "\"@@@@@@@@@+#\\b 7+\""
+   },
+   {
+    "len": 1,
+    "count": 1,
+    "species": null,
+    "example": "\"@@@@@@@@@@@@@@@@\""
+   }
+  ],
+  "shares": {
+   "A": 0.1039,
+   "B": 0.0488,
+   "C": 0.071,
+   "D": 0.0978,
+   "E": 0.2592,
+   "F": 0.1824,
+   "G": 0.1564,
+   "H": 0.0785,
+   "stray": 0.002
+  },
+  "transient": {
+   "mean": 5.424749498997996,
+   "p90": 8,
+   "max": 38,
+   "A": 4.900866217516843,
+   "B": 4.627049180327869,
+   "C": 5.316901408450704,
+   "D": 6.366053169734151,
+   "E": 6.06983024691358,
+   "F": 4.7110745614035086,
+   "G": 5.64002557544757,
+   "H": 4.638216560509554
+  }
+ }
+}

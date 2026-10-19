@@ -7,13 +7,21 @@ export const Codec = vm.runInThisContext(fs.readFileSync(dir + '/src/changers/co
 export const Band = vm.runInThisContext(fs.readFileSync(dir + '/src/lattice/band.js', 'utf8') + '; Band');
 const wasmBytes = fs.readFileSync(dir + '/build/keimli.wasm');
 const L = Codec.LAYOUT;
-export async function makeSim({ W = 128, H = 128, passes = 3, nbr = 1, changer = 39, pairMode = 1, maxlen = 3, skip = 0, cread = 127, coff = 0, gpow = 0.2 } = {}) {
+// saltMode: 0 content only (the default); bit 0 salts the swap and smoothing hashes by the turn, bit 1 by the cell's
+// coordinates; experimental controls that break the rule's invariance in time or space
+// swap / smooth: the slider values at the two edges of the page's gradients ([0, 1] on the page: left to right for the swap
+// slider p, whose exchange rate is 2p(1-p); top to bottom for the median probability); equal values give a uniform
+// parameter. mixOn / settleOn / rewriteOn switch the three stages for the ablations. rewrite: an optional JS function
+// (grid Uint8Array, N) that replaces the wasm changer, for null-model rewriting rules; it returns the bits it changed.
+export async function makeSim({ W = 128, H = 128, passes = 3, nbr = 1, changer = 39, pairMode = 1, maxlen = 3, skip = 0, cread = 127, coff = 0, gpow = 0.2, saltMode = 0,
+                                swap = [0, 1], smooth = [0, 1], mixOn = true, settleOn = true, rewriteOn = true, rewrite = null } = {}) {
+  if (!settleOn) passes = 0;
   const { instance } = await WebAssembly.instantiate(wasmBytes);
   const wasm = instance.exports, N = W * H, S = 16 * W, D = Band.depthFor(passes, nbr);
   const GRID = L.GRID, GRID2 = GRID + (H + 2 * D) * S + 64, need = GRID2 + (H + 2 * D) * S + 65536;
   if (need > wasm.memory.buffer.byteLength) wasm.memory.grow(Math.ceil((need - wasm.memory.buffer.byteLength) / 65536));
   const st = { wasm, W, H, y0: 0, rows: H, D, GRID, GRID2, PRM: L.PRM, THR: L.THR, THRY: L.THRY };
-  const thrSwap = Band.gradient(0, 1, W, Band.mixRate, gpow), thrSmooth = Band.gradient(0, 1, H);
+  const thrSwap = mixOn ? Band.gradient(swap[0], swap[1], W, Band.mixRate, gpow) : new BigUint64Array(W), thrSmooth = settleOn ? Band.gradient(smooth[0], smooth[1], H) : new BigUint64Array(H);
   let io = null, turn = 0;
   const m8 = () => new Uint8Array(wasm.memory.buffer);
   const base = GRID + D * S;
@@ -24,11 +32,13 @@ export async function makeSim({ W = 128, H = 128, passes = 3, nbr = 1, changer =
   function reset(seed) { wasm.randomize(4 * N, base, seed); turn = 0; }
   function step() {
     const r = Band.runTurn(st, { haloTop: null, haloBottom: null, order: Band.order(turn), alt: turn & 1, passes, nbr, thrSwap, thrSmooth,
-      salts: Array.from({ length: 4 + passes }, () => 0n), changer: true, pair: { mode: pairMode, flip: turn & 1 }, mut: null });
+      salts: Array.from({ length: 4 + passes }, (_, k) => saltMode & 1 ? BigInt.asUintN(64, BigInt(turn + 1) * 0x9E3779B97F4A7C15n + BigInt(k + 1) * 0xD1B54A32D192ED03n) : 0n),
+      posalt: !!(saltMode & 2), changer: rewriteOn && !rewrite, pair: { mode: pairMode, flip: turn & 1 }, mut: null });
+    if (rewriteOn && rewrite) r.rewritten = rewrite(grid(), N);
     turn++; return r;
   }
   const grid = () => m8().subarray(base, base + 16 * N);
-  return { W, H, N, setDict, reset, step, grid, get turn() { return turn; } };
+  return { W, H, N, setDict, reset, step, grid, get turn() { return turn; }, params: { passes, nbr, changer, pairMode, maxlen, skip, cread, coff, gpow, saltMode, swap, smooth, mixOn, settleOn, rewriteOn } };
 }
 const POP = new Uint8Array(256); for (let i = 0; i < 256; i++) POP[i] = (i & 1) + POP[i >> 1];
 export function metrics(sim, prev) {

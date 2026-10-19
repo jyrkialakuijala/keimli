@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .DS_Store
 build/
+# raw per-run data of the article experiments (hundreds of MB); the summaries, tables and write-ups are tracked
+paper/data/ablation/*.json
+paper/data/design/runs/*.png

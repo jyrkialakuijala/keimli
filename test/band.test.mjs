@@ -33,7 +33,8 @@ for (const [W, H, K, passes, changer, nbr = 0, pair = 0] of [[64, 48, 4, 3, 0], 
   for (let y = 0; y < H; y++) thrSmooth[y] = (1n << 64n) / BigInt(2 + y);                             // 1/2 down the rows
   let same = true, counts = true;
   for (let turn = 0; turn < 3 && same; turn++) {
-    const salts = Array.from({ length: 4 + passes }, (_, k) => BigInt(turn * 64 + k + 1)), order = Band.order(turn);
+    const salts = Array.from({ length: 4 + passes }, (_, k) => BigInt(turn * 64 + k + 1)), order = Band.order(turn), posalt = turn === 1;   // turn 1 salts by position too
+    full.ex.salt_by_position(posalt ? 1 : 0);
     // full grid
     new BigUint64Array(full.ex.memory.buffer, L.THR, W).set(thrSwap); new BigUint64Array(full.ex.memory.buffer, L.THRY, H).set(thrSmooth);
     let fm = 0, fs2 = 0, k = 0;
@@ -46,7 +47,7 @@ for (const [W, H, K, passes, changer, nbr = 0, pair = 0] of [[64, 48, 4, 3, 0], 
     const fmu = full.ex.mutate(N, GRID, 0, mut.lam, mut.salt);
     // bands: one message each, halos from the neighbours' edges at the end of the previous turn
     let bm = 0, bs = 0, br = 0, bmu = 0;
-    const results = bands.map((b, i) => Band.runTurn(b.st, { haloTop: i > 0 ? bands[i - 1].bottom : null, haloBottom: i + 1 < bands.length ? bands[i + 1].top : null, order, alt: turn & 1, passes, nbr, thrSwap, thrSmooth, salts, changer: !!changer, pair: { mode: pair, flip: turn & 1 }, mut }));
+    const results = bands.map((b, i) => Band.runTurn(b.st, { haloTop: i > 0 ? bands[i - 1].bottom : null, haloBottom: i + 1 < bands.length ? bands[i + 1].top : null, order, alt: turn & 1, passes, nbr, thrSwap, thrSmooth, salts, posalt, changer: !!changer, pair: { mode: pair, flip: turn & 1 }, mut }));
     results.forEach((r, i) => { bm += r.moved; bs += r.smoothed; br += r.rewritten; bmu += r.mutated; Object.assign(bands[i], Band.edges(bands[i].st)); });
     if (fm !== bm || fs2 !== bs || fr !== br || fmu !== bmu) counts = false;
     const assembled = new Uint8Array(16 * N);

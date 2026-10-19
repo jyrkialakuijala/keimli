@@ -76,6 +76,8 @@ const breed = (parent, swarm) => {
 
 // ---- the score: modes over space and time
 const win = (x, lo, hi, soft = 0.5) => { if (x >= lo && x <= hi) return 1; const d = x < lo ? (lo - x) / (lo * soft + 1e-9) : (x - hi) / (hi * soft + 1e-9); return Math.max(0, 1 - d); };
+let REFS = [];
+const tv = (a, b) => { let d = 0; for (const k in a) d += Math.abs(a[k] - (b[k] || 0)); for (const k in b) if (!(k in a)) d += b[k]; return d / 2; };
 function assess(text) {
   const rows = evaluate(sim, text, { turns: TURNS, seed: 11, every: 10, keepFrom: TURNS - 13 });   // the last two samples have their previous frames
   const late = rows.slice(-5), mean = k => late.reduce((s, r) => s + r[k], 0) / late.length;
@@ -87,10 +89,20 @@ function assess(text) {
     const cls = new Map(); last.regimes.blocks.forEach((k, i) => { const key = k * 48 + before.regimes.blocks[i]; cls.set(key, (cls.get(key) || 0) + 1); });
     let H = 0; const n = last.regimes.blocks.length; for (const v of cls.values()) { const p = v / n; H -= p * Math.log(p); } modes = Math.exp(H);
   }
-  const score = Object.values(f).reduce((a, b) => a * b, 1) * modes;
-  return { score, modes, regimes, d1, spatial: sp, ent, zip, distinct, act: mean('act') };
+  let hist = null;
+  if (last.regimes && before && before.regimes && before.regimes.blocks.length === last.regimes.blocks.length) {
+    hist = {}; const n = last.regimes.blocks.length; last.regimes.blocks.forEach((k, i) => { const key = k * 48 + before.regimes.blocks[i]; hist[key] = (hist[key] || 0) + 1 / n; });
+  }
+  // novelty: the total-variation distance of the mode histogram from the nearest reference dictionary (the ones already
+  // in the menu). Calibration on the 128 x 128 harness: two dictionaries the eye reads as the same picture (Swarm A and E)
+  // are 0.34 apart, visibly different ones 0.5 to 0.8, so the factor rises from 0 at 0.3 to 1 at 0.6 and the swarm
+  // cannot score by re-finding what the page already shows
+  let nov = 1;
+  if (REFS.length && hist) { nov = Math.min(...REFS.map(r => tv(hist, r))); }
+  const score = Object.values(f).reduce((a, b) => a * b, 1) * modes * (REFS.length ? Math.max(0, Math.min(1, (nov - 0.3) / 0.3)) : 1);
+  return { score, modes, regimes, nov, d1, spatial: sp, ent, zip, distinct, act: mean('act'), hist };
 }
-if (!isMainThread) { parentPort.on('message', ({ id, text }) => parentPort.postMessage({ id, m: assess(text) })); }
+if (!isMainThread) { parentPort.on('message', msg => { if (msg.refs) { REFS = msg.refs; return; } parentPort.postMessage({ id: msg.id, m: assess(msg.text) }); }); }
 // a pool of workers judges many texts at once
 const pool = isMainThread ? Array.from({ length: Math.max(1, WORKERS) }, () => new Worker(new URL(import.meta.url), { workerData: { args: ARGS } })) : [];
 const assessMany = texts => new Promise(resolve => {
@@ -99,7 +111,7 @@ const assessMany = texts => new Promise(resolve => {
   const feed = w => { if (next >= texts.length) return; const id = next++; w.once('message', ({ id: rid, m }) => { out[rid] = m; done++; if (done === texts.length) resolve(out); else feed(w); }); w.postMessage({ id, text: texts[id] }); };
   pool.forEach(feed);
 });
-const fmt = m => `score ${m.score.toFixed(2)} modes ${m.modes.toFixed(2)} regimes ${m.regimes.toFixed(2)} d1 ${m.d1.toFixed(3)} spatial ${m.spatial.toFixed(3)} ent ${m.ent.toFixed(2)} zip ${m.zip.toFixed(2)} distinct ${m.distinct.toFixed(2)}`;
+const fmt = m => `score ${m.score.toFixed(2)} novelty ${(m.nov ?? 1).toFixed(2)} modes ${m.modes.toFixed(2)} regimes ${m.regimes.toFixed(2)} d1 ${m.d1.toFixed(3)} spatial ${m.spatial.toFixed(3)} ent ${m.ent.toFixed(2)} zip ${m.zip.toFixed(2)} distinct ${m.distinct.toFixed(2)}`;
 
 // ---- the swarm
 if (!isMainThread) { await new Promise(() => {}); }   // workers only serve
@@ -109,6 +121,10 @@ LOG(`ca-swarm: kind ${KIND}, skip ${SKIP}, ${DLEN}-byte dictionaries, cursor rea
 const starts = ['ca-brotli-13', 'ca-brotli-15', 'ca-brotli-14', 'ca-brotli-12', 'ca-brotli-11', 'ca-brotli-9', 'ca-brotli-1', 'ca-brotli-2'].map(id => fit(fs.readFileSync(dd + id + '.txt', 'utf8')));
 for (const f of fs.readdirSync(dir + '/build').filter(f => f.startsWith(`ca-swarm-best-k${KIND}-s${SKIP}-l${DLEN}-v${CREAD}-`) && f.endsWith('.json'))) { try { const prev = JSON.parse(fs.readFileSync(dir + '/build/' + f, 'utf8')); for (const e of (prev.archive || []).concat(prev.swarm || [])) if (e.text && !starts.includes(e.text)) starts.push(fit(e.text)); } catch (e) {} }
 if (starts.length > 8) LOG(`seeded with ${starts.length - 8} dictionaries from earlier runs`);
+{ const ids = fs.readdirSync(dd).filter(f => /^ca-(brotli|swarm)-/.test(f) && f.endsWith('.txt')).sort();
+  const ms = await assessMany(ids.map(f => fit(fs.readFileSync(dd + f, 'utf8'))));
+  REFS = ms.map(m => m.hist).filter(Boolean); for (const w of pool) w.postMessage({ refs: REFS });
+  LOG(`novelty references: ${REFS.length} menu dictionaries (${ids.map(f => f.replace(/^ca-|\.txt$/g, '')).join(' ')})`); }
 let texts = starts.slice(0, SIZE); const stub = texts.map(() => null);
 while (texts.length < SIZE) texts.push(breed(pick(starts), stub.map((_, i) => ({ text: texts[i % texts.length] }))));
 let swarm = (await assessMany(texts)).map((m, i) => ({ text: texts[i], m, born: 0 }));

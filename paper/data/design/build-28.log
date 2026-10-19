@@ -1,0 +1,12 @@
+patterns: 6 single bytes, 356 pairs (14 landing in both rotations), 39198 triples (27 in all three) qualify at V = 8122
+file:///home/jyrki/life/paper/experiments/design-dict.mjs:128
+    if (!best || best.n < S) throw new Error(`only ${best ? best.n : 0} species fit at V = ${V} (${spotsAll.length} block spots, ${cands.length} patterns, ${full.length} landing in every rotation)`);
+                                   ^
+
+Error: only 0 species fit at V = 8122 (95 block spots, 39560 patterns, 47 landing in every rotation)
+    at file:///home/jyrki/life/paper/experiments/design-dict.mjs:128:36
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.22.1

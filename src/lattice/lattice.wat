@@ -30,6 +30,18 @@
     (local.set $x (i64.mul (i64.xor (local.get $x) (i64.shr_u (local.get $x) (i64.const 27))) (i64.const 0x94D049BB133111EB)))
     (i64.xor (local.get $x) (i64.shr_u (local.get $x) (i64.const 31))))
 
+  ;; Position salting (an experimental control, off by default): with $posalt set, every swap and smoothing decision
+  ;; adds a hash of the pair's or pixel's global coordinates to its salt, so two identical neighbourhoods at different
+  ;; places decide differently. It breaks the rule's translation invariance, as salting by the turn (done by the
+  ;; caller through the salt argument) breaks its time invariance; both exist so that quenched-versus-annealed noise
+  ;; can be compared. dir 0 marks a horizontal pair, 1 a vertical pair, 2 a smoothing pixel.
+  (global $posalt (mut i32) (i32.const 0))
+  (func (export "salt_by_position") (param $on i32) (global.set $posalt (local.get $on)))
+  (func $psalt (param $salt i64) (param $gx i32) (param $gy i32) (param $dir i32) (result i64)
+    (if (i32.eqz (global.get $posalt)) (then (return (local.get $salt))))
+    (i64.add (local.get $salt) (call $mix64 (i64.xor (i64.const 0x3C6EF372FE94F82B)
+      (i64.or (i64.shl (i64.extend_i32_u (local.get $gy)) (i64.const 32))
+              (i64.extend_i32_u (i32.or (i32.shl (local.get $gx) (i32.const 2)) (local.get $dir))))))))
   ;; decide(a, b, salt): the two 32-bit contexts of a position packed without regard to order, the smaller in the low
   ;; word and the larger in the high (an injective key of the unordered pair), hashed once; plus the salt, mod 2^64.
   (func $decide (param $a i64) (param $b i64) (param $salt i64) (result i64)
@@ -89,16 +101,16 @@
       (local.set $n (i32.add (local.get $n) (i32.wrap_i64 (i64.popcnt (local.get $m)))))))
     (local.get $n))
 
-  ;; row_pairs(row, w, x0, thrTab, d, salt) -> bits exchanged: the horizontal pairs (x, x+1), x = x0, x0+2, ...
-  ;; of the row at address row, each under the column threshold thrTab[x]
-  (func $row_pairs (param $row i32) (param $w i32) (param $x i32) (param $thrTab i32) (param $d i32) (param $salt i64) (result i32)
+  ;; row_pairs(row, w, x0, thrTab, d, salt, gy) -> bits exchanged: the horizontal pairs (x, x+1), x = x0, x0+2, ...
+  ;; of the row at address row (global row gy), each under the column threshold thrTab[x]
+  (func $row_pairs (param $row i32) (param $w i32) (param $x i32) (param $thrTab i32) (param $d i32) (param $salt i64) (param $gy i32) (result i32)
     (local $swaps i32)
     (block $xe (loop $xl (br_if $xe (i32.ge_u (i32.add (local.get $x) (i32.const 1)) (local.get $w)))
       (local.set $swaps (i32.add (local.get $swaps) (call $pair
         (i32.add (local.get $row) (i32.shl (local.get $x) (i32.const 4)))
         (i32.add (local.get $row) (i32.shl (i32.add (local.get $x) (i32.const 1)) (i32.const 4)))
         (local.get $d)
-        (i64.load (i32.add (local.get $thrTab) (i32.shl (local.get $x) (i32.const 3)))) (local.get $salt))))
+        (i64.load (i32.add (local.get $thrTab) (i32.shl (local.get $x) (i32.const 3)))) (call $psalt (local.get $salt) (local.get $x) (local.get $gy) (i32.const 0)))))
       (local.set $x (i32.add (local.get $x) (i32.const 2))) (br $xl)))
     (local.get $swaps))
 
@@ -116,7 +128,7 @@
       (local.set $p (i32.add (i32.add (local.get $grid) (i32.mul (local.get $r) (local.get $stride))) (i32.shl (local.get $x) (i32.const 4))))
       (local.set $swaps (i32.add (local.get $swaps) (i32.mul
         (i32.and (i32.ge_s (local.get $r) (local.get $ca)) (i32.lt_s (local.get $r) (local.get $cb)))
-        (call $pair (local.get $p) (i32.add (local.get $p) (local.get $stride)) (local.get $d) (local.get $thr) (local.get $salt)))))
+        (call $pair (local.get $p) (i32.add (local.get $p) (local.get $stride)) (local.get $d) (local.get $thr) (call $psalt (local.get $salt) (local.get $x) (i32.add (local.get $gy0) (local.get $r)) (i32.const 1))))))
       (local.set $r (i32.add (local.get $r) (i32.const 2))) (br $yl)))
     (local.get $swaps))
 
@@ -155,7 +167,7 @@
           (local.set $row (i32.add (local.get $grid) (i32.mul (local.get $r) (local.get $stride))))
           (local.set $inc (i32.and (i32.ge_s (local.get $r) (local.get $ca)) (i32.lt_s (local.get $r) (local.get $cb))))
           (local.set $swaps (i32.add (local.get $swaps) (i32.mul (local.get $inc)
-            (call $row_pairs (local.get $row) (local.get $w) (local.get $off) (local.get $thrTab) (local.get $d) (local.get $salt)))))
+            (call $row_pairs (local.get $row) (local.get $w) (local.get $off) (local.get $thrTab) (local.get $d) (local.get $salt) (i32.add (local.get $gy0) (local.get $r))))))
           (local.set $r (i32.add (local.get $r) (i32.const 1))) (br $yl)))
         ;; the leftover columns pair up and down with offset alt
         (local.set $left (call $leftover (local.get $w) (local.get $off)))
@@ -178,7 +190,7 @@
                 (i32.add (local.get $row) (i32.shl (local.get $x) (i32.const 4)))
                 (i32.add (i32.add (local.get $row) (local.get $stride)) (i32.shl (local.get $x) (i32.const 4)))
                 (local.get $d)
-                (i64.load (i32.add (local.get $thrTab) (i32.shl (local.get $x) (i32.const 3)))) (local.get $salt)))))
+                (i64.load (i32.add (local.get $thrTab) (i32.shl (local.get $x) (i32.const 3)))) (call $psalt (local.get $salt) (local.get $x) (i32.add (local.get $gy0) (local.get $r)) (i32.const 1))))))
               (local.set $x (i32.add (local.get $x) (i32.const 1))) (br $xl2)))))
           (local.set $r (i32.add (local.get $r) (i32.const 1))) (br $yl2)))
         ;; the leftover rows (global 0 and h-1, when inside the zone) pair left and right with offset alt
@@ -187,12 +199,12 @@
         (if (i32.and (i32.and (local.get $left) (i32.const 1)) (i32.and (i32.ge_s (local.get $r) (local.get $a)) (i32.lt_s (local.get $r) (local.get $b)))) (then
           (local.set $swaps (i32.add (local.get $swaps) (i32.mul
             (i32.and (i32.ge_s (local.get $r) (local.get $ca)) (i32.lt_s (local.get $r) (local.get $cb)))
-            (call $row_pairs (i32.add (local.get $grid) (i32.mul (local.get $r) (local.get $stride))) (local.get $w) (local.get $alt) (local.get $thrTab) (local.get $d) (local.get $salt)))))))
+            (call $row_pairs (i32.add (local.get $grid) (i32.mul (local.get $r) (local.get $stride))) (local.get $w) (local.get $alt) (local.get $thrTab) (local.get $d) (local.get $salt) (i32.add (local.get $gy0) (local.get $r))))))))
         (local.set $r (i32.sub (i32.sub (local.get $h) (i32.const 1)) (local.get $gy0)))
         (if (i32.and (i32.shr_u (local.get $left) (i32.const 1)) (i32.and (i32.ge_s (local.get $r) (local.get $a)) (i32.lt_s (local.get $r) (local.get $b)))) (then
           (local.set $swaps (i32.add (local.get $swaps) (i32.mul
             (i32.and (i32.ge_s (local.get $r) (local.get $ca)) (i32.lt_s (local.get $r) (local.get $cb)))
-            (call $row_pairs (i32.add (local.get $grid) (i32.mul (local.get $r) (local.get $stride))) (local.get $w) (local.get $alt) (local.get $thrTab) (local.get $d) (local.get $salt)))))))))
+            (call $row_pairs (i32.add (local.get $grid) (i32.mul (local.get $r) (local.get $stride))) (local.get $w) (local.get $alt) (local.get $thrTab) (local.get $d) (local.get $salt) (i32.add (local.get $gy0) (local.get $r))))))))))
     (local.get $swaps))
 
   ;; mix(w, h, grid, phase, alt, thrTab, salt): the whole grid as one zone, deciding on the live pixels
@@ -265,6 +277,7 @@
     (local.set $s0 (i64.load (local.get $p))) (local.set $s1 (i64.load offset=8 (local.get $p)))
     (if (i64.eqz (local.get $thr)) (then (i64.store (local.get $d) (local.get $s0)) (i64.store offset=8 (local.get $d) (local.get $s1)) (return (i32.const 0))))
     (local.set $always (i64.eq (local.get $thr) (i64.const -1)))
+    (local.set $salt (call $psalt (local.get $salt) (local.get $x) (local.get $g) (i32.const 2)))
     (local.set $res (local.get $s0))
     (local.set $diff (i64.xor (local.get $s0) (call $majority (local.get $src) (local.get $o) (local.get $x) (local.get $w) (local.get $g) (local.get $h) (local.get $stride) (local.get $nbr) (i32.const 0))))
     (if (local.get $always)

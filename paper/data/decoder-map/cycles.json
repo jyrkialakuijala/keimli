@@ -1,0 +1,182 @@
+{
+ "N": 10000,
+ "CAP": 4000,
+ "V": 4096,
+ "SKIP": 6,
+ "out": {
+  "declaration": {
+   "cycles": 7,
+   "lens": {
+    "3": 1,
+    "6": 118,
+    "9": 14,
+    "22": 9,
+    "67": 94,
+    "154": 1687,
+    "182": 8077
+   },
+   "basins": [
+    8077,
+    1687,
+    118,
+    94,
+    14,
+    9,
+    1
+   ],
+   "transientMean": 89.4291,
+   "transientP90": 198,
+   "transientMax": 431,
+   "unsettled": 0
+  },
+  "don-quijote": {
+   "cycles": 4,
+   "lens": {
+    "2": 1,
+    "4": 1,
+    "55": 6280,
+    "64": 3718
+   },
+   "basins": [
+    6280,
+    3718,
+    1,
+    1
+   ],
+   "transientMean": 82.3738,
+   "transientP90": 145,
+   "transientMax": 273,
+   "unsettled": 0
+  },
+  "kalevala-1": {
+   "cycles": 55,
+   "lens": {
+    "3": 13,
+    "8": 207,
+    "9": 522,
+    "20": 2,
+    "41": 26,
+    "77": 2762,
+    "303": 6468
+   },
+   "basins": [
+    6468,
+    2762,
+    522,
+    39,
+    26,
+    19,
+    19,
+    14,
+    13,
+    13
+   ],
+   "transientMean": 209.3359,
+   "transientP90": 418,
+   "transientMax": 670,
+   "unsettled": 0
+  },
+  "ca-brotli-1": {
+   "cycles": 6,
+   "lens": {
+    "2": 7751,
+    "3": 1,
+    "4": 900,
+    "15": 1348
+   },
+   "basins": [
+    7749,
+    1348,
+    900,
+    1,
+    1,
+    1
+   ],
+   "transientMean": 25.7181,
+   "transientP90": 50,
+   "transientMax": 92,
+   "unsettled": 0
+  },
+  "ca-brotli-9": {
+   "cycles": 2,
+   "lens": {
+    "1": 5,
+    "14": 9995
+   },
+   "basins": [
+    9995,
+    5
+   ],
+   "transientMean": 13.7797,
+   "transientP90": 25,
+   "transientMax": 56,
+   "unsettled": 0
+  },
+  "ca-brotli-13": {
+   "cycles": 4,
+   "lens": {
+    "1": 295,
+    "9": 9324,
+    "18": 381
+   },
+   "basins": [
+    9324,
+    381,
+    285,
+    10
+   ],
+   "transientMean": 24.4986,
+   "transientP90": 46,
+   "transientMax": 75,
+   "unsettled": 0
+  },
+  "ca-swarm-a": {
+   "cycles": 3,
+   "lens": {
+    "1": 23,
+    "6": 9483,
+    "8": 494
+   },
+   "basins": [
+    9483,
+    494,
+    23
+   ],
+   "transientMean": 7.3704,
+   "transientP90": 14,
+   "transientMax": 30,
+   "unsettled": 0
+  },
+  "ca-swarm-d": {
+   "cycles": 4,
+   "lens": {
+    "1": 76,
+    "3": 9392,
+    "12": 532
+   },
+   "basins": [
+    9392,
+    532,
+    74,
+    2
+   ],
+   "transientMean": 18.0187,
+   "transientP90": 40,
+   "transientMax": 71,
+   "unsettled": 0
+  },
+  "ca-swarm-f": {
+   "cycles": 1,
+   "lens": {
+    "3": 10000
+   },
+   "basins": [
+    10000
+   ],
+   "transientMean": 9.6431,
+   "transientP90": 15,
+   "transientMax": 35,
+   "unsettled": 0
+  }
+ }
+}

@@ -1,0 +1,310 @@
+{
+ "name": "ca-gray3-s2",
+ "d": 16,
+ "tailgray": 1,
+ "iters": 2500,
+ "N": 400,
+ "seed": 2,
+ "species": [
+  {
+   "name": "A",
+   "H0": 128,
+   "b0": 48,
+   "base": 65,
+   "alt": 67
+  },
+  {
+   "name": "B",
+   "H0": 2176,
+   "b0": 49,
+   "base": 80,
+   "alt": 82
+  },
+  {
+   "name": "C",
+   "H0": 3200,
+   "b0": 50,
+   "base": 40,
+   "alt": 42
+  }
+ ],
+ "regions": [
+  [
+   0,
+   1365
+  ],
+  [
+   1365,
+   2730
+  ],
+  [
+   2730,
+   4096
+  ]
+ ],
+ "fillers": [
+  "000?0@FAAAA^PAL6",
+  ",02?0@V+;BVPS\\{P",
+  "103?0@]9(I[1,LH&"
+ ],
+ "searchScore": 1.2233395989974938,
+ "states": [
+  {
+   "species": "A",
+   "H0": 128,
+   "states": [
+    {
+     "k": 0,
+     "pos": 176,
+     "header": 128,
+     "text": "0 0?0@AAAAAAAAAA",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 112,
+     "header": 144,
+     "text": "0$0?0@CAAAAAAAAA",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 128,
+     "header": 176,
+     "text": "0,0?0@CCAAAAAAAA",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 160,
+     "header": 160,
+     "text": "0(0?0@ACAAAAAAAA",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 144,
+     "header": 224,
+     "text": "080?0@ACCAAAAAAA",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 208,
+     "header": 240,
+     "text": "0<0?0@CCCAAAAAAA",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 224,
+     "header": 208,
+     "text": "040?0@CACAAAAAAA",
+     "hammingToNext": 2
+    },
+    {
+     "k": 7,
+     "pos": 192,
+     "header": 192,
+     "text": "000?0@AACAAAAAAA",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "B",
+   "H0": 2176,
+   "states": [
+    {
+     "k": 0,
+     "pos": 2224,
+     "header": 2176,
+     "text": "1 2?0@PPPPPPPPPP",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 2160,
+     "header": 2192,
+     "text": "1$2?0@RPPPPPPPPP",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 2176,
+     "header": 2224,
+     "text": "1,2?0@RRPPPPPPPP",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 2208,
+     "header": 2208,
+     "text": "1(2?0@PRPPPPPPPP",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 2192,
+     "header": 2272,
+     "text": "182?0@PRRPPPPPPP",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 2256,
+     "header": 2288,
+     "text": "1<2?0@RRRPPPPPPP",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 2272,
+     "header": 2256,
+     "text": "142?0@RPRPPPPPPP",
+     "hammingToNext": 2
+    },
+    {
+     "k": 7,
+     "pos": 2240,
+     "header": 2240,
+     "text": "102?0@PPRPPPPPPP",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "C",
+   "H0": 3200,
+   "states": [
+    {
+     "k": 0,
+     "pos": 3248,
+     "header": 3200,
+     "text": "2 3?0@((((((((((",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 3184,
+     "header": 3216,
+     "text": "2$3?0@*(((((((((",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 3200,
+     "header": 3248,
+     "text": "2,3?0@**((((((((",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 3232,
+     "header": 3232,
+     "text": "2(3?0@(*((((((((",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 3216,
+     "header": 3296,
+     "text": "283?0@(**(((((((",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 3280,
+     "header": 3312,
+     "text": "2<3?0@***(((((((",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 3296,
+     "header": 3280,
+     "text": "243?0@*(*(((((((",
+     "hammingToNext": 2
+    },
+    {
+     "k": 7,
+     "pos": 3264,
+     "header": 3264,
+     "text": "203?0@((*(((((((",
+     "hammingToNext": 2
+    }
+   ]
+  }
+ ],
+ "between": {
+  "AB": [
+   22,
+   28
+  ],
+  "AC": [
+   43,
+   49
+  ],
+  "BC": [
+   43,
+   49
+  ]
+ },
+ "sharedPlanes": [
+  122,
+  122,
+  122
+ ],
+ "census": {
+  "N": 10000,
+  "cap": 4000,
+  "n": 10000,
+  "unsettled": 0,
+  "cycles": [
+   {
+    "len": 8,
+    "count": 3543,
+    "species": "A",
+    "example": "\"0 0?0@AAAAAAAAAA\""
+   },
+   {
+    "len": 8,
+    "count": 3242,
+    "species": "C",
+    "example": "\"2 3?0@((((((((((\""
+   },
+   {
+    "len": 8,
+    "count": 3171,
+    "species": "B",
+    "example": "\"1 2?0@PPPPPPPPPP\""
+   },
+   {
+    "len": 3,
+    "count": 40,
+    "species": null,
+    "example": "\"0@PP@PPPPPAAAAA?\""
+   },
+   {
+    "len": 2,
+    "count": 4,
+    "species": null,
+    "example": "\"?0@@CCAAAAAA000?\""
+   }
+  ],
+  "shares": {
+   "A": 0.3543,
+   "B": 0.3171,
+   "C": 0.3242,
+   "stray": 0.0044
+  },
+  "transient": {
+   "mean": 27.482623543591803,
+   "p90": 46,
+   "max": 86,
+   "A": 20.74428450465707,
+   "B": 29.279091769157993,
+   "C": 33.089450956199876
+  }
+ }
+}

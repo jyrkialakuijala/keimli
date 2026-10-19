@@ -58,9 +58,19 @@ itself takes the rate directly: a threshold of 2^64 − 1 exchanges every
 differing bit. Swaps conserve the total number of set bits. Because identical contexts
 hash identically, a uniform boundary is all-or-nothing position by
 position.
-The page passes salt 0 to the swap and smoothing kernels, so the hashes
-see the neighbouring bits only; the salt argument stays for the tests and
-the band pipeline.
+By default the page passes salt 0 to the swap and smoothing kernels, so
+the hashes see the neighbouring bits only: the rule is the same at every
+place and every turn, which is what makes the lattice a cellular automaton,
+and its randomness is quenched in the configuration rather than drawn
+afresh. The **Hash salt** control under Mixing's More settings offers three
+experimental alternatives for comparison: *by turn* adds the turn number to
+every decision (annealed noise: the same bits decide differently from turn
+to turn), *by position* adds the cell's coordinates (the same bits decide
+differently from place to place; `salt_by_position` in `lattice.wat`), and
+*both*. Each breaks one of the rule's invariances and changes the pictures;
+they exist so that the quenched hashing can be told apart from the stages
+themselves in an experiment, not as settings to run. The harness takes the
+same choice as `saltMode`.
 
 The swap parameter is a per-column table: a gradient of p from the
 left-edge value to the right-edge value, each 0 to 1 (defaults 0 and 1),

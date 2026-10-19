@@ -1,0 +1,449 @@
+{
+ "name": "ca-cyc567",
+ "mode": "const",
+ "species": 3,
+ "cycles": [
+  5,
+  6,
+  7
+ ],
+ "V": 4096,
+ "len": 4400,
+ "headerBits": 12,
+ "letters": "123",
+ "patterns": [
+  "1",
+  "2",
+  "3"
+ ],
+ "blocks": [
+  128,
+  2304,
+  3328
+ ],
+ "bounds": [
+  1365,
+  2730
+ ],
+ "pads": [
+  {
+   "pattern": "1",
+   "reading": 72,
+   "full": true,
+   "rots": [
+    {
+     "ok": true,
+     "pos": [
+      1211,
+      1212,
+      1213,
+      1214,
+      1215,
+      1216
+     ],
+     "consumed": 72,
+     "src": "DDDDDDDDDSLSSLLL"
+    }
+   ],
+   "lands": [
+    "off-cycle (head of state 0)"
+   ]
+  },
+  {
+   "pattern": "2",
+   "reading": 60,
+   "full": true,
+   "rots": [
+    {
+     "ok": true,
+     "pos": [
+      2235,
+      2236,
+      2237,
+      2238,
+      2239,
+      2240
+     ],
+     "consumed": 60,
+     "src": "DDDDDDDDDDDDDSSS"
+    }
+   ],
+   "lands": [
+    "off-cycle (head of state 0)"
+   ]
+  },
+  {
+   "pattern": "3",
+   "reading": 44,
+   "full": true,
+   "rots": [
+    {
+     "ok": true,
+     "pos": [
+      3263,
+      3264,
+      3265,
+      3266,
+      3267,
+      3268
+     ],
+     "consumed": 44,
+     "src": "DDDDDDDDDDDDDSSS"
+    }
+   ],
+   "lands": [
+    "off-cycle (head of state 0)"
+   ]
+  }
+ ],
+ "steep": {
+  "onCycle": [
+   0.00005,
+   0.01175,
+   0.20475,
+   0.4891,
+   0.6729,
+   0.7832,
+   0.8588,
+   0.94035
+  ],
+  "flipReturnMean": 1.5698784722222223,
+  "flipReturnP90": 3,
+  "flipReturnMax": 10,
+  "flipLost": 0,
+  "flipSameSpecies": 0.9392361111111112
+ },
+ "d": 16,
+ "tailgray": 1,
+ "iters": 0,
+ "N": 400,
+ "seed": 1,
+ "speciesTable": [
+  {
+   "name": "A",
+   "index": 0,
+   "H0": 128,
+   "b0": 48,
+   "P": [
+    49
+   ],
+   "tail": [
+    49,
+    49,
+    49,
+    49,
+    49,
+    49,
+    49,
+    49,
+    49,
+    49
+   ],
+   "alt": [
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53
+   ]
+  },
+  {
+   "name": "B",
+   "index": 1,
+   "H0": 2304,
+   "b0": 49,
+   "P": [
+    50
+   ],
+   "tail": [
+    50,
+    50,
+    50,
+    50,
+    50,
+    50,
+    50,
+    50,
+    50,
+    50
+   ],
+   "alt": [
+    54,
+    54,
+    54,
+    54,
+    54,
+    54,
+    54,
+    54,
+    54,
+    54
+   ]
+  },
+  {
+   "name": "C",
+   "index": 2,
+   "H0": 3328,
+   "b0": 50,
+   "P": [
+    51
+   ],
+   "tail": [
+    51,
+    51,
+    51,
+    51,
+    51,
+    51,
+    51,
+    51,
+    51,
+    51
+   ],
+   "alt": [
+    55,
+    55,
+    55,
+    55,
+    55,
+    55,
+    55,
+    55,
+    55,
+    55
+   ]
+  }
+ ],
+ "regions": [
+  [
+   0,
+   1365
+  ],
+  [
+   1365,
+   2730
+  ],
+  [
+   2730,
+   4096
+  ]
+ ],
+ "fillers": null,
+ "searchScore": 1.37025,
+ "states": [
+  {
+   "species": "A",
+   "H0": 128,
+   "length": 5,
+   "pattern": "1",
+   "states": [
+    {
+     "k": 0,
+     "pos": 176,
+     "header": 128,
+     "text": "0 0?0@1111111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 112,
+     "header": 144,
+     "text": "0$0?0@5111111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 128,
+     "header": 160,
+     "text": "0(0?0@5111111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 144,
+     "header": 224,
+     "text": "080?0@1111111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 208,
+     "header": 192,
+     "text": "000?0@5111111111",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "B",
+   "H0": 2304,
+   "length": 6,
+   "pattern": "2",
+   "states": [
+    {
+     "k": 0,
+     "pos": 2352,
+     "header": 2304,
+     "text": "1@2?0@2222222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 2288,
+     "header": 2320,
+     "text": "1D2?0@6222222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 2304,
+     "header": 2352,
+     "text": "1L2?0@2222222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 2336,
+     "header": 2336,
+     "text": "1H2?0@6222222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 2320,
+     "header": 2400,
+     "text": "1X2?0@2222222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 2384,
+     "header": 2368,
+     "text": "1P2?0@6222222222",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "C",
+   "H0": 3328,
+   "length": 7,
+   "pattern": "3",
+   "states": [
+    {
+     "k": 0,
+     "pos": 3376,
+     "header": 3328,
+     "text": "2@3?0@3333333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 3312,
+     "header": 3344,
+     "text": "2D3?0@7333333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 3328,
+     "header": 3360,
+     "text": "2H3?0@7333333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 3344,
+     "header": 3376,
+     "text": "2L3?0@3333333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 3360,
+     "header": 3440,
+     "text": "2\\3?0@7333333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 3424,
+     "header": 3408,
+     "text": "2T3?0@3333333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 3392,
+     "header": 3392,
+     "text": "2P3?0@7333333333",
+     "hammingToNext": 2
+    }
+   ]
+  }
+ ],
+ "between": {
+  "AB": [
+   24,
+   28
+  ],
+  "AC": [
+   15,
+   19
+  ],
+  "BC": [
+   13,
+   17
+  ]
+ },
+ "sharedPlanes": [
+  124,
+  124,
+  124
+ ],
+ "census": {
+  "N": 10000,
+  "cap": 4000,
+  "n": 10000,
+  "unsettled": 0,
+  "cycles": [
+   {
+    "len": 5,
+    "count": 4284,
+    "species": "A",
+    "example": "\"0 0?0@1111111111\""
+   },
+   {
+    "len": 6,
+    "count": 3054,
+    "species": "B",
+    "example": "\"1@2?0@2222222222\""
+   },
+   {
+    "len": 7,
+    "count": 2662,
+    "species": "C",
+    "example": "\"2@3?0@3333333333\""
+   }
+  ],
+  "shares": {
+   "A": 0.4284,
+   "B": 0.3054,
+   "C": 0.2662,
+   "stray": 0
+  },
+  "transient": {
+   "mean": 5.0931,
+   "p90": 8,
+   "max": 17,
+   "A": 5.762605042016807,
+   "B": 4.806155861165684,
+   "C": 4.344853493613824
+  }
+ }
+}

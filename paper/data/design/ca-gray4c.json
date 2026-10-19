@@ -1,0 +1,494 @@
+{
+ "name": "ca-gray4c",
+ "mode": "const",
+ "species": 4,
+ "letters": "0123",
+ "blocks": [
+  256,
+  1280,
+  2304,
+  3328
+ ],
+ "bounds": [
+  420,
+  1653,
+  2911
+ ],
+ "pads": [
+  {
+   "pos": [
+    183,
+    184,
+    185,
+    186,
+    187,
+    188
+   ],
+   "consumed": 88,
+   "src": "DDDDDDSSLLLSSLSS",
+   "lands": "off-cycle \"0@0?0@0@ÀÀÀÀÀ```\" (head of state 0)"
+  },
+  {
+   "pos": [
+    1211,
+    1212,
+    1213,
+    1214,
+    1215,
+    1216,
+    1217,
+    1218,
+    1219
+   ],
+   "consumed": 72,
+   "src": "DDDDDDDDDSLSSLLL",
+   "lands": "off-cycle \"1@1?0@1111L@1ÄÄÄ\" (head of state 0)"
+  },
+  {
+   "pos": [
+    2235,
+    2236,
+    2237,
+    2238,
+    2239,
+    2240,
+    2241,
+    2242,
+    2243,
+    2244,
+    2245,
+    2246,
+    2247
+   ],
+   "consumed": 60,
+   "src": "DDDDDDDDDDDDDSSS",
+   "lands": "off-cycle \"2@2?0@22222222@2\" (head of state 0)"
+  },
+  {
+   "pos": [
+    3263,
+    3264,
+    3265,
+    3266,
+    3267,
+    3268,
+    3269,
+    3270,
+    3271,
+    3272,
+    3273,
+    3274,
+    3275
+   ],
+   "consumed": 44,
+   "src": "DDDDDDDDDDDDDSSS",
+   "lands": "off-cycle \"3@3?0@33333333@3\" (head of state 0)"
+  }
+ ],
+ "steep": {
+  "onCycle": [
+   0.00005,
+   0.01275,
+   0.2013,
+   0.4797,
+   0.6796,
+   0.79175,
+   0.8714,
+   0.91385
+  ],
+  "flipReturnMean": 1.512451171875,
+  "flipReturnP90": 3,
+  "flipReturnMax": 11,
+  "flipLost": 0,
+  "flipSameSpecies": 0.93505859375
+ },
+ "d": 16,
+ "tailgray": 1,
+ "iters": 0,
+ "N": 400,
+ "seed": 1,
+ "speciesTable": [
+  {
+   "name": "A",
+   "H0": 256,
+   "b0": 48,
+   "base": 48,
+   "alt": 52
+  },
+  {
+   "name": "B",
+   "H0": 1280,
+   "b0": 49,
+   "base": 49,
+   "alt": 53
+  },
+  {
+   "name": "C",
+   "H0": 2304,
+   "b0": 50,
+   "base": 50,
+   "alt": 54
+  },
+  {
+   "name": "D",
+   "H0": 3328,
+   "b0": 51,
+   "base": 51,
+   "alt": 55
+  }
+ ],
+ "regions": [
+  [
+   0,
+   420
+  ],
+  [
+   420,
+   1653
+  ],
+  [
+   1653,
+   2911
+  ],
+  [
+   2911,
+   4096
+  ]
+ ],
+ "fillers": null,
+ "searchScore": 1.424925,
+ "states": [
+  {
+   "species": "A",
+   "H0": 256,
+   "letter": "0",
+   "states": [
+    {
+     "k": 0,
+     "pos": 304,
+     "header": 256,
+     "text": "0@0?0@0000000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 240,
+     "header": 272,
+     "text": "0D0?0@4000000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 256,
+     "header": 304,
+     "text": "0L0?0@4400000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 288,
+     "header": 288,
+     "text": "0H0?0@0400000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 272,
+     "header": 352,
+     "text": "0X0?0@0440000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 336,
+     "header": 368,
+     "text": "0\\0?0@4440000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 352,
+     "header": 336,
+     "text": "0T0?0@4040000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 7,
+     "pos": 320,
+     "header": 320,
+     "text": "0P0?0@0040000000",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "B",
+   "H0": 1280,
+   "letter": "1",
+   "states": [
+    {
+     "k": 0,
+     "pos": 1328,
+     "header": 1280,
+     "text": "1@1?0@1111111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 1264,
+     "header": 1296,
+     "text": "1D1?0@5111111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 1280,
+     "header": 1328,
+     "text": "1L1?0@5511111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 1312,
+     "header": 1312,
+     "text": "1H1?0@1511111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 1296,
+     "header": 1376,
+     "text": "1X1?0@1551111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 1360,
+     "header": 1392,
+     "text": "1\\1?0@5551111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 1376,
+     "header": 1360,
+     "text": "1T1?0@5151111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 7,
+     "pos": 1344,
+     "header": 1344,
+     "text": "1P1?0@1151111111",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "C",
+   "H0": 2304,
+   "letter": "2",
+   "states": [
+    {
+     "k": 0,
+     "pos": 2352,
+     "header": 2304,
+     "text": "2@2?0@2222222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 2288,
+     "header": 2320,
+     "text": "2D2?0@6222222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 2304,
+     "header": 2352,
+     "text": "2L2?0@6622222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 2336,
+     "header": 2336,
+     "text": "2H2?0@2622222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 2320,
+     "header": 2400,
+     "text": "2X2?0@2662222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 2384,
+     "header": 2416,
+     "text": "2\\2?0@6662222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 2400,
+     "header": 2384,
+     "text": "2T2?0@6262222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 7,
+     "pos": 2368,
+     "header": 2368,
+     "text": "2P2?0@2262222222",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "D",
+   "H0": 3328,
+   "letter": "3",
+   "states": [
+    {
+     "k": 0,
+     "pos": 3376,
+     "header": 3328,
+     "text": "3@3?0@3333333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 3312,
+     "header": 3344,
+     "text": "3D3?0@7333333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 3328,
+     "header": 3376,
+     "text": "3L3?0@7733333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 3360,
+     "header": 3360,
+     "text": "3H3?0@3733333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 3344,
+     "header": 3424,
+     "text": "3X3?0@3773333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 3408,
+     "header": 3440,
+     "text": "3\\3?0@7773333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 3424,
+     "header": 3408,
+     "text": "3T3?0@7373333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 7,
+     "pos": 3392,
+     "header": 3392,
+     "text": "3P3?0@3373333333",
+     "hammingToNext": 2
+    }
+   ]
+  }
+ ],
+ "between": {
+  "AB": [
+   12,
+   18
+  ],
+  "AC": [
+   12,
+   18
+  ],
+  "AD": [
+   24,
+   30
+  ],
+  "BC": [
+   24,
+   30
+  ],
+  "BD": [
+   12,
+   18
+  ],
+  "CD": [
+   12,
+   18
+  ]
+ },
+ "sharedPlanes": [
+  122,
+  122,
+  122,
+  122
+ ],
+ "census": {
+  "N": 10000,
+  "cap": 4000,
+  "n": 10000,
+  "unsettled": 0,
+  "cycles": [
+   {
+    "len": 8,
+    "count": 3146,
+    "species": "B",
+    "example": "\"1@1?0@1111111111\""
+   },
+   {
+    "len": 8,
+    "count": 2489,
+    "species": "D",
+    "example": "\"3@3?0@3333333333\""
+   },
+   {
+    "len": 8,
+    "count": 2212,
+    "species": "C",
+    "example": "\"2@2?0@2222222222\""
+   },
+   {
+    "len": 8,
+    "count": 2153,
+    "species": "A",
+    "example": "\"0@0?0@0000000000\""
+   }
+  ],
+  "shares": {
+   "A": 0.2153,
+   "B": 0.3146,
+   "C": 0.2212,
+   "D": 0.2489,
+   "stray": 0
+  },
+  "transient": {
+   "mean": 5.1541,
+   "p90": 8,
+   "max": 18,
+   "A": 5.857408267533674,
+   "B": 5.46439923712651,
+   "C": 4.212929475587703,
+   "D": 4.989955805544396
+  }
+ }
+}

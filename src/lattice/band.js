@@ -36,7 +36,8 @@ const Band = (() => {
   // msg = { haloTop, haloBottom (Uint8Array of D rows or null at the grid edge), order (the turn's four phase ids), alt (the turn parity, for the edge pairs), passes,
   //         thrSwap (BigUint64Array W), thrSmooth (BigUint64Array H), salts (BigInt per step), changer (bool), pair ({ mode, flip }),
   //         nbr (smoothing neighbourhood 0 cross / 1 3x3 / r = 2..5 the (2r+1)x(2r+1) block), mut ({ lam, salt }: expected flips per pixel as 32.32
-  //         fixed-point BigInt, and this turn's salt; absent or lam 0 for no mutation), influence (a BigInt salt: measure the segment influence of pairs with it; absent or 0n: do not) }
+  //         fixed-point BigInt, and this turn's salt; absent or lam 0 for no mutation), influence (a BigInt salt: measure the segment influence of pairs with it; absent or 0n: do not),
+  //         posalt (bool: salt every swap and smoothing decision by its global coordinates too; an experimental control) }
   // runTurn = runHead (the swap phases and the smoothing passes) + runTail (the changer and the mutation); the worker
   // runs the link rounds in between when links are on, see linkBand.
   function runTurn(st, msg) { return Object.assign(runHead(st, msg), runTail(st, msg)); }
@@ -53,6 +54,7 @@ const Band = (() => {
     const useBot = () => { if (vb === 0) throw new Error('band halo exhausted below'); vb--; };
     if (msg.pair) new Int32Array(wasm.memory.buffer, st.PRM + 104, 2).set([msg.pair.mode | 0, msg.pair.flip ? 1 : 0]);   // pairs: the joining and this turn's flip, for the link rounds and the changer
     let moved = 0, smoothed = 0, k = 0;
+    wasm.salt_by_position(msg.posalt ? 1 : 0);
     m8.copyWithin(GRID2, GRID, GRID + (rows + 2 * D) * S);   // snapshot: every swap decision of the turn is read from the map before the first phase
     for (const ph of msg.order) {
       const ea = edgeParity(ph, msg.alt | 0);

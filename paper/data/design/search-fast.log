@@ -1,0 +1,68 @@
+start: score -0.688 shares {"A":0.0325,"B":0.01,"C":0.0075,"stray":0.95} transient 6.8 unsettled 0
+iter 8 (0 s): score -0.624 shares A 0.10 B 0.01 C 0.01 stray 0.882 transient 7.9 p90 15 unsettled 0
+iter 9 (0 s): score -0.614 shares A 0.11 B 0.01 C 0.01 stray 0.873 transient 8.0 p90 15 unsettled 0
+iter 16 (1 s): score -0.607 shares A 0.11 B 0.01 C 0.01 stray 0.873 transient 7.8 p90 15 unsettled 0
+iter 21 (1 s): score -0.346 shares A 0.39 B 0.01 C 0.01 stray 0.595 transient 11.6 p90 21 unsettled 0
+iter 23 (1 s): score -0.276 shares A 0.40 B 0.02 C 0.02 stray 0.568 transient 11.3 p90 19 unsettled 0
+iter 25 (1 s): score -0.233 shares A 0.46 B 0.02 C 0.02 stray 0.497 transient 12.9 p90 24 unsettled 0
+iter 28 (1 s): score 0.147 shares A 0.97 B 0.01 C 0.01 stray 0.000 transient 21.9 p90 42 unsettled 0
+iter 44 (1 s): score 0.175 shares A 0.96 B 0.02 C 0.01 stray 0.003 transient 21.1 p90 42 unsettled 0
+iter 57 (2 s): score 0.186 shares A 0.94 B 0.03 C 0.02 stray 0.010 transient 20.7 p90 43 unsettled 0
+iter 59 (2 s): score 0.218 shares A 0.95 B 0.03 C 0.01 stray 0.007 transient 19.8 p90 42 unsettled 0
+iter 67 (2 s): score 0.222 shares A 0.95 B 0.03 C 0.01 stray 0.005 transient 19.8 p90 40 unsettled 0
+iter 86 (3 s): score 0.228 shares A 0.94 B 0.03 C 0.03 stray 0.005 transient 20.1 p90 40 unsettled 0
+iter 102 (3 s): score 0.242 shares A 0.75 B 0.06 C 0.07 stray 0.120 transient 16.8 p90 35 unsettled 0
+iter 107 (3 s): score 0.294 shares A 0.88 B 0.06 C 0.06 stray 0.000 transient 19.8 p90 40 unsettled 0
+iter 116 (4 s): score 0.342 shares A 0.77 B 0.15 C 0.09 stray 0.000 transient 19.6 p90 39 unsettled 0
+iter 123 (4 s): score 0.357 shares A 0.75 B 0.17 C 0.09 stray 0.000 transient 19.4 p90 38 unsettled 0
+iter 144 (5 s): score 0.378 shares A 0.76 B 0.15 C 0.09 stray 0.000 transient 18.9 p90 37 unsettled 0
+iter 145 (5 s): score 0.387 shares A 0.87 B 0.07 C 0.06 stray 0.003 transient 17.3 p90 32 unsettled 0
+iter 164 (5 s): score 0.397 shares A 0.88 B 0.07 C 0.05 stray 0.003 transient 17.0 p90 32 unsettled 0
+iter 214 (6 s): score 0.409 shares A 0.87 B 0.07 C 0.05 stray 0.003 transient 16.7 p90 32 unsettled 0
+iter 219 (6 s): score 0.418 shares A 0.88 B 0.07 C 0.05 stray 0.003 transient 16.3 p90 32 unsettled 0
+iter 240 (7 s): score 0.439 shares A 0.86 B 0.07 C 0.07 stray 0.005 transient 16.3 p90 32 unsettled 0
+iter 332 (9 s): score 0.449 shares A 0.85 B 0.07 C 0.07 stray 0.003 transient 16.3 p90 31 unsettled 0
+iter 351 (9 s): score 0.451 shares A 0.86 B 0.06 C 0.07 stray 0.003 transient 16.0 p90 30 unsettled 0
+iter 395 (10 s): score 0.451 shares A 0.81 B 0.10 C 0.08 stray 0.003 transient 16.6 p90 32 unsettled 0
+iter 452 (11 s): score 0.468 shares A 0.74 B 0.16 C 0.10 stray 0.000 transient 17.1 p90 34 unsettled 0
+iter 478 (12 s): score 0.482 shares A 0.74 B 0.14 C 0.11 stray 0.000 transient 17.2 p90 33 unsettled 0
+iter 480 (12 s): score 0.498 shares A 0.69 B 0.16 C 0.16 stray 0.000 transient 18.5 p90 36 unsettled 0
+iter 496 (12 s): score 0.526 shares A 0.67 B 0.16 C 0.17 stray 0.000 transient 17.9 p90 34 unsettled 0
+iter 539 (13 s): score 0.538 shares A 0.59 B 0.21 C 0.20 stray 0.000 transient 19.0 p90 37 unsettled 0
+iter 817 (19 s): score 0.569 shares A 0.58 B 0.22 C 0.20 stray 0.000 transient 18.3 p90 34 unsettled 0
+iter 917 (22 s): score 0.578 shares A 0.56 B 0.23 C 0.21 stray 0.000 transient 18.5 p90 37 unsettled 0
+iter 984 (23 s): score 0.585 shares A 0.58 B 0.22 C 0.20 stray 0.000 transient 17.9 p90 34 unsettled 0
+iter 1213 (28 s): score 0.587 shares A 0.58 B 0.22 C 0.20 stray 0.000 transient 17.6 p90 31 unsettled 0
+iter 1682 (39 s): score 0.672 shares A 0.54 B 0.26 C 0.20 stray 0.003 transient 15.8 p90 29 unsettled 0
+iter 1683 (39 s): score 0.678 shares A 0.54 B 0.23 C 0.22 stray 0.003 transient 16.2 p90 30 unsettled 0
+iter 1685 (39 s): score 0.679 shares A 0.50 B 0.23 C 0.27 stray 0.003 transient 16.5 p90 29 unsettled 0
+iter 1703 (39 s): score 0.728 shares A 0.48 B 0.26 C 0.26 stray 0.005 transient 16.3 p90 29 unsettled 0
+iter 1775 (41 s): score 0.737 shares A 0.46 B 0.27 C 0.27 stray 0.005 transient 16.3 p90 29 unsettled 0
+iter 1792 (41 s): score 0.765 shares A 0.47 B 0.27 C 0.26 stray 0.003 transient 15.4 p90 27 unsettled 0
+iter 2941 (65 s): score 0.766 shares A 0.38 B 0.30 C 0.31 stray 0.003 transient 17.2 p90 36 unsettled 0
+# Designed dictionary ca-gray3-fast
+
+d = 16, tail Gray 1, filler search 3000 iterations on 400 cells (score 0.766). Census: 10000 random cells, cap 4000.
+
+| species | H0 | states (k: position, header, text, Hamming to next) |
+|---|---|---|
+| A | 128 | 0: 176, 128, `0 0?0@AAAAAAAAAA`, 2<br>1: 112, 144, `0$0?0@CAAAAAAAAA`, 2<br>2: 128, 176, `0,0?0@CCAAAAAAAA`, 2<br>3: 160, 160, `0(0?0@ACAAAAAAAA`, 2<br>4: 144, 224, `080?0@ACCAAAAAAA`, 2<br>5: 208, 240, `0<0?0@CCCAAAAAAA`, 2<br>6: 224, 208, `040?0@CACAAAAAAA`, 2<br>7: 192, 192, `000?0@AACAAAAAAA`, 2 |
+| B | 2176 | 0: 2224, 2176, `1 2?0@PPPPPPPPPP`, 2<br>1: 2160, 2192, `1$2?0@RPPPPPPPPP`, 2<br>2: 2176, 2224, `1,2?0@RRPPPPPPPP`, 2<br>3: 2208, 2208, `1(2?0@PRPPPPPPPP`, 2<br>4: 2192, 2272, `182?0@PRRPPPPPPP`, 2<br>5: 2256, 2288, `1<2?0@RRRPPPPPPP`, 2<br>6: 2272, 2256, `142?0@RPRPPPPPPP`, 2<br>7: 2240, 2240, `102?0@PPRPPPPPPP`, 2 |
+| C | 3200 | 0: 3248, 3200, `2 3?0@((((((((((`, 2<br>1: 3184, 3216, `2$3?0@*(((((((((`, 2<br>2: 3200, 3248, `2,3?0@**((((((((`, 2<br>3: 3232, 3232, `2(3?0@(*((((((((`, 2<br>4: 3216, 3296, `283?0@(**(((((((`, 2<br>5: 3280, 3312, `2<3?0@***(((((((`, 2<br>6: 3296, 3280, `243?0@*(*(((((((`, 2<br>7: 3264, 3264, `203?0@((*(((((((`, 2 |
+
+Planes constant along the cycle: 122, 122, 122 of 128 (46 are read by the decoder). Hamming between species (min, max over state pairs): {"AB":[22,28],"AC":[43,49],"BC":[43,49]}.
+
+Filler words: `>00?0@6#;A1A4SF}`, `-02?0@P0DGPDPPPP`, `703?0@+ZB&/N ?|W`
+
+## Census
+
+Shares: A 38.9 %, B 27.5 %, C 33.2 %, stray 0.45 %, unsettled 0. Transient mean 18.2, p90 37, max 70 (A 12.2, B 18.5, C 25.0).
+
+| cycle | length | basin | species |
+|---|---|---|---|
+| `"0 0?0@AAAAAAAAAA"` | 8 | 38.87 % | A |
+| `"2 3?0@(((((((((("` | 8 | 33.23 % | C |
+| `"1 2?0@PPPPPPPPPP"` | 8 | 27.45 % | B |
+| `"0@PP@PPPPPAAAAA?"` | 3 | 0.30 % | stray |
+| `"?0@@CCAAAAAA>>0C"` | 2 | 0.15 % | stray |
+done
