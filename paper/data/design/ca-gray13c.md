@@ -1,0 +1,50 @@
+# Designed dictionary ca-gray13c
+
+13 species, V = 60000 (16 header bits), 61440 bytes, mode const, patterns "7??" "+3" "9" "+';" "?'" "?+" "';" ";" "3\"2" "?3" "&3" "'+3" "+7", blocks 35076, 35972, 41100, 41228, 42112, 45192, 48260, 51456, 54400, 55424, 56584, 57480, 58636, bounds 4615, 9231, 13846, 18462, 23077, 27692, 32308, 36923, 41538, 46154, 50769, 55385, d = 17, tail Gray 1. Census: 10000 random cells, cap 4000.
+
+| species | pattern | reading (bits) | H0 | cycle length | state 0 | Hamming per step |
+|---|---|---|---|---|---|---|
+| A | `7??` | 48 | 35076 | 8 | `0A"3$#D7??7??7??` | 1/2 |
+| B | `+3` | 48 | 35972 | 8 | `1!#3$#D+3+3+3+3+` | 1/2 |
+| C | `9` | 59 | 41100 | 8 | `2#(3$#D999999999` | 1/2 |
+| D | `+';` | 64 | 41228 | 8 | `3C(3$#D+';+';+';` | 1/2 |
+| E | `?'` | 64 | 42112 | 8 | `4 )3$#D?'?'?'?'?` | 1/2 |
+| F | `?+` | 48 | 45192 | 8 | `5",3$#D?+?+?+?+?` | 1/2 |
+| G | `';` | 64 | 48260 | 8 | `6!/3$#D';';';';'` | 1/2 |
+| H | `;` | 48 | 51456 | 8 | `7@23$#D;;;;;;;;;` | 1/2 |
+| I | `3"2` | 60 | 54400 | 8 | `8 53$#D3"23"23"2` | 1/2 |
+| J | `?3` | 48 | 55424 | 8 | `9 63$#D?3?3?3?3?` | 1/2 |
+| K | `&3` | 58 | 56584 | 8 | `:B73$#D&3&3&3&3&` | 1/2 |
+| L | `'+3` | 64 | 57480 | 8 | `;"83$#D'+3'+3'+3` | 1/2 |
+| M | `+7` | 48 | 58636 | 8 | `<C93$#D+7+7+7+7+` | 1/2 |
+
+Planes constant along the cycle: 123 of 128 (48 are read by the decoder).
+
+Filler: the patterns tiled over the regions [[0,4615],[4615,9231],[9231,13846],[13846,18462],[18462,23077],[23077,27692],[27692,32308],[32308,36923],[36923,41538],[41538,46154],[46154,50769],[50769,55385],[55385,60000]]; landing pads: A 4703..4709 (reads 48 bits, lands on off-cycle (head wrong: "0a\"3$#d3+3+3+3+3")) and 56511..56517 (reads 48 bits, lands on off-cycle (head wrong: "0a\"3$#d7+7+7+7+7")) and 4703..4709 (reads 48 bits, lands on off-cycle (head wrong: "0a\"3$#d3+3+3+3+3")); B 44191..44197 (reads 48 bits, lands on off-cycle (head of state 0)) and 52383..52389 (reads 48 bits, lands on off-cycle (head wrong: "1!#3$#d+3'+3'1!#")); C 58590..58573 (reads 59 bits, lands on off-cycle (head of state 0)); D 543..549 (reads 48 bits, lands on off-cycle (head of state 0)) and 44223..44229 (reads 64 bits, lands on off-cycle (head wrong: "3c(3$#d?3?3?3?3?")) and 40063..40069 (reads 48 bits, lands on off-cycle (head of state 0)); E 4607..4613 (reads 64 bits, lands on off-cycle (head wrong: "4 )3$#d7+3+3+3+3")) and 40159..40165 (reads 48 bits, lands on off-cycle (head of state 0)); F 4623..4629 (reads 48 bits, lands on off-cycle (head wrong: "5\",3$#d3+3+3+3+3")) and 44239..44245 (reads 48 bits, lands on off-cycle (head of state 0)); G 40143..40149 (reads 48 bits, lands on off-cycle (head of state 0)) and 527..533 (reads 64 bits, lands on off-cycle (head wrong: "6!/3$#d7??7??7??")); H 607..613 (reads 48 bits, lands on off-cycle (head wrong: "7@23$#d?7??7??7?")); I 51327..51333 (reads 58 bits, lands on off-cycle (head of state 0)) and 52409..52417 (reads 54 bits, lands on off-cycle (head of state 0)) and 35004..35017 (reads 60 bits, lands on off-cycle (head of state 0)); J 4655..4661 (reads 48 bits, lands on off-cycle (head wrong: "9 63$#d3+3+3+3+3")) and 52463..52469 (reads 46 bits, lands on off-cycle (head wrong: "9 63$#d'+3'+39 6")); K 39091..39097 (reads 48 bits, lands on off-cycle (head of state 0)) and 52361..52372 (reads 58 bits, lands on off-cycle (head wrong: ":b73$#d3'+:b73$#")); L 52351..52357 (reads 48 bits, lands on state 0 of L) and 40127..40133 (reads 64 bits, lands on off-cycle (head wrong: ";\"83$#d\"3\"23\"232")) and 44159..44165 (reads 48 bits, lands on off-cycle (head of state 0)); M 44207..44213 (reads 48 bits, lands on off-cycle (head of state 0)) and 56463..56469 (reads 48 bits, lands on off-cycle (head wrong: "<c93$#d7+7+7+7+7"))
+
+## Funnel
+
+On a designed cycle after 1..8 steps from random cells: 0.0 %, 0.1 %, 11.6 %, 33.9 %, 54.2 %, 70.5 %, 80.4 %, 85.7 %. After one bit flip of a cycle state (13312 cases): return in 1.7 steps mean, p90 4, max 17, lost (> 100) 10, same species 84.2 %.
+
+## Census
+
+Shares (%): A 0.1, B 10.9, C 2.4, D 2.0, E 3.0, F 2.7, G 3.7, H 18.2, I 20.4, J 8.5, K 1.1, L 16.0, M 10.8, stray 0.27, unsettled 0. Transient mean 5.9, p90 9, max 26.
+
+| cycle | length | basin | species |
+|---|---|---|---|
+| `"8 53$#D3\"23\"23\"2"` | 8 | 20.40 % | I |
+| `"7@23$#D;;;;;;;;;"` | 8 | 18.16 % | H |
+| `";\"83$#D'+3'+3'+3"` | 8 | 16.03 % | L |
+| `"1!#3$#D+3+3+3+3+"` | 8 | 10.89 % | B |
+| `"<C93$#D+7+7+7+7+"` | 8 | 10.77 % | M |
+| `"9 63$#D?3?3?3?3?"` | 8 | 8.51 % | J |
+| `"6!/3$#D';';';';'"` | 8 | 3.71 % | G |
+| `"4 )3$#D?'?'?'?'?"` | 8 | 3.00 % | E |
+| `"5\",3$#D?+?+?+?+?"` | 8 | 2.66 % | F |
+| `"2#(3$#D999999999"` | 8 | 2.36 % | C |
+| `"3C(3$#D+';+';+';"` | 8 | 1.99 % | D |
+| `":B73$#D&3&3&3&3&"` | 8 | 1.13 % | K |
+| `"23\"2823\"28Ì\u001128Ì"` | 2 | 0.18 % | stray |
+| `"0A\"3$#D7??7??7??"` | 8 | 0.12 % | A |
+| `"'?'?''?'?'"` | 1 | 0.08 % | stray |
+| `"@@@@@@@@@@@@@@@@"` | 1 | 0.01 % | stray |

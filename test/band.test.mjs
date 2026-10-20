@@ -11,7 +11,7 @@ const bytes = fs.readFileSync(dir + '/build/keimli.wasm');
 const mk = async () => { const ex = (await WebAssembly.instantiate(bytes)).instance.exports; const io = Codec.install(ex.memory, Codec.build(text, 4)); return { ex, io }; };
 let fails = 0; const check = (n, ok) => { console.log((ok ? 'ok  ' : 'FAIL') + ' ' + n); if (!ok) fails++; };
 const L = Codec.LAYOUT;
-for (const [W, H, K, passes, changer, nbr = 0, pair = 0] of [[64, 48, 4, 3, 0], [64, 48, 8, 1, 6], [40, 24, 3, 0, 1], [64, 48, 7, 5, 0], [64, 48, 5, 3, 0, 1], [64, 64, 3, 2, 0, 5], [64, 48, 4, 1, 6, 3], [64, 48, 4, 3, 0, 2], [64, 64, 6, 5, 3, 2], [64, 48, 4, 1, 6, 0, 2], [64, 48, 3, 1, 0, 0, 1], [64, 48, 4, 1, 0, 0, 3], [64, 48, 5, 1, 6, 0, 4], [64, 48, 4, 1, 6, 0, 5]]) {
+for (const [W, H, K, passes, changer, nbr = 0, pair = 0, sync = 0] of [[64, 48, 4, 1, 0, 0, 9], [64, 48, 3, 1, 36, 0, 10, 1], [64, 48, 4, 3, 0, 1, 0, 1], [64, 48, 4, 3, 0], [64, 48, 8, 1, 6], [40, 24, 3, 0, 1], [64, 48, 7, 5, 0], [64, 48, 5, 3, 0, 1], [64, 64, 3, 2, 0, 5], [64, 48, 4, 1, 6, 3], [64, 48, 4, 3, 0, 2], [64, 64, 6, 5, 3, 2], [64, 48, 4, 1, 6, 0, 2], [64, 48, 3, 1, 0, 0, 1], [64, 48, 4, 1, 0, 0, 3], [64, 48, 5, 1, 6, 0, 4], [64, 48, 4, 1, 6, 0, 5]]) {
   const N = W * H, S = 16 * W, D = Band.depthFor(passes, nbr);
   const full = await mk(); full.io.setChanger(changer);
   const fm8 = new Uint8Array(full.ex.memory.buffer), GRID = L.GRID, GRID2 = GRID + 16 * N + 64;
@@ -39,22 +39,24 @@ for (const [W, H, K, passes, changer, nbr = 0, pair = 0] of [[64, 48, 4, 3, 0], 
     new BigUint64Array(full.ex.memory.buffer, L.THR, W).set(thrSwap); new BigUint64Array(full.ex.memory.buffer, L.THRY, H).set(thrSmooth);
     let fm = 0, fs2 = 0, k = 0;
     fm8.copyWithin(GRID2, GRID, GRID + 16 * N);
-    for (const ph of order) fm += full.ex.mix_from(W, H, GRID, GRID2, ph, Band.edgeParity(ph, turn & 1), L.THR, salts[k++]);
+    if (sync) fm += full.ex.mix_sync_zone(W, GRID2, GRID, L.THR, 0, H, 0, H, 0, H, salts[k++]);   // the synchronous isotropic mixing
+    else for (const ph of order) fm += full.ex.mix_from(W, H, GRID, GRID2, ph, Band.edgeParity(ph, turn & 1), L.THR, salts[k++]);
     for (let p = 0; p < passes; p++) { fs2 += full.ex.smooth(W, H, GRID, GRID2, L.THRY, salts[k++], nbr); fm8.copyWithin(GRID, GRID2, GRID2 + 16 * N); }
-    full.io.setPair(pair, turn & 1);
+    full.io.setPair(pair, turn & 1, W, 0, H, GRID2);
+    if (pair & 8) fm8.copyWithin(GRID2, GRID, GRID + 16 * N);   // the vote partner reads the state before any pixel is rewritten
     const fr = changer ? full.ex.change(N, GRID, L.PRM) : 0;
     const mut = { lam: BigInt(Math.round(0.05 * 2 ** 32)), salt: BigInt(turn * 64 + 63) };   // mutation: 0.05 flips a cell, after the changer
     const fmu = full.ex.mutate(N, GRID, 0, mut.lam, mut.salt);
     // bands: one message each, halos from the neighbours' edges at the end of the previous turn
     let bm = 0, bs = 0, br = 0, bmu = 0;
-    const results = bands.map((b, i) => Band.runTurn(b.st, { haloTop: i > 0 ? bands[i - 1].bottom : null, haloBottom: i + 1 < bands.length ? bands[i + 1].top : null, order, alt: turn & 1, passes, nbr, thrSwap, thrSmooth, salts, posalt, changer: !!changer, pair: { mode: pair, flip: turn & 1 }, mut }));
+    const results = bands.map((b, i) => Band.runTurn(b.st, { haloTop: i > 0 ? bands[i - 1].bottom : null, haloBottom: i + 1 < bands.length ? bands[i + 1].top : null, order, alt: turn & 1, mixSync: !!sync, passes, nbr, thrSwap, thrSmooth, salts, posalt, changer: !!changer, pair: { mode: pair, flip: turn & 1 }, mut }));
     results.forEach((r, i) => { bm += r.moved; bs += r.smoothed; br += r.rewritten; bmu += r.mutated; Object.assign(bands[i], Band.edges(bands[i].st)); });
     if (fm !== bm || fs2 !== bs || fr !== br || fmu !== bmu) counts = false;
     const assembled = new Uint8Array(16 * N);
     for (const b of bands) assembled.set(b.m8.subarray(b.st.GRID + D * S, b.st.GRID + (D + b.st.rows) * S), b.st.y0 * S);
     for (let i = 0; i < 16 * N; i++) if (assembled[i] !== fm8[GRID + i]) { same = false; break; }
   }
-  check(`${W}x${H}, ${bands.length} bands (depth ${D}), ${passes} passes, neighbourhood ${nbr}, changer ${changer}${pair ? ', pairs mode ' + pair : ''}: grid bit-identical over 3 turns`, same);
+  check(`${W}x${H}, ${bands.length} bands (depth ${D}), ${passes} passes, neighbourhood ${nbr}, changer ${changer}${pair ? ', pairs mode ' + pair : ''}${sync ? ', synchronous mixing' : ''}: grid bit-identical over 3 turns`, same);
   check(`${W}x${H}, ${bands.length} bands: moved / smoothed / rewritten counts match the full grid (mutations too)`, counts);
 }
 // Links on bands: the per-round protocol of Band.linkBand (UD0, LR0 on own rows; the row above comes in, UD1 with the

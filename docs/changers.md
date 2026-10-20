@@ -134,7 +134,7 @@ same way. Both offset by 128 and clamp to 0..255. The cosines come from a
 DCT returns a pixel, or a pair, to within rounding unless a coefficient
 clipped. On a concatenated pair the first cell receives the 16 lowest
 frequencies and the second the 16 highest; on the interleaved joinings the
-coefficients are dealt back to the two cells bit, nibble or byte by byte.
+coefficients are dealt back to the two cells bit by bit, two bits, a nibble or a byte at a time.
 
 ## Decoders
 

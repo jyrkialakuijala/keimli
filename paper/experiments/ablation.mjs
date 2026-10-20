@@ -78,7 +78,10 @@ if (opt.rewrite && /^cycle3f?$/.test(opt.rewrite)) {
   };
 }
 
-const sim = await makeSim({ W: n, H: n, changer: 36, pairMode: 0, maxlen: 3, skip: 6, cread: 4096, coff: 0, saltMode: salt, swap: [pm, pm], smooth: [ps, ps], mixOn, settleOn, rewriteOn, rewrite });
+const altOrder = opt.altorder === undefined || opt.altorder === '0' ? false : opt.altorder === '1' ? 'alternate' : opt.altorder;   // altorder=1|alternate|palindrome|cycle4|random: the swap-order scheme (Band.SCHEMES); unset: the fixed order of the runs before 2026-10-20
+const nbr = Number(opt.nbr ?? 1), passes = Number(opt.passes ?? 3), cread = Number(opt.cread ?? 4096);   // nbr=0: the 4-connected cross (5 votes); passes: median passes a turn
+const mixSync = Number(opt.mixsync ?? 0) === 1;   // mixsync=1: the synchronous isotropic mixing instead of the swap phases
+const sim = await makeSim({ W: n, H: n, passes, nbr, changer: 36, pairMode: 0, maxlen: 3, skip: 6, cread, coff: 0, saltMode: salt, swap: [pm, pm], smooth: [ps, ps], mixOn, settleOn, rewriteOn, rewrite, altOrder, mixSync });
 sim.setDict(text); sim.reset(seed);
 const { W, H, N } = sim;
 const POP = new Uint8Array(256); for (let i = 0; i < 256; i++) POP[i] = (i & 1) + POP[i >> 1];
@@ -136,9 +139,9 @@ for (let t = 1; t <= turns; t++) {
   }
   if (sampleTurns.has(t + 1)) prev = sim.grid().slice(); else prev = null;   // the previous frame, kept only when the next turn is sampled
 }
-const res = { cond, pm, ps, rate: 2 * pm * (1 - pm), salt, seed, n, turns, dict: dictLabel, dictId, variant, rewrite: rewriteName, margin, rs: RS, params: sim.params, seconds: (Date.now() - t0) / 1000, rows };
+const res = { cond, pm, ps, rate: 2 * pm * (1 - pm), salt, seed, n, turns, dict: dictLabel, dictId, variant, rewrite: rewriteName, altOrder, margin, rs: RS, params: sim.params, seconds: (Date.now() - t0) / 1000, rows };
 fs.mkdirSync(outDir, { recursive: true });
-const name = `${cond}-${rewriteName}-pm${pm}-ps${ps}-salt${salt}-n${n}-t${turns}-${dictLabel}-seed${seed}.json`;
+const name = `${cond}-${rewriteName}-pm${pm}-ps${ps}-salt${salt}-n${n}-t${turns}-${dictLabel}-seed${seed}${altOrder ? '-' + (altOrder === 'alternate' ? 'alt' : altOrder) : ''}${nbr !== 1 || passes !== 3 ? `-nbr${nbr}-p${passes}` : ''}${mixSync ? '-sync' : ''}.json`;
 fs.writeFileSync(`${outDir}/${name}`, JSON.stringify(res));
 const last = rows[rows.length - 1];
 console.log(`${name}: ${res.seconds.toFixed(0)} s | final d1 ${last.d1?.toFixed(4)} moved ${last.moved.toFixed(4)} smoothed ${last.smoothed.toFixed(4)} rewritten ${last.rewritten.toFixed(3)} ent ${last.ent.toFixed(2)} distinct ${last.distinct.toFixed(3)} planeMag ${last.planeMag.toFixed(3)} | Cx(1) ${(last.cx[0].reduce((a, b) => a + b) / 16).toFixed(3)} Cx(8) ${(last.cx[5].reduce((a, b) => a + b) / 16).toFixed(3)} Cx(32) ${(last.cx[9].reduce((a, b) => a + b) / 16).toFixed(3)} Cy(1) ${(last.cy[0].reduce((a, b) => a + b) / 16).toFixed(3)}`);

@@ -221,3 +221,29 @@ Added in response, without looking further:
   is an existence proof and an exploratory look (one seed per parameter
   point, two at median p = 0.5 annealed), not a pre-registered test; any
   claim from it needs the seed bands and the system-size check of section 3.
+- **The swap order** (2026-10-20). The four swap phases of a turn ran in the
+  fixed order UD0 LR0 UD1 LR1 in every run recorded here, so the left–right
+  exchanges always acted last before the settling and the rewriting; the
+  author observed more lateral than vertical propagation on the page. The
+  page now turns the phase pattern by 90° each turn (four variations; a
+  selector under Mixing's More settings offers the fixed, mirrored,
+  palindromic and random orders too). The harness keeps the fixed order
+  unless `altOrder` names a scheme (`ablation.mjs altorder=rotate`), so the data above stand as recorded; the
+  lattice runs the article prints must be repeated with the alternating
+  order, or the article must state the fixed one. The anisotropy itself is
+  measured in `results/swap-order.md`.
+
+## 2026-10-20, later: the Life-like options
+
+Three additions on the author's request, all in the page and the module, none
+yet used in the article's runs. (1) Mixing rule "Synchronous": each differing
+bit taken from a hashed 4-connected neighbour, written to the local pixel only
+(`mix_sync_zone`); isotropic, orders much less than the swaps
+(`results/life-vote.md`). (2) Rewriting writes to the A cell and the B cell of
+a pair separately (`writeA`, `writeB`). (3) Cells entries "Self and its
+4-neighbour vote": the pair partner is a cell built from the four neighbours'
+bit-plane vote (three or four set gives 1, none or one gives 0, two keeps the
+own bit), taken from a snapshot before any cell is rewritten, joined by any of
+the five pair modes (values 8 + m), only the cell itself written back. Checked
+against a JavaScript reference in every mode and both roles. The halo depth of
+a band grew by two rows for the vote's reads (`depthFor`).

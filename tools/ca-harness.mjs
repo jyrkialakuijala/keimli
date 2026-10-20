@@ -14,7 +14,7 @@ const L = Codec.LAYOUT;
 // parameter. mixOn / settleOn / rewriteOn switch the three stages for the ablations. rewrite: an optional JS function
 // (grid Uint8Array, N) that replaces the wasm changer, for null-model rewriting rules; it returns the bits it changed.
 export async function makeSim({ W = 128, H = 128, passes = 3, nbr = 1, changer = 39, pairMode = 1, maxlen = 3, skip = 0, cread = 127, coff = 0, gpow = 0.2, saltMode = 0,
-                                swap = [0, 1], smooth = [0, 1], mixOn = true, settleOn = true, rewriteOn = true, rewrite = null } = {}) {
+                                swap = [0, 1], smooth = [0, 1], mixOn = true, settleOn = true, rewriteOn = true, rewrite = null, altOrder = false, pairWrite = false, mixSync = false } = {}) {
   if (!settleOn) passes = 0;
   const { instance } = await WebAssembly.instantiate(wasmBytes);
   const wasm = instance.exports, N = W * H, S = 16 * W, D = Band.depthFor(passes, nbr);
@@ -31,14 +31,14 @@ export async function makeSim({ W = 128, H = 128, passes = 3, nbr = 1, changer =
   }
   function reset(seed) { wasm.randomize(4 * N, base, seed); turn = 0; }
   function step() {
-    const r = Band.runTurn(st, { haloTop: null, haloBottom: null, order: Band.order(turn), alt: turn & 1, passes, nbr, thrSwap, thrSmooth,
+    const r = Band.runTurn(st, { haloTop: null, haloBottom: null, order: Band.order(turn, altOrder), alt: turn & 1, mixSync, passes, nbr, thrSwap, thrSmooth,
       salts: Array.from({ length: 4 + passes }, (_, k) => saltMode & 1 ? BigInt.asUintN(64, BigInt(turn + 1) * 0x9E3779B97F4A7C15n + BigInt(k + 1) * 0xD1B54A32D192ED03n) : 0n),
-      posalt: !!(saltMode & 2), changer: rewriteOn && !rewrite, pair: { mode: pairMode, flip: turn & 1 }, mut: null });
+      posalt: !!(saltMode & 2), changer: rewriteOn && !rewrite, pair: { mode: pairMode, flip: turn & 1, write: pairWrite === false ? 3 : pairWrite === true ? 1 : pairWrite }, mut: null });   // pairWrite: a mask (bit 0 the leading cell, bit 1 the other), true = the leading cell only
     if (rewriteOn && rewrite) r.rewritten = rewrite(grid(), N);
     turn++; return r;
   }
   const grid = () => m8().subarray(base, base + 16 * N);
-  return { W, H, N, setDict, reset, step, grid, get turn() { return turn; }, params: { passes, nbr, changer, pairMode, maxlen, skip, cread, coff, gpow, saltMode, swap, smooth, mixOn, settleOn, rewriteOn } };
+  return { W, H, N, setDict, reset, step, grid, get turn() { return turn; }, params: { passes, nbr, changer, pairMode, maxlen, skip, cread, coff, gpow, saltMode, swap, smooth, mixOn, settleOn, rewriteOn, altOrder } };
 }
 const POP = new Uint8Array(256); for (let i = 0; i < 256; i++) POP[i] = (i & 1) + POP[i >> 1];
 export function metrics(sim, prev) {

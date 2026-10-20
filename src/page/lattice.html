@@ -71,7 +71,7 @@
     .section .group > .val { flex: 0 0 auto; white-space: nowrap; }
     /* the square only as wide as it is tall; the stats use the space to its right */
     .main { display: grid; grid-template-columns: auto minmax(200px, 1fr); align-items: start; gap: 14px 20px; }
-    .stage { grid-column: 1; justify-self: start; }
+    .stages { grid-column: 1; }
     .stats { grid-column: 2; grid-template-columns: 1fr; gap: 12px; align-self: stretch; align-content: start; }
     .inspect, .hint { grid-column: 1 / -1; }
   }
@@ -101,6 +101,11 @@
   .val { min-width: 7ch; font-size: 13px; }
 
   .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-width: 0; overflow: auto; }
+  .stages { display: flex; gap: 14px; align-items: flex-start; min-width: 0; }   /* the lattice and its flat twin side by side, the same size */
+  .stages .stage { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column-reverse; justify-content: flex-end; }   /* the square at the top of each panel, its caption below, so the two squares share their top edge */
+  .stages .stage .what { margin: 8px 0 0; }
+  .stages .stage[hidden] { display: none; }
+  @media (max-width: 760px) { .stages { flex-direction: column; } }
   canvas {
     display: block; width: 100%; max-width: 100%; height: auto;
     image-rendering: pixelated; image-rendering: crisp-edges;
@@ -147,7 +152,7 @@
 <div class="toolbar" role="toolbar" aria-label="Simulation controls">
   <div class="section" role="group" aria-labelledby="sec-run">
     <span class="sec" id="sec-run">Run</span>
-    <p class="sec-help">Start chooses the first lattice; Reset starts again from it, Random from random bits. A turn runs the four swap phases, the median passes and the rewriting, then one frame is drawn; Speed sets how many turns a second. Threads splits the grid into horizontal bands, one Web Worker each, bit-identical to a single thread. Click a pixel to inspect it; shift-drag paints ones, ctrl-shift-drag zeros. Keys: space play/pause, n step, r random.</p>
+    <p class="sec-help">Start chooses the first lattice; Reset starts again from it, Random from random bits. A turn runs the four swap phases, the median passes and the rewriting, then one frame is drawn; Speed sets how many turns a second. Threads splits the grid into horizontal bands, one Web Worker each, bit-identical to a single thread. Click a pixel to inspect it, or hold the button and drag to move the selection; shift-drag paints ones, ctrl-shift-drag zeros. Keys: space play/pause, n step, r random.</p>
     <div class="group">
       <button id="play" class="primary" type="button">Pause</button>
       <button id="step" type="button">Step</button>
@@ -182,12 +187,12 @@
     </div>
     <div class="group">
       <label for="size">Grid</label>
-      <select id="size" title="the lattice size in pixels; 1024 × 1024 wants 16 cores or more, 512 × 512 runs well on a laptop (a fresh page picks 512 on 8 cores or fewer)">
+      <select id="size" title="the lattice size in pixels; 512 × 512 is the default (two lattices run side by side with the flat twin on); 1024 × 1024 wants 16 cores or more">
         <option value="64x64">64 × 64</option>
         <option value="128x128">128 × 128</option>
         <option value="256x256">256 × 256</option>
-        <option value="512x512">512 × 512</option>
-        <option value="1024x1024" selected>1024 × 1024</option>
+        <option value="512x512" selected>512 × 512</option>
+        <option value="1024x1024">1024 × 1024</option>
         <option value="2048x2048">2048 × 2048</option>
       </select>
     </div>
@@ -211,7 +216,7 @@
   </div>
   <div class="section" role="group" aria-labelledby="sec-swap">
     <span class="sec" id="sec-swap">Mixing <span class="sub">neighbours trade bits · entropy increase through gene swapping</span> <label class="chk" for="swapOn" title="off: no bits are exchanged between neighbours"><input id="swapOn" type="checkbox" checked> on</label></span>
-    <p class="sec-help">Every pixel is a 128-bit string on a plane with edges. A swap phase pairs each pixel with one neighbour, left–right or up–down at an even or odd offset, so in a turn it exchanges once with each of its four neighbours. Where two strings differ, the 32 bits around that position in each pixel are hashed together, and every position whose hash falls below the threshold is exchanged: a uniform crossover that conserves the set bits. p runs along the x axis from the left-edge to the right-edge value, shaped by the Gradient power; the crossover rate is 2p(1 − p), so 0 and 1 are the identity and 0.5 the strongest mixing. Mutation flips a random share of all bits.</p>
+    <p class="sec-help">Every pixel is a 128-bit string on a plane with edges. A swap phase pairs each pixel with one neighbour, left–right or up–down at an even or odd offset, so in a turn it exchanges once with each of its four neighbours. Where two strings differ, the 32 bits around that position in each pixel are hashed together, and every position whose hash falls below the threshold is exchanged: a uniform crossover that conserves the set bits. p runs along the x axis from the left-edge to the right-edge value, shaped by the Gradient power; the crossover rate is 2p(1 − p), so 0 and 1 are the identity and 0.5 the strongest mixing. Mixing rule chooses between the four swap phases and a synchronous rule that reads the whole map once and lets every bit where a 4-connected neighbour differs take that neighbour's value by hash, at the same rate, writing only the local pixel, isotropic as in the game of life (bits are then not conserved). Swap order chooses how the four phases are sequenced: fixed UD0 LR0 UD1 LR1 lets lateral mixing act last every turn and correlates the lattice further along y than along x; the default turns the pattern by 90° each turn, which made the two directions equal within measurement and gave the most ordered lattice. Mutation flips a random share of all bits. With "Choosing a new pixel resets the flat twin" ticked, every click also starts the twin again from random bits, while the main lattice goes on. "Flat twin" runs a second lattice under the first, from the same random start, with the selected pixel's values over its whole grid, so the gradient frame and one point of it are seen side by side.</p>
     <div class="group">
       <label for="thrL" title="the swap parameter at the left edge: each differing bit of a pair crosses over with probability 2 p (1 − p), so 0 and 1 are the identity and 0.5 the maximal mixing">p, left edge</label>
       <input id="thrL" type="range" min="0" max="1" value="0" step="0.01">
@@ -221,6 +226,12 @@
       <label for="thrR" title="the swap parameter at the right edge: each differing bit of a pair crosses over with probability 2 p (1 − p), so 0 and 1 are the identity and 0.5 the maximal mixing">p, right edge</label>
       <input id="thrR" type="range" min="0" max="1" value="1" step="0.01">
       <span id="thrRVal" class="mono val">p = 1.00</span>
+    </div>
+    <div class="group">
+      <label class="chk" for="twinOn" title="a second lattice runs beside the first from the same random start, with the swap p of the selected pixel's column and the median p of its row over its whole grid; the first keeps the gradient frame and shows the selected pixel"><input id="twinOn" type="checkbox" checked> Flat twin: a second lattice runs the selected pixel's values everywhere</label>
+    </div>
+    <div class="group">
+      <label class="chk" for="pixelReset" title="pressing on a pixel starts the flat twin again from random bits (a new seed), so every click runs the new point from scratch while the main lattice goes on; dragging then moves the point without a restart, the twin's state carrying over"><input id="pixelReset" type="checkbox" checked> Choosing a new pixel resets the flat twin</label>
     </div>
               <details class="adv"><summary>More settings</summary>
 <div class="group">
@@ -235,6 +246,23 @@
         <option value="1">By turn (annealed noise)</option>
         <option value="2">By position</option>
         <option value="3">By turn and position</option>
+      </select>
+    </div>
+<div class="group">
+      <label for="mixRule" title="how bits move between neighbours: the four swap phases exchange differing bits between the two pixels of a pair (bits are conserved); the synchronous rule reads the whole map once and, for every bit position where a 4-connected neighbour differs, lets the pixel take that bit from one neighbour picked by the hash, at the same rate 2 p (1 − p), writing only the local pixel: isotropic, as in the game of life, bits not conserved">Mixing rule</label>
+      <select id="mixRule">
+        <option value="swap" selected>Swaps between neighbour pairs, four phases</option>
+        <option value="sync">Synchronous: each bit from a hashed neighbour (isotropic)</option>
+      </select>
+    </div>
+    <div class="group">
+      <label for="order" title="the order of the four swap phases of a turn: fixed UD0 LR0 UD1 LR1 (lateral mixing acts last every turn, which correlates the lattice further along y than along x); mirrored on odd turns; palindromes UD LR LR UD and LR UD UD LR in alternation; the pattern turned by 90 degrees each turn, four variations with the brick offsets turning too (the most symmetric and the most ordered in the measurements); or one of the six orders by a hash of the turn">Swap order</label>
+      <select id="order">
+        <option value="rotate" selected>Rotating 90° each turn (4 variations)</option>
+        <option value="palindrome">Palindromes, alternating</option>
+        <option value="alternate">Mirrored on odd turns</option>
+        <option value="random">Random order each turn</option>
+        <option value="fixed">Fixed UD0 LR0 UD1 LR1</option>
       </select>
     </div>
 <div class="group">
@@ -279,17 +307,27 @@
     </div>
   </div>
   <div class="section" role="group" aria-labelledby="sec-algo">
-    <span class="sec" id="sec-algo">Rewriting <span class="sub">a decoder or CPU rewrites every cell · the local changer</span> <label class="chk" for="chgOn" title="off: no changer runs; the views still decode with the selected decoder"><input id="chgOn" type="checkbox" checked> on</label></span>
-    <p class="sec-help">Every pixel's 16 bytes are replaced by what the changer makes of them. A Decoder reads them as a coded stream and writes what it decodes back: the LZ decompressor copying from the dictionary, Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse, Rice residuals, WebP's boolean decoder, PNG filters, a JPEG block or the codebooks. A Transform applies a fixed rule such as invert, reverse, sort or a DCT. A CPU runs the bytes as its whole memory for the chosen number of instructions and writes the memory back. With Cells set to pairs, two neighbouring cells are joined into one 32-byte cell for the changer and split back afterwards; with a CPU or the LZ decompressor, pairs instead carry persistent link machines, one per direction, each running one instruction per phase. The dictionary, the skipped bits, the cursor read range and offset and the longest copy shape the decoders that use them; the inspector below the lattice shows what the selected cell decodes to. With "random start on change" ticked, choosing another dictionary starts again from random bits; otherwise the running lattice keeps its cells and the new dictionary takes over from them.</p>
+    <span class="sec" id="sec-algo">Rewriting <span class="sub">a decoder or CPU rewrites every cell · the local changer</span></span>
+    <p class="sec-help">Every pixel's 16 bytes are replaced by what the changer makes of them. A Decoder reads them as a coded stream and writes what it decodes back: the LZ decompressor copying from the dictionary, Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse, Rice residuals, WebP's boolean decoder, PNG filters, a JPEG block or the codebooks. A Transform applies a fixed rule such as invert, reverse, sort or a DCT. A CPU runs the bytes as its whole memory for the chosen number of instructions and writes the memory back. With Cells set to pairs, two neighbouring cells are joined into one 32-byte cell for the changer and split back afterwards ("rewrite to A cell" and "rewrite to B cell" choose which of the two take the result, A being the leading cell this turn; both off, no changer runs). The "Self and its 4-neighbour vote" entries join every cell with a cell made from its four neighbours instead of with a neighbour: in each bit plane three or four neighbours set give 1, none or one give 0, two leave the cell's own bit, and a neighbour beyond the edge of the grid counts as the cell itself; the vote is taken from the state before any cell is rewritten and only the cell itself is written back, so the step is synchronous and isotropic, as in the game of life; with a CPU or the LZ decompressor, pairs instead carry persistent link machines, one per direction, each running one instruction per phase. The dictionary, the skipped bits, the cursor read range and offset and the longest copy shape the decoders that use them; the inspector below the lattice shows what the selected cell decodes to. With "Random start on change of dictionary" ticked (the default), choosing another dictionary starts again from random bits; unticked, the running lattice keeps its cells and the new dictionary takes over from them.</p>
     <div class="group">
       <label for="pair">Cells</label>
       <select id="pair" title="each cell on its own, or neighbouring pairs joined for the changer (concatenated, or interleaved by bit, nibble or byte), the roles alternating by turn">
         <option value="0" selected>Each cell on its own</option>
         <option value="1">Pairs, concatenated: A then B (B then A for the other role)</option>
-        <option value="2">Pairs, bit-interleaved: A on the even bits and B on the odd (swapped for the other role)</option>
-        <option value="3">Pairs, nibble-interleaved: A on the low nibbles and B on the high (swapped for the other role)</option>
-        <option value="5">Pairs, byte-interleaved: A on the even bytes and B on the odd (swapped for the other role)</option>
+        <option value="2">Pairs, interleaved 1 bit at a time: A on the even bits and B on the odd (swapped for the other role)</option>
+        <option value="4">Pairs, interleaved 2 bits at a time: A on the even bit pairs and B on the odd (swapped for the other role)</option>
+        <option value="3">Pairs, interleaved 4 bits (nibbles): A on the low nibbles and B on the high (swapped for the other role)</option>
+        <option value="5">Pairs, interleaved 8 bits (bytes): A on the even bytes and B on the odd (swapped for the other role)</option>
+        <option value="9">Self and its 4-neighbour vote, concatenated: the cell then the vote (the vote first for the other role)</option>
+        <option value="10">Self and its 4-neighbour vote, interleaved 1 bit at a time</option>
+        <option value="12">Self and its 4-neighbour vote, interleaved 2 bits at a time</option>
+        <option value="11">Self and its 4-neighbour vote, interleaved 4 bits (nibbles)</option>
+        <option value="13">Self and its 4-neighbour vote, interleaved 8 bits (bytes)</option>
       </select>
+    </div>
+    <div class="group">
+      <label class="chk" for="writeA" title="the changer's result is written to the A cell: every cell when each is on its own; in a pair mode the leading cell of the pair (A this turn, B the next, as the roles alternate). Both boxes off: no changer runs, the views still decode"><input id="writeA" type="checkbox" checked> rewrite to A cell</label>
+      <label class="chk" for="writeB" title="in a pair mode the changer's result is also written to the other cell of the pair (B this turn); off, it keeps its content and is rewritten only on its own turn as A. With each cell on its own this box has no effect"><input id="writeB" type="checkbox" checked> rewrite to B cell</label>
     </div>
     <div class="group">
       <label for="changer">Changer</label>
@@ -363,9 +401,10 @@
       </select>
     </div>
                 <div class="group">
-      <label for="dict" title="the static dictionary the LZ decompressor copies from and the LZ77 decoders and the VP8 model draw on, as UTF-8 bytes">Dictionary</label>
+      <label for="dictKind" title="the static dictionary the LZ decompressor copies from and the LZ77 decoders and the VP8 model draw on, as UTF-8 bytes: a text, a byte string bred by the genetic searches, or one built by design">Dictionary</label>
+      <select id="dictKind" title="which list the Dictionary menu shows"><option value="text">Text</option><option value="search">Searched dictionary</option><option value="designed">Designed dictionary</option></select>
       <select id="dict"></select>
-      <label class="chk" for="dictRandom" title="when the dictionary is changed, start again from random bits (a new seed, turn 0); off: the lattice keeps its cells and the new dictionary takes over from them"><input id="dictRandom" type="checkbox"> random start on change</label>
+      <label class="chk" for="dictRandom" title="when the dictionary is changed, start again from random bits (a new seed, turn 0); off: the lattice keeps its cells and the new dictionary takes over from them"><input id="dictRandom" type="checkbox" checked> Random start on change of dictionary</label>
     </div>
                       <details class="adv"><summary>More settings</summary>
 <div class="group" id="stepsGroup" hidden>
@@ -463,9 +502,15 @@
 </div>
 
 <div class="main">
+<div class="stages">
 <div class="stage">
   <p class="what"><b>What you see.</b> Every pixel is a 128-bit string. Each turn its bits are traded with the neighbours, a median filter settles some of them, and a decoder rewrites the whole cell from a dictionary. The colour is the average of the cell's 16 bytes through a palette, so like bytes make like colours. Click a cell to read it; Help, at the top of the controls, explains every section and control.</p>
   <canvas id="view-canvas" tabindex="0" aria-label="Bit swap lattice. Click to inspect a pixel, shift-drag to paint."></canvas>
+</div>
+<div class="stage" id="twinStage">
+  <p class="what" id="twinNote"><b>Flat twin.</b> The same lattice from the same start, with the selected pixel's mixing and settling applied everywhere.</p>
+  <canvas id="twin-canvas" aria-label="The flat twin lattice: the selected pixel's parameters over the whole grid."></canvas>
+</div>
 </div>
 
 <dl class="stats">
@@ -631,9 +676,9 @@ function workerMain() {
           const li = d.local, base = GRID + D * S;
           let r;
           if (d.pair) {   // the pair's joint cell, as the changer will see it next turn
-            io.setPair(d.pair.mode, d.pair.flip); r = wasm.decode_pair(base, li, LAY.PRM);
+            io.setPair(d.pair.mode, d.pair.flip, W, y0, H, 0); r = wasm.decode_pair(base, li, LAY.PRM);
             const j = new Int32Array(wasm.memory.buffer, LAY.PRM + 112, 1)[0];
-            reply.bits = m8.slice(j, j + 32); reply.out = m8.slice(io.OUT, io.OUT + 32); reply.flags = m8.slice(io.FLAGS, io.FLAGS + 32); reply.pair = { ...d.pair, left: (li & 1) === 0 };
+            reply.bits = m8.slice(j, j + 32); reply.out = m8.slice(io.OUT, io.OUT + 32); reply.flags = m8.slice(io.FLAGS, io.FLAGS + 32); reply.pair = { ...d.pair, left: (li & 1) === 0 || !!(d.pair.mode & 8) };
           } else {
             r = wasm.decode_pixel(base, li, LAY.PRM);
             reply.bits = m8.slice(base + 16 * li, base + 16 * li + 16);
@@ -681,22 +726,26 @@ function workerMain() {
   const declText = $('decl').textContent.trim();
   // the dictionaries: the manifest embedded by the build (id, title, language, text), the Declaration first
   const DICTS = (() => { try { const d = JSON.parse($('dicts').textContent); if (Array.isArray(d) && d.length) return d; } catch (e) {} return [{ id: 'declaration', titleLatin: 'US Declaration of Independence', language: 'English', text: declText }]; })();
-  {   // three groups: the texts; the byte strings bred by the genetic searches; the dictionaries built by design-dict.mjs; each with its description as a tooltip and its length
-    const texts = document.createElement('optgroup'), found = document.createElement('optgroup'), designed = document.createElement('optgroup');
-    texts.label = 'Text'; found.label = 'Genetic Search Dictionaries'; designed.label = 'Designed Dictionaries';
-    for (const d of DICTS) { const o = document.createElement('option'); o.value = d.id; const bytes = d.text ? new TextEncoder().encode(d.text).length : 0;
-      if (/design-dict/.test(d.author || '')) { o.textContent = `${d.title.replace(/^Designed: /, '')}${bytes ? ` · ${bytes.toLocaleString()} bytes` : ''}`; o.title = d.titleLatin + (d.note ? '. ' + d.note : ''); designed.appendChild(o); }
-      else if (/^ca-/.test(d.id)) { o.textContent = `${d.title}${bytes ? ` · ${bytes.toLocaleString()} bytes` : ''}`; o.title = d.titleLatin + (d.note ? '. ' + d.note : ''); found.appendChild(o); }
-      else { o.textContent = `${d.titleLatin} (${d.language}${d.script && d.script !== 'Latin' ? ', ' + d.script : ''})`; o.title = [d.title, d.author, d.year].filter(Boolean).join(' · '); texts.appendChild(o); } }
-    $('dict').appendChild(texts); if (found.children.length) $('dict').appendChild(found); if (designed.children.length) $('dict').appendChild(designed);
+  // three kinds of dictionary: the texts; the byte strings bred by the genetic searches; the ones built by design-dict.mjs. The kind
+  // selector chooses which list the Dictionary menu shows; each entry carries its description as a tooltip and its length.
+  const kindOf = d => /design-dict/.test(d.author || '') ? 'designed' : /^ca-/.test(d.id) ? 'search' : 'text';
+  function fillDictList(kind, keep) {
+    const sel = $('dict'); sel.innerHTML = '';
+    for (const d of DICTS) { if (kindOf(d) !== kind) continue; const o = document.createElement('option'); o.value = d.id; const bytes = d.text ? new TextEncoder().encode(d.text).length : 0;
+      if (kind === 'text') { o.textContent = `${d.titleLatin} (${d.language}${d.script && d.script !== 'Latin' ? ', ' + d.script : ''})`; o.title = [d.title, d.author, d.year].filter(Boolean).join(' · '); }
+      else { o.textContent = `${d.title.replace(/^Designed: /, '')}${bytes ? ` · ${bytes.toLocaleString()} bytes` : ''}`; o.title = d.titleLatin + (d.note ? '. ' + d.note : ''); }
+      sel.appendChild(o); }
+    if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
   }
+  const selectDict = id => { const d = DICTS.find(x => x.id === id) || DICTS[0]; $('dictKind').value = kindOf(d); fillDictList(kindOf(d), d.id); };   // the kind follows the dictionary
   const DEFAULT_DICT = DICTS.some(d => d.id === 'ca-gray20c') ? 'ca-gray20c' : DICTS.some(d => d.id === 'ca-swarm-f') ? 'ca-swarm-f' : DICTS[0].id;   // the fresh-page default: the designed twenty Gray 8-cycles
-  $('dict').value = DEFAULT_DICT;
+  selectDict(DEFAULT_DICT);
   const dictEntry = () => DICTS.find(d => d.id === $('dict').value) || DICTS[0];
   const dictText = () => dictEntry().text;
   const codecSrc = $('codec-src').textContent, bandSrc = $('band-src').textContent;
 
   let W = 0, H = 0, N = 0;
+  let selecting = false;   // a plain press on the canvas: the selection follows the pointer until it is released
   let turn = 0, running = !reduceMotion, moved = 0, smoothed = 0, rewritten = 0, mutated = 0, totalBits = 0, sel = -1, influence = null;   // influence: [bits B->A, pairs B->A, bits A->B, pairs A->B, pairs] of the last turn
   let seed = (Date.now() ^ 0x2545f491) >>> 0;
   let acc = 0, lastT = 0, timeSum = 0, timed = 0;
@@ -756,11 +805,13 @@ function workerMain() {
   // the processor in its own box. changerId() is the wasm processor number (0 LZ, 1..21 as listed in the boxes).
   const CPU_IDS = [2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 43, 44, 47], XF_IDS = [3, 4, 5, 16, 17, 18, 41, 42], DEC_IDS = [0, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46];
   const changerId = () => { const m = $('changer').value; return m === 'cpu' ? Number($('cpu').value) : m === 'xf' ? Number($('xf').value) : m === 'dec' ? Number($('dec').value) : 0; };
-  const changerActive = () => $('chgOn').checked && $('changer').value !== 'none';   // the section's on/off box and the menu's None entry both switch the changer off
+  const voteMode = () => Number($('pair').value) >= 8;   // the B cell is the pixel's 4-neighbour vote, not a pixel
+  const writeMask = () => (Number($('pair').value) && !voteMode() ? ($('writeA').checked ? 1 : 0) | ($('writeB').checked ? 2 : 0) : ($('writeA').checked ? 1 : 0));   // which cells take the changer's result
+  const changerActive = () => writeMask() !== 0 && $('changer').value !== 'none';   // no cell to write, or the menu's None entry: the changer is off
   // links: with Cells set to any pair joining and a CPU changer, every pair of neighbouring pixels gets two persistent CPUs whose memory is the joined pair
   const linkKind = k => k === 0 || k === 43 || k === 44 || k === 47 || (k >= 6 && k <= 30 && (k < 16 || k > 18));   // the CPUs and the LZ decompressor, which runs one copy command a step
   const linkMode = () => Number($('pair').value) > 0;
-  const linksActive = () => linkMode() && changerActive() && linkKind(changerId());
+  const linksActive = () => linkMode() && !voteMode() && changerActive() && linkKind(changerId());   // the link machines live on pixel pairs, not on a vote
   const skipBits = () => Math.max(0, Math.min(16, Math.floor(Number($('skip').value)) || 0));   // bits skipped before the LZ header
   const linkRoundCount = () => { const v = Math.floor(Number($('rounds').value)); return Number.isFinite(v) && v >= 0 ? v : 2; };   // the CPU cycles per frame box: any whole number
   const linkResetEvery = () => { if ($('lnever').checked) return 0; const v = Math.floor(Number($('lreset').value)); return Number.isFinite(v) && v >= 1 ? v : 1; };   // the CPU reset box: every nth frame, 0 never (the checkbox)
@@ -816,9 +867,12 @@ function workerMain() {
         let moved = 0, smoothed = 0, k = 0;
         wasm.salt_by_position(t.posalt ? 1 : 0);
         m8.copyWithin(GRID2, GRID, GRID + 16 * N);   // snapshot: all swap decisions of the turn come from the map before the first phase
-        for (const ph of t.order) moved += wasm.mix_from(W, H, GRID, GRID2, ph, Band.edgeParity(ph, t.alt), LAYOUT.THR, t.salts[k++]);
+        if (t.mixSync) moved += wasm.mix_sync_zone(W, GRID2, GRID, LAYOUT.THR, 0, H, 0, H, 0, H, t.salts[k++]);   // the synchronous isotropic mixing, from the snapshot
+        else for (const ph of t.order) moved += wasm.mix_from(W, H, GRID, GRID2, ph, Band.edgeParity(ph, t.alt), LAYOUT.THR, t.salts[k++]);
         for (let i = 0; i < t.passes; i++) { smoothed += wasm.smooth(W, H, GRID, GRID2, LAYOUT.THRY, t.salts[k++], t.nbr); m8.copyWithin(GRID, GRID2, GRID2 + 16 * N); }
-        io.setPair(t.pair ? t.pair.mode : 0, t.pair ? t.pair.flip : 0);
+        io.setPair(t.pair ? t.pair.mode : 0, t.pair ? t.pair.flip : 0, W, 0, H, GRID2);
+        new Int32Array(wasm.memory.buffer, PRM + 116, 1)[0] = t.pair && t.pair.write !== undefined ? t.pair.write | 0 : 3;   // which cells of a pair take the result (the band pipeline sets the same)
+        if (t.pair && (t.pair.mode & 8) && t.changer && !t.links) m8.copyWithin(GRID2, GRID, GRID + 16 * N);   // the vote partner reads the state before any pixel is rewritten
         let rewritten = 0, infl = null;
         if (t.influence && t.pair && t.pair.mode && t.changer && !t.links) { wasm.influence(N, GRID, PRM, GRID2, BigInt(t.influence)); infl = Array.from(new Int32Array(wasm.memory.buffer, GRID2, 5)); }
         if (t.links) { ensureLinks(t.links.kind); if (t.links.reset) wasm.links_reset(LINKS, 4 * N, t.links.kind); for (let r = 0; r < t.links.rounds; r++) for (const ph of Band.linkPhases(r).all) rewritten += wasm.links(W, H, GRID, PRM, ph, LINKS); }   // rounds of one instruction per link, phase by phase, alternating direction
@@ -833,8 +887,8 @@ function workerMain() {
       },
       async inspect(i, pair) {
         if (pair) {   // the pair's joint cell, as the changer will see it next turn
-          io.setPair(pair.mode, pair.flip); const r = wasm.decode_pair(GRID, i, PRM); const j = new Int32Array(wasm.memory.buffer, PRM + 112, 1)[0];
-          return { bits: m8.slice(j, j + 32), out: m8.slice(io.OUT, io.OUT + 32), flags: m8.slice(io.FLAGS, io.FLAGS + 32), pair: { ...pair, left: (i & 1) === 0 },
+          io.setPair(pair.mode, pair.flip, W, 0, H, 0); const r = wasm.decode_pair(GRID, i, PRM); const j = new Int32Array(wasm.memory.buffer, PRM + 112, 1)[0];
+          return { bits: m8.slice(j, j + 32), out: m8.slice(io.OUT, io.OUT + 32), flags: m8.slice(io.FLAGS, io.FLAGS + 32), pair: { ...pair, left: (i & 1) === 0 || !!(pair.mode & 8) },
                    consumed: r >> 8, copied: r & 255, offset: io.lastOffset(), regs: m8.slice(256, 256 + 128) };
         }
         const r = wasm.decode_pixel(GRID, i, PRM);
@@ -855,7 +909,7 @@ function workerMain() {
     };
   }
 
-  function makeWorkerEngine(K, D) {
+  function makeWorkerEngine(K, D, means = frameMean) {   // means: this engine's own frame-mean colours (the palette stretches around the previous frame's mean; the twin must not share the main's)
     const src = codecSrc + '\n' + bandSrc + '\n' + fillPattern.toString() + '\n(' + workerMain.toString() + ')();';
     const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
     const bands = Band.split(H, K, D);
@@ -904,12 +958,12 @@ function workerMain() {
       },
       async render(mode, post) {   // each band renders and post-processes its own rows, with POST_HALO neighbour rows from the edges kept here
         const R = Band.POST_HALO, S = 16 * W;
-        const rs = await all(k => ({ type: 'render', mode, mean: frameMean[mode], post,
+        const rs = await all(k => ({ type: 'render', mode, mean: means[mode], post,
           haloTop: k > 0 && bands[k - 1].bottom ? bands[k - 1].bottom.slice(bands[k - 1].bottom.length - R * S) : null,
           haloBottom: k + 1 < K && bands[k + 1].top ? bands[k + 1].top.slice(0, R * S) : null }));
         rs.forEach((r, k) => image.data.set(new Uint8ClampedArray(r.pixels), 4 * W * bands[k].y0));
         this.lastFlat = post && (post.stages || post.ts) ? rs.reduce((a, r) => ({ n4: a.n4 + r.flat.n4, n8: a.n8 + r.flat.n8 }), { n4: 0, n8: 0 }) : null;
-        if (mode >= 4) { const tot = rs.reduce((a, r) => ({ r: a.r + r.sums.r, g: a.g + r.sums.g, b: a.b + r.sums.b, n: a.n + r.sums.n }), { r: 0, g: 0, b: 0, n: 0 }); if (tot.n) frameMean[mode] = packMean(tot); }
+        if (mode >= 4) { const tot = rs.reduce((a, r) => ({ r: a.r + r.sums.r, g: a.g + r.sums.g, b: a.b + r.sums.b, n: a.n + r.sums.n }), { r: 0, g: 0, b: 0, n: 0 }); if (tot.n) means[mode] = packMean(tot); }
         return image;
       },
       async inspect(i, pair) { const [k, local] = owner(i); return call(workers[k], { type: 'inspect', local, pair }); },
@@ -937,11 +991,34 @@ function workerMain() {
   let chain = Promise.resolve(), pendingOps = 0;
   const run = fn => { pendingOps++; const p = chain.then(fn).catch(err => console.error(err)).finally(() => { pendingOps--; }); chain = p; return p; };
 
+  // The flat twin: a second engine, always on workers (the local engine owns the page's wasm instance), fed the same
+  // calls as the main one except the turn, which gets the selected pixel's flat tables, and the render, which goes to
+  // its own canvas. twinOf(main, twin) returns the main engine wrapped so every mirrored call reaches both.
+  let twin = null;
+  const MIRRORED = ['init', 'setN', 'setChanger', 'setSteps', 'setHeaderBits', 'setCursorRead', 'resetLinks', 'setCursorOffset', 'setSkipBits', 'resize', 'fill', 'dispose'];
+  function twinOf(main, t) {   // a proxy: properties the engine sets later (lastFlat after a render) stay visible
+    const over = {
+      twinRender: (mode, post) => t.render(mode, post),
+      turn: async p => { if ($('twinStage').hidden) return main.turn(p); const [r] = await Promise.all([main.turn(p), t.turn({ ...p, thrSwap: flatSwapTable(), thrSmooth: flatSmoothTable() })]); return r; },   // a hidden twin does not run
+    };
+    for (const k of MIRRORED) over[k] = async (...a) => { const [r] = await Promise.all([main[k](...a), t[k](...a)]); return r; };
+    return new Proxy(main, { get: (target, k) => k in over ? over[k] : typeof target[k] === 'function' ? target[k].bind(target) : target[k] });
+  }
+  const twinOn = () => $('twinOn').checked && typeof Worker !== 'undefined';
+  const twinUseful = () => $('swapOn').checked || $('medOn').checked;   // with mixing and settling both off the main lattice is flat already, so the twin would only repeat it
+  async function updateTwinStage() {   // called before every draw: show the twin only when it adds something; a twin coming back starts afresh
+    const hide = !twin || !twinUseful(); if ($('twinStage').hidden === hide) return;
+    $('twinStage').hidden = hide; fitCanvas();
+    if (!hide && twin) await twin.fill('random', (seed = (seed * 1664525 + 1013904223) >>> 0));
+  }
   async function switchEngine() {
     const K = Number($('threads').value);
     if (engine) engine.dispose();
     const D = Band.depthFor(Number($('iters').value), Number($('nbr').value));
-    engine = (K <= 1 || typeof Worker === 'undefined') ? makeLocalEngine() : makeWorkerEngine(K, D);
+    const main = (K <= 1 || typeof Worker === 'undefined') ? makeLocalEngine() : makeWorkerEngine(K, D);
+    twin = twinOn() ? makeWorkerEngine(Math.max(1, K), D, {}) : null;   // its own frame means
+    engine = twin ? twinOf(main, twin) : main;
+    $('twinStage').hidden = !twin || !twinUseful();
     await engine.init(Number($('maxlen').value));
     await engine.resize(palette());
   }
@@ -1039,8 +1116,15 @@ function workerMain() {
   const probability = id => Number($(id).value);
   // linear gradients sampled at pixel centres (Band.gradient): the edge values are reached at the image edges, not at the first and last pixel
   const gradientPower = () => { const v = Number($('gpow').value); return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 0.2; };
-  const swapTable = () => $('swapOn').checked ? Band.gradient(probability('thrL'), probability('thrR'), W, Band.mixRate, gradientPower()) : new BigUint64Array(W);        // per column, left to right, shaped by the power; the exchange rate is 2 p (1 - p), identity at both ends; off: every threshold 0, no exchange and no hashing
-  const smoothTable = () => $('medOn').checked ? Band.gradient(probability('smoothT'), probability('smoothB'), H) : new BigUint64Array(H); // per row, top to bottom; off: every threshold 0, the passes copy the pixels unchanged
+  // the flat twin: the gradient's values at the selected pixel (the centre when none is selected) fill the whole table
+  const selPoint = () => { const i = sel < 0 ? (H >> 1) * W + (W >> 1) - 1 : Math.min(sel, N - 1); return { x: i % W, y: Math.floor(i / W) }; };
+  const pAt = (a, b, n, i, pow = 1) => a + (b - a) * Band.shape((i + 0.5) / n, pow);
+  const uniformSwapP = () => pAt(probability('thrL'), probability('thrR'), W, selPoint().x, gradientPower());
+  const uniformMedianP = () => pAt(probability('smoothT'), probability('smoothB'), H, selPoint().y);
+  const flatSwapTable = () => !$('swapOn').checked ? new BigUint64Array(W) : new BigUint64Array(W).fill(Band.toThreshold(Band.mixRate(uniformSwapP())));
+  const flatSmoothTable = () => !$('medOn').checked ? new BigUint64Array(H) : new BigUint64Array(H).fill(Band.toThreshold(uniformMedianP()));
+  const swapTable = () => !$('swapOn').checked ? new BigUint64Array(W) : Band.gradient(probability('thrL'), probability('thrR'), W, Band.mixRate, gradientPower());        // per column, left to right, shaped by the power; the exchange rate is 2 p (1 - p), identity at both ends; off: every threshold 0, no exchange and no hashing
+  const smoothTable = () => !$('medOn').checked ? new BigUint64Array(H) : Band.gradient(probability('smoothT'), probability('smoothB'), H); // per row, top to bottom; off: every threshold 0, the passes copy the pixels unchanged
   function showThreshold() {
     for (const id of ['thrL', 'thrR', 'smoothT', 'smoothB']) $(id + 'Val').textContent = 'p = ' + probability(id).toFixed(2);
     $('gpowVal').textContent = gradientPower().toFixed(2);
@@ -1051,16 +1135,20 @@ function workerMain() {
   const fixedZoom = () => { const v = $('scale').value; return v === 'one' ? 1 : /^[2-9]$/.test(v) ? Number(v) : 0; };   // device pixels per cell, 0 = fit to width
   function fitCanvas() {
     const dpr = devicePixelRatio || 1;
-    const stage = canvas.parentElement, wide = matchMedia('(min-width: 1000px)').matches;
+    const stage = canvas.parentElement, stages = stage.parentElement, wide = matchMedia('(min-width: 1000px)').matches;
+    const twinShown = !$('twinStage').hidden && !matchMedia('(max-width: 760px)').matches;   // two squares side by side, the same size
     // on landscape screens the square also fits the height, and leaves a column of at least 220 px for the stats beside it
     const availH = wide ? innerHeight - stage.getBoundingClientRect().top - scrollY - 40 : Infinity;
-    const availW = wide ? stage.parentElement.clientWidth - 16 - 240 : stage.clientWidth - 16;
+    const totalW = wide ? stages.parentElement.clientWidth - 240 : stages.clientWidth;
+    const availW = (twinShown ? (totalW - 14) / 2 : totalW) - 16;
     const cssW = Math.max(64, Math.min(availW, availH * W / H));
     const z = fixedZoom(), cell = z || Math.max(1, Math.floor(cssW * dpr / W));   // a fixed zoom draws z device pixels a cell and lets the panel scroll
-    canvas.width = W * cell; canvas.height = H * cell;
-    canvas.style.width = (W * cell / dpr) + 'px';
-    canvas.style.height = z ? (H * cell / dpr) + 'px' : 'auto';
-    canvas.style.maxWidth = z ? 'none' : '';   // a fixed zoom may be wider than the panel: it scrolls instead of shrinking
+    for (const c of [canvas, $('twin-canvas')]) {
+      c.width = W * cell; c.height = H * cell;
+      c.style.width = (W * cell / dpr) + 'px';
+      c.style.height = z ? (H * cell / dpr) + 'px' : 'auto';
+      c.style.maxWidth = z ? 'none' : '';   // a fixed zoom may be wider than the panel: it scrolls instead of shrinking
+    }
     back.width = W; back.height = H;
   }
   function viewMode() {
@@ -1105,11 +1193,19 @@ function workerMain() {
     return flat;
   }
   async function draw() {
+    await updateTwinStage();
     const mode = viewMode(), post = postParams(mode);
     const image = await engine.render(mode, post);
     flatCount = engine.threads > 1 ? engine.lastFlat : postLocal(image, post);
     if (oneToOne()) ctx.putImageData(image, 0, 0);
     else { bctx.putImageData(image, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(back, 0, 0, canvas.width, canvas.height); }
+    if (twin && engine.twinRender && !$('twinStage').hidden) {
+      const img2 = await engine.twinRender(mode, post), tc = $('twin-canvas'), tctx = tc.getContext('2d');
+      if (tc.width !== canvas.width || tc.height !== canvas.height) { tc.width = canvas.width; tc.height = canvas.height; tc.style.cssText = canvas.style.cssText; }
+      if (oneToOne()) tctx.putImageData(img2, 0, 0); else { bctx.putImageData(img2, 0, 0); tctx.imageSmoothingEnabled = false; tctx.drawImage(back, 0, 0, tc.width, tc.height); }
+      const { x, y } = selPoint(), ps = uniformSwapP(), pm = uniformMedianP();
+      $('twinNote').innerHTML = `<b>Flat twin.</b> The same lattice from the same start, with the selected pixel's values everywhere: swap p ${ps.toFixed(2)} (rate ${(2 * ps * (1 - ps)).toFixed(2)}), median p ${pm.toFixed(2)}, from pixel ${x}, ${y}.`;
+    }
     if (sel >= 0) {
       const cell = canvas.width / W;
       ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
@@ -1118,7 +1214,7 @@ function workerMain() {
       ctx.strokeRect((sel % W) * cell + 2.5, Math.floor(sel / W) * cell + 2.5, cell - 5, cell - 5);
     }
     $('turn').textContent = turn.toLocaleString();
-    $('phase').textContent = Band.orderName(turn);
+    $('phase').textContent = Band.orderName(turn, $('order').value);
     $('halfT').textContent = !flatCount ? 'off' : Number($('avg').value) ? `${halfTurns.toFixed(1)} turns${$('avg').value === '2' ? ' × 2 stages' : ''}${sharpS() ? `, sharpening ${fmtW(sharpS())} against ${(2 * halfTurns).toFixed(1)}` : ''}` : `no averaging, sharpening ${fmtW(sharpS())} against ${(2 * halfTurns).toFixed(1)} turns`;
     $('moved').textContent = moved.toLocaleString();
     $('mutated').textContent = mutated.toLocaleString();
@@ -1135,7 +1231,7 @@ function workerMain() {
     const pairIns = linkMode() && changerActive() && !linksActive() ? { mode: Number($('pair').value), flip: turn & 1 } : null;   // decoders and transforms on pairs: inspect the joint cell
     const r = await engine.inspect(sel, pairIns), textLen = built.bytes.length, hb = HB, coff = Number($('coff').value), nbits = r.bits.length * 8;
     const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18) || ch === 41 || ch === 42, dec = (ch >= 31 && ch <= 40) || ch === 45 || ch === 46, z80 = (ch >= 6 && ch <= 15) || (ch >= 19 && ch <= 30) || ch === 43 || ch === 44 || ch === 47 || (ch === 0 && linksActive());
-    $('selPos').textContent = `x ${sel % W}, y ${Math.floor(sel / W)}` + (r.pair ? ` · paired with x ${(sel % W) + (r.pair.left ? 1 : -1)}: the ${nbits}-bit joint cell below is ${({ 1: 'the two concatenated', 2: 'bit-interleaved', 3: 'nibble-interleaved', 5: 'byte-interleaved' })[r.pair.mode] || 'joined'}, this pixel in the ${r.pair.left !== !!r.pair.flip ? 'first' : 'second'} role this turn` : '');
+    $('selPos').textContent = `x ${sel % W}, y ${Math.floor(sel / W)}` + (r.pair ? (r.pair.mode & 8 ? ` · joined with its 4-connected neighbour vote` : ` · paired with x ${(sel % W) + (r.pair.left ? 1 : -1)}`) + `: the ${nbits}-bit joint cell below is ${({ 1: 'the two concatenated', 2: 'bit-interleaved', 4: '2-bit-interleaved', 3: 'nibble-interleaved', 5: 'byte-interleaved' })[r.pair.mode & 7] || 'joined'}, this pixel in the ${r.pair.left !== !!r.pair.flip ? 'first' : 'second'} role this turn` : '');
     $('selHex').textContent = Array.from(r.bits, b => b.toString(16).padStart(2, '0')).join(' ');
     if (z80) {
       const frag = document.createDocumentFragment();
@@ -1331,7 +1427,7 @@ function workerMain() {
     const saltMode = Number($('salt').value) || 0;   // 0 content only; bit 0: by turn; bit 1: by position (see the Hash salt control)
     const salts = Array.from({ length: 4 + passes }, (_, k) => saltMode & 1 ? BigInt.asUintN(64, BigInt(turn + 1) * 0x9E3779B97F4A7C15n + BigInt(k + 1) * 0xD1B54A32D192ED03n) : 0n);   // content only: salt 0, the hashes see the neighbouring bits alone
     const mut = { lam: mutationLam(), salt: BigInt(turn * 64 + 63) };   // mutation is always salted by the turn, or the same bits would flip every turn
-    const r = await engine.turn({ order: Band.order(turn), alt: turn & 1, passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, posalt: !!(saltMode & 2), changer: changerActive(), pair: { mode: Number($('pair').value), flip: turn & 1 }, influence: N <= 65536 ? BigInt(turn * 64 + 61) : 0n, mut, links: linksActive() ? { kind: changerId(), rounds: linkRoundCount(), reset: linkResetDue() } : null });
+    const r = await engine.turn({ order: Band.order(turn, $('order').value), alt: turn & 1, mixSync: $('mixRule').value === 'sync', passes, nbr: Number($('nbr').value), thrSwap: swapTable(), thrSmooth: smoothTable(), salts, posalt: !!(saltMode & 2), changer: changerActive(), pair: { mode: Number($('pair').value), flip: turn & 1, write: writeMask() }, influence: N <= 65536 ? BigInt(turn * 64 + 61) : 0n, mut, links: linksActive() ? { kind: changerId(), rounds: linkRoundCount(), reset: linkResetDue() } : null });
     moved = r.moved; smoothed = r.smoothed; rewritten = r.rewritten; mutated = r.mutated || 0; totalBits = r.bits; noteHist(r.hist);
     influence = r.infl || null;
     turn++;
@@ -1386,14 +1482,14 @@ function workerMain() {
       canvas.setPointerCapture(ev.pointerId);
       painting = true; paintOnes = !ev.ctrlKey;
       run(async () => { await engine.paint(i, paintOnes); blendReset = true; await draw(); });
-    } else { sel = i; run(draw); }
+    } else { canvas.setPointerCapture(ev.pointerId); selecting = true; sel = i; showThreshold(); run(async () => { if ($('pixelReset').checked && twin) await twin.fill('random', (seed = (seed * 1664525 + 1013904223) >>> 0)); await draw(); }); }   // the press restarts the twin at the new point; the selection then follows the pointer while the button is held
   });
   canvas.addEventListener('pointermove', ev => {
-    if (!painting) return;
     const i = pixelAt(ev); if (i < 0) return;
-    if (pendingOps < 3) run(async () => { await engine.paint(i, paintOnes); blendReset = true; await draw(); });
+    if (painting) { if (pendingOps < 3) run(async () => { await engine.paint(i, paintOnes); blendReset = true; await draw(); }); return; }
+    if (selecting && i !== sel) { sel = i; showThreshold(); if (pendingOps < 2) run(draw); }   // dragging moves the selected pixel; the twin follows its values live
   });
-  const stopPaint = () => { painting = false; };
+  const stopPaint = () => { painting = false; selecting = false; };   // a drag moves the point without restarting the twin: its state carries over, which is usually close enough
   canvas.addEventListener('pointerup', stopPaint);
   canvas.addEventListener('pointercancel', stopPaint);
 
@@ -1415,13 +1511,20 @@ function workerMain() {
   for (const id of ['iters', 'nbr']) $(id).addEventListener('change', () => { if (engine && engine.threads > 1) run(() => rebuild($('pattern').value, true)); });   // the halo depth depends on the pass count and the neighbourhood
   $('steps').addEventListener('change', () => run(async () => { await engine.setSteps(Number($('steps').value)); await draw(); }));
   for (const id of ['rounds', 'lreset', 'lnever']) $(id).addEventListener('change', () => { $('rounds').value = linkRoundCount(); if (!$('lnever').checked) $('lreset').value = linkResetEvery(); $('lreset').disabled = $('lnever').checked; run(draw); });   // read at each turn; redraw refreshes the statistics line
-  $('dict').addEventListener('change', () => { applyDict(); if (dictEntry().cread) setCursorReadExact(dictEntry().cread); codeNote(); run(async () => { await engine.setN(Number($('maxlen').value)); if ($('dictRandom').checked) await reset('random'); else await draw(); }); });   // a designed dictionary brings its window range
-  $('cread').addEventListener('input', () => { CREAD_EXACT = null; showCread(); codeNote(); run(async () => { await engine.setCursorRead(cursorRead()); await draw(); }); });
-  $('creadNum').addEventListener('change', () => { setCursorReadExact($('creadNum').value); codeNote(); run(async () => { await engine.setCursorRead(cursorRead()); await draw(); }); });
+  $('dictKind').addEventListener('change', () => { fillDictList($('dictKind').value); $('dict').dispatchEvent(new Event('change')); });   // a new kind: its first dictionary
+  // the window range follows the dictionary: a designed dictionary brings its own; leaving one for a dictionary without a hint
+  // returns to the page default 4096 (the searched dictionaries were bred at 4096), unless the range was set by hand
+  let creadByHint = false;
+  const creadForDict = () => { const hint = dictEntry().cread; if (hint) { setCursorReadExact(hint); creadByHint = true; } else if (creadByHint) { setCursorReadExact(4096); creadByHint = false; } };
+  // a dictionary designed for a pair mode brings its Cells setting too (manifest field pair); one designed for single cells sets Cells back to each cell on its own
+  const pairForDict = () => { const e = dictEntry(); if (e.pair) $('pair').value = String(e.pair); else if (/design-(dict|pair)/.test(e.author || '')) $('pair').value = '0'; };
+  $('dict').addEventListener('change', () => { applyDict(); creadForDict(); pairForDict(); codeNote(); run(async () => { await engine.setN(Number($('maxlen').value)); if ($('dictRandom').checked) await reset('random'); else await draw(); }); });   // a designed dictionary brings its window range
+  $('cread').addEventListener('input', () => { CREAD_EXACT = null; creadByHint = false; showCread(); codeNote(); run(async () => { await engine.setCursorRead(cursorRead()); await draw(); }); });
+  $('creadNum').addEventListener('change', () => { setCursorReadExact($('creadNum').value); creadByHint = false; codeNote(); run(async () => { await engine.setCursorRead(cursorRead()); await draw(); }); });
   $('skip').addEventListener('input', () => { $('skipVal').textContent = skipBits(); codeNote(); run(async () => { await engine.setSkipBits(skipBits()); await draw(); }); });
   $('coff').addEventListener('input', () => { $('coffVal').textContent = '+' + $('coff').value; run(async () => { await engine.setCursorOffset(Number($('coff').value)); await draw(); }); });
   $('scale').addEventListener('change', () => run(async () => { fitCanvas(); await draw(); }));
-  $('size').addEventListener('change', () => { sel = -1; run(() => rebuild($('pattern').value)); });
+  $('size').addEventListener('change', () => { sel = -1; run(async () => { await rebuild($('pattern').value); showThreshold(); }); });
   $('threads').addEventListener('change', () => run(() => rebuild($('pattern').value, true)));
   $('pair').addEventListener('change', () => { showChangerBoxes(); run(draw); });
   $('thrL').addEventListener('input', showThreshold);
@@ -1430,8 +1533,9 @@ function workerMain() {
   $('smoothT').addEventListener('input', showThreshold);
   $('smoothB').addEventListener('input', showThreshold);
   $('maxlen').addEventListener('input', () => { codeNote(); run(async () => { await engine.setN(Number($('maxlen').value)); await draw(); }); });
-  for (const id of ['swapOn', 'medOn']) $(id).addEventListener('change', () => run(draw));   // the tables are rebuilt from the controls at every turn
-  for (const id of ['changer', 'cpu', 'xf', 'dec', 'chgOn']) $(id).addEventListener('change', () => { showChangerBoxes(); codeNote(); run(async () => { await engine.setChanger(changerId()); await draw(); }); });
+  for (const id of ['swapOn', 'medOn']) $(id).addEventListener('change', () => { showThreshold(); run(draw); });
+  $('twinOn').addEventListener('change', () => run(async () => { await switchEngine(); fitCanvas(); await reset($('pattern').value); }));   // both lattices restart from the same seed   // the tables are rebuilt from the controls at every turn
+  for (const id of ['changer', 'cpu', 'xf', 'dec', 'writeA', 'writeB']) $(id).addEventListener('change', () => { showChangerBoxes(); codeNote(); run(async () => { await engine.setChanger(changerId()); await draw(); }); });
   const showSpeed = () => { const v = Math.min(5, Number($('speed').value) || 0); $('speed').value = v; $('speedVal').textContent = SPEEDS[v] + ' turns/s'; };
   $('speed').addEventListener('input', showSpeed);
   document.addEventListener('keydown', ev => {
@@ -1451,54 +1555,66 @@ function workerMain() {
     return [32, 24, 16, 8, 4, 2, 1].find(v => v <= c) || 1;   // the largest option below the core count: 24 on a 32-core machine
   };
   // every control's id, saved key and default; the share line and the presets are built on the same list
-  const CONTROL_DEFAULTS = [['size', 'size', '1024x1024'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'], ['cph', 'cph', '0.12'],
+  const CONTROL_DEFAULTS = [['size', 'size', '512x512'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'], ['cph', 'cph', '0.12'],
             ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['salt', 'salt', '0'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-gray20c'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']];
-  const SHARE_KEYS = [...CONTROL_DEFAULTS.map(([, key]) => key).filter(k => k !== 'threads'), 'lnever', 'swapOn', 'medOn', 'chgOn', 'dictRandom', 'cread'];   // threads stay with the machine
+  const SHARE_KEYS = [...CONTROL_DEFAULTS.map(([, key]) => key).filter(k => k !== 'threads'), 'lnever', 'swapOn', 'medOn', 'writeA', 'writeB', 'dictRandom', 'pixelReset', 'twin', 'order', 'mixRule', 'cread'];   // threads stay with the machine
   const controlState = () => ({
     size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, ts: $('tw').value, sp: $('sp').value, cph: $('cph').value, thrL: $('thrL').value, thrR: $('thrR').value, gpow: $('gpow').value, salt: $('salt').value, mut: $('mut').value,
-    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, dict: $('dict').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, dec: $('dec').value, steps: $('steps').value, rounds: $('rounds').value, lreset: $('lreset').value, lnever: $('lnever').checked, swapOn: $('swapOn').checked, medOn: $('medOn').checked, chgOn: $('chgOn').checked, dictRandom: $('dictRandom').checked, coff: $('coff').value, cread: cursorRead(), skip: $('skip').value, pair: $('pair').value,
+    smoothT: $('smoothT').value, smoothB: $('smoothB').value, iters: $('iters').value, nbr: $('nbr').value, scale: $('scale').value, maxlen: $('maxlen').value, speed: $('speed').value, threads: $('threads').value, dict: $('dict').value, changer: $('changer').value, cpu: $('cpu').value, xf: $('xf').value, dec: $('dec').value, steps: $('steps').value, rounds: $('rounds').value, lreset: $('lreset').value, lnever: $('lnever').checked, swapOn: $('swapOn').checked, medOn: $('medOn').checked, writeA: $('writeA').checked, writeB: $('writeB').checked, dictRandom: $('dictRandom').checked, pixelReset: $('pixelReset').checked, twin: $('twinOn').checked, order: $('order').value, mixRule: $('mixRule').value, coff: $('coff').value, cread: cursorRead(), skip: $('skip').value, pair: $('pair').value,
   });
   // the settings line: "keimli1 key=value ..." over SHARE_KEYS, booleans as 1 and 0; unknown keys are ignored on the way back
   const encodeSettings = o => 'keimli1 ' + SHARE_KEYS.map(k => `${k}=${typeof o[k] === 'boolean' ? (o[k] ? 1 : 0) : o[k]}`).join(' ');
   const decodeSettings = str => {
     const m = String(str || '').trim().match(/keimli1\s+(.*)$/s); if (!m) return null;
     const o = { w: 1 };
-    for (const tok of m[1].split(/\s+/)) { const eq = tok.indexOf('='); if (eq < 1) continue; const k = tok.slice(0, eq), v = tok.slice(eq + 1); o[k] = ['lnever', 'swapOn', 'medOn', 'chgOn', 'dictRandom'].includes(k) ? (v === '1' || v === 'true') : v; }
+    for (const tok of m[1].split(/\s+/)) { const eq = tok.indexOf('='); if (eq < 1) continue; const k = tok.slice(0, eq), v = tok.slice(eq + 1); o[k] = ['lnever', 'swapOn', 'medOn', 'chgOn', 'writeA', 'writeB', 'dictRandom', 'pixelReset', 'twin', 'pairWrite'].includes(k) ? (v === '1' || v === 'true') : v; }
     return o;
   };
   function restoreControls(saved) {   // every control from a saved state, a settings line or a preset (missing keys take the defaults)
+      $('mixRule').value = saved.mixRule === 'sync' ? 'sync' : 'swap';
+      $('order').value = saved.order && Band.SCHEMES[saved.order] ? saved.order : saved.altOrder === undefined ? 'rotate' : (saved.altOrder === true || saved.altOrder === '1' || saved.altOrder === 'true') ? 'alternate' : 'fixed';
       for (const [id, key, dflt] of CONTROL_DEFAULTS) {
         if (key === 'threads' && saved[key] === undefined) continue;   // a settings line or preset carries no thread count: keep the machine's
+        if (id === 'dict') { selectDict(saved[key] ?? dflt); continue; }   // the kind selector and its list follow the dictionary
         $(id).value = saved[key] ?? dflt;
       }
       if (/^\d+$/.test(String(saved.changer))) setChangerId(saved.changer);   // state from the single-menu days
       if ($('changer').value === '') { $('changer').value = 'dec'; $('dec').value = '0'; }   // the former "LZ decompressor" mode: the decoder menu's first entry
-      if ($('dict').value === '') $('dict').value = DEFAULT_DICT;
+      if ($('dict').value === '' || !DICTS.some(d => d.id === $('dict').value)) selectDict(DEFAULT_DICT);
       applyDict();
-      setCursorReadExact(Number(saved.cread) || dictEntry().cread || 4096);   // saved as the range V: exact in the box, the slider at its nearest stop; a dictionary built for one window range carries it in the manifest (default 4096)
+      setCursorReadExact(Number(saved.cread) || dictEntry().cread || 4096); creadByHint = !Number(saved.cread) && !!dictEntry().cread;   // saved as the range V: exact in the box, the slider at its nearest stop; a dictionary built for one window range carries it in the manifest (default 4096)
       if ($('pair').value === '') $('pair').value = saved.pair === '6' ? '1' : saved.pair === '4' ? '3' : '0';   // the former "Links" entry: concatenated pairs; the former add-then-subtract: nibbles
       if ($('avg').value === '') $('avg').value = '2';   // the former three-stage entry: two stages, the slow stage comes with the sharpening
-      for (const [id, key, dflt] of [['swapOn', 'swapOn', true], ['medOn', 'medOn', true], ['chgOn', 'chgOn', true], ['dictRandom', 'dictRandom', false]]) $(id).checked = saved[key] === undefined ? dflt : saved[key] === true || saved[key] === 'true';
+      // an older line's chgOn (one box for the whole changer) and pairWrite (the A cell only) map onto the two cell boxes
+      if (saved.chgOn !== undefined && saved.writeA === undefined) { const on = saved.chgOn === true || saved.chgOn === 'true'; saved.writeA = on; saved.writeB = on && !(saved.pairWrite === true || saved.pairWrite === 'true'); }
+      for (const [id, key, dflt] of [['swapOn', 'swapOn', true], ['medOn', 'medOn', true], ['writeA', 'writeA', true], ['writeB', 'writeB', true], ['dictRandom', 'dictRandom', true], ['pixelReset', 'pixelReset', true], ['twinOn', 'twin', true]]) $(id).checked = saved[key] === undefined ? dflt : saved[key] === true || saved[key] === 'true';
       $('lnever').checked = saved.lnever === undefined ? true : saved.lnever === true || saved.lnever === 'true' || String(saved.lreset) === '0';   // a saved 0 meant never; older states take the default
       if (Number($('lreset').value) < 1) $('lreset').value = '1';
       $('lreset').disabled = $('lnever').checked;
       if (!$('size').value) { const w = parseInt(saved.size) || 512; $('size').value = [...$('size').options].some(o => o.value === `${w}x${w}`) ? `${w}x${w}` : '512x512'; }
   }
   const PUBLIC_URL = location.protocol === 'https:' && !/claude\.ai$/.test(location.hostname) ? location.origin + location.pathname : 'https://jyrkialakuijala.github.io/keimli/';
-  const defaultSettings = () => { const o = { lnever: true, swapOn: true, medOn: true, chgOn: true, dictRandom: false, cread: null }; for (const [, key, dflt] of CONTROL_DEFAULTS) o[key] = String(dflt); return o; };   // cread null: the dictionary's own window range, else 4096
+  const defaultSettings = () => { const o = { lnever: true, swapOn: true, medOn: true, writeA: true, writeB: true, dictRandom: true, pixelReset: true, twin: true, order: 'rotate', mixRule: 'swap', cread: null }; for (const [, key, dflt] of CONTROL_DEFAULTS) o[key] = String(dflt); return o; };   // cread null: the dictionary's own window range, else 4096
   const PRESETS = [
     ['Twenty Gray 8-cycles (the default)', {}],
     ['Twelve Gray 8-cycles', { dict: 'ca-gray12c', cread: 60000 }],
+    ['Life-like: synchronous isotropic mixing and one 4-neighbour vote a turn, under the usual gradients', { mixRule: 'sync', nbr: '0', iters: '1' }],
+    ['Pairs concatenated: four designed species', { dict: 'ca-paircat4', cread: 60000, pair: '1' }],
+    ['Pairs bit-interleaved: four designed species', { dict: 'ca-pairbit4', cread: 60000, pair: '2' }],
+    ['Pairs 2-bit-interleaved: two designed species', { dict: 'ca-pairbit22', cread: 60000, pair: '4' }],
+    ['Pairs nibble-interleaved: two designed species', { dict: 'ca-pairnib2', cread: 60000, pair: '3' }],
+    ['Pairs byte-interleaved: ten designed species', { dict: 'ca-pairbyte10', cread: 60000, pair: '5' }],
     ['Brotli front and islands (Swarm search F)', { dict: 'ca-swarm-f', cread: 4096 }],
     ['Dissolving cloud (Brotli search 1)', { dict: 'ca-brotli-1' }],
     ['Foam (Brotli search 2)', { dict: 'ca-brotli-2' }],
     ['Landmass and sea (Brotli search 12)', { dict: 'ca-brotli-12' }],
-    ['Codebook cycles on pairs, no mixing', { changer: 'dec', dec: '45', dict: 'ca-codebook-5', size: '128x128', pair: '1', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false, scale: '4' }],
-    ['Bit codebook, many short cycles', { changer: 'dec', dec: '46', dict: 'ca-codebook-8', size: '128x128', pair: '1', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false, scale: '4' }],
-    ['Motorola 68000 link machines, no mixing or settling', { changer: 'cpu', cpu: '21', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '256x256', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: '2', swapOn: false, medOn: false }],
-    ['DEC PDP-11 link machines, no mixing or settling', { changer: 'cpu', cpu: '20', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '256x256', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: '2', swapOn: false, medOn: false }],
-    ['VAX-11/780 link machines, no mixing or settling', { changer: 'cpu', cpu: '23', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '256x256', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: '2', swapOn: false, medOn: false }],
-    ['The Declaration through the LZ decompressor', { changer: 'dec', dec: '0', dict: 'declaration', skip: '6', cread: 5, coff: '50', maxlen: '3', pair: '0', size: '512x512' }],
+    ['Codebook cycles meeting their neighbours: the 4-neighbour vote, nibble-joined, domains coarsening, no mixing', { changer: 'dec', dec: '45', dict: 'ca-codebook-5', size: '512x512', pair: '11', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false, scale: 'one' }],
+    ['Bit codebook on the 4-neighbour vote: two phases coarsening, no mixing', { changer: 'dec', dec: '46', dict: 'ca-codebook-8', size: '512x512', pair: '9', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false, scale: 'one' }],
+    ['Bit codebook, many short cycles', { changer: 'dec', dec: '46', dict: 'ca-codebook-8', size: '512x512', pair: '1', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false, scale: 'one' }],
+    ['Motorola 68000 link machines, no mixing or settling', { changer: 'cpu', cpu: '21', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: 'one', swapOn: false, medOn: false }],
+    ['DEC PDP-11 link machines, no mixing or settling', { changer: 'cpu', cpu: '20', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: 'one', swapOn: false, medOn: false }],
+    ['VAX-11/780 link machines, no mixing or settling', { changer: 'cpu', cpu: '23', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: 'one', swapOn: false, medOn: false }],
+    ['The Declaration through the LZ decompressor', { changer: 'dec', dec: '0', dict: 'declaration', skip: '6', cread: 5, coff: '50', maxlen: '3', pair: '0' }],
   ];
   for (const [name, over] of PRESETS) { const opt = document.createElement('option'); opt.value = encodeSettings({ ...defaultSettings(), ...over }); opt.textContent = name; $('preset').appendChild(opt); }
   async function applySettings(str) {
@@ -1540,13 +1656,12 @@ function workerMain() {
       setRunning(saved.running ?? running);
     } else {
       $('threads').value = selftest ? (location.hash === '#selftest-workers' ? 4 : 1) : defaultThreads();
-      if (!selftest && (navigator.hardwareConcurrency || 2) <= 8) $('size').value = '512x512';   // a fresh page on a small machine: a quarter of the pixels
       if (selftest) $('size').value = '128x128';   // the self-test runs 50 turns at boot: a small grid, whatever the default
-      applyDict(); if (dictEntry().cread) setCursorReadExact(dictEntry().cread);   // a fresh page: the default dictionary's own window range
+      applyDict(); if (dictEntry().cread) { setCursorReadExact(dictEntry().cread); creadByHint = true; }   // a fresh page: the default dictionary's own window range
       setRunning(running);
     }
     showCread(); showChangerBoxes(); showAvgBoxes(); codeNote(); showThreshold(); showSpeed();
-    await rebuild($('pattern').value);
+    await rebuild($('pattern').value); showThreshold();
     if (saved && saved.cells && engine.cells()) { await engine.setCells(saved.cells); totalBits = await engine.bits(); await restartLog(); turn = saved.turn || 0; blendReset = true; await draw(); }
     // #selftest: run 50 turns up front so a headless browser can check the page works
     if (selftest) { for (let i = 0; i < 50; i++) await doTurn(); await draw(); }

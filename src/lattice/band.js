@@ -13,9 +13,24 @@ const Band = (() => {
   // specks in the frozen floor mostly stand still and blink; the cycle made them wander.)
   // Names as shown in the page.
   const PHASE_NAMES = ['LR0', 'UD0', 'LR1', 'UD1'];
-  const ORDER = [1, 0, 3, 2];
-  const order = () => ORDER;
-  const orderName = () => ORDER.map(p => PHASE_NAMES[p]).join(' ');
+  const ORDER = [1, 0, 3, 2], ORDER_MIRROR = [0, 1, 2, 3];   // UD0 LR0 UD1 LR1, and its mirror LR0 UD0 LR1 UD1
+  // order(turn, alternate): the four phases of a turn. With alternate, odd turns use the mirror, so that neither
+  // direction always has the last exchange before the settling and the rewriting (the fixed order lets lateral mixing
+  // act last every turn, which showed as more lateral than vertical propagation).
+  // schemes: 'fixed' UD0 LR0 UD1 LR1 every turn; 'alternate' the mirror on odd turns; 'palindrome' UD0 LR0 LR1 UD1 and
+  // its mirror LR0 UD0 UD1 LR1 on alternate turns (within every turn each direction is as far from the settling, on
+  // average, as the other); 'cycle4' the four orders UD LR UD LR, LR UD LR UD, UD LR LR UD, LR UD UD LR in turn (over
+  // four turns each direction takes each position once); 'random' one of the six orders by a hash of the turn; 'rotate'
+  // the pattern turned by 90 degrees each turn (four variations, the offsets turning with the directions)
+  const SCHEMES = {
+    fixed: [[1, 0, 3, 2]], alternate: [[1, 0, 3, 2], [0, 1, 2, 3]], palindrome: [[1, 0, 2, 3], [0, 1, 3, 2]],
+    cycle4: [[1, 0, 3, 2], [0, 1, 2, 3], [1, 0, 2, 3], [0, 1, 3, 2]],
+    random: [[1, 0, 3, 2], [0, 1, 2, 3], [1, 0, 2, 3], [0, 1, 3, 2], [1, 3, 0, 2], [0, 2, 1, 3]],
+    rotate: [[1, 0, 3, 2], [0, 1, 2, 3], [3, 2, 1, 0], [2, 3, 0, 1]],   // the pattern turned by 0, 90, 180 and 270 degrees: UD<->LR and the brick offsets 0<->1 with it
+  };
+  const orderFor = (turn = 0, scheme = 'fixed') => { const list = SCHEMES[scheme] || SCHEMES.fixed; if (scheme === 'random') { let h = Math.imul(turn + 1, 0x9E3779B1) >>> 0; h = (h ^ (h >>> 15)) >>> 0; h = Math.imul(h, 0x85EBCA6B) >>> 0; h = (h ^ (h >>> 13)) >>> 0; return list[h % list.length]; } return list[turn % list.length]; };
+  const order = (turn = 0, alternate = false) => orderFor(turn, alternate === true ? 'alternate' : typeof alternate === 'string' ? alternate : 'fixed');
+  const orderName = (turn = 0, alternate = false) => order(turn, alternate).map(p => PHASE_NAMES[p]).join(' ');
   // The brick pattern of a phase leaves an edge column (left-right phases) or an edge row (up-down
   // phases) without partners; those pixels pair along their edge instead (up and down in a left-right
   // phase, left and right in an up-down phase) with a brick offset of their own, so that every pixel
@@ -31,10 +46,10 @@ const Band = (() => {
   // Each smoothing pass costs R rows per side, R = radius(nbr): 1 for the 4- and 8-connected
   // neighbourhoods, r for the (2r+1)x(2r+1) blocks (nbr 2..5). Kept even so the parity argument holds.
   const radius = nbr => nbr >= 2 ? nbr : 1;   // nbr 0 and 1: the cross and the 3x3; nbr r >= 2: the (2r+1)x(2r+1) square
-  const depthFor = (passes, nbr = 0) => { const n = radius(nbr) * passes; return 2 + n + (n & 1); };
+  const depthFor = (passes, nbr = 0) => { const n = radius(nbr) * passes; return 4 + n + (n & 1); };   // two rows beyond what the phases and passes consume: the vote partner reads one halo row after them
   // st = { wasm, W, H, y0, rows, D, GRID, GRID2, PRM, THR, THRY }
   // msg = { haloTop, haloBottom (Uint8Array of D rows or null at the grid edge), order (the turn's four phase ids), alt (the turn parity, for the edge pairs), passes,
-  //         thrSwap (BigUint64Array W), thrSmooth (BigUint64Array H), salts (BigInt per step), changer (bool), pair ({ mode, flip }),
+  //         mixSync (bool: the synchronous isotropic mixing instead of the four swap phases), thrSwap (BigUint64Array W), thrSmooth (BigUint64Array H), salts (BigInt per step), changer (bool), pair ({ mode, flip, write: a mask, bit 0 the leading cell, bit 1 the other; absent = both }),
   //         nbr (smoothing neighbourhood 0 cross / 1 3x3 / r = 2..5 the (2r+1)x(2r+1) block), mut ({ lam, salt }: expected flips per pixel as 32.32
   //         fixed-point BigInt, and this turn's salt; absent or lam 0 for no mutation), influence (a BigInt salt: measure the segment influence of pairs with it; absent or 0n: do not),
   //         posalt (bool: salt every swap and smoothing decision by its global coordinates too; an experimental control) }
@@ -52,10 +67,15 @@ const Band = (() => {
     let vt = topArt ? D : 0, vb = botArt ? D : 0;           // valid halo rows above / below the interior
     const useTop = () => { if (vt === 0) throw new Error('band halo exhausted above'); vt--; };
     const useBot = () => { if (vb === 0) throw new Error('band halo exhausted below'); vb--; };
-    if (msg.pair) new Int32Array(wasm.memory.buffer, st.PRM + 104, 2).set([msg.pair.mode | 0, msg.pair.flip ? 1 : 0]);   // pairs: the joining and this turn's flip, for the link rounds and the changer
+    if (msg.pair) { new Int32Array(wasm.memory.buffer, st.PRM + 104, 2).set([msg.pair.mode | 0, msg.pair.flip ? 1 : 0]); new Int32Array(wasm.memory.buffer, st.PRM + 116, 1)[0] = msg.pair.write === undefined ? 3 : msg.pair.write | 0; new Int32Array(wasm.memory.buffer, st.PRM + 120, 4).set([W, y0, H, (msg.pair.mode & 8) ? GRID2 + D * S : 0]); }   // the vote partner's geometry and snapshot   // pairs: the joining and this turn's flip, for the link rounds and the changer
     let moved = 0, smoothed = 0, k = 0;
     wasm.salt_by_position(msg.posalt ? 1 : 0);
     m8.copyWithin(GRID2, GRID, GRID + (rows + 2 * D) * S);   // snapshot: every swap decision of the turn is read from the map before the first phase
+    if (msg.mixSync) {   // the synchronous, isotropic mixing: one pass reading the snapshot, writing the map; one halo row each side
+      const a = topArt ? Math.max(D - vt, 1) : D - vt, b = botArt ? Math.min(D + rows + vb, rows + 2 * D - 1) : D + rows + vb;
+      moved += wasm.mix_sync_zone(W, GRID2, GRID, st.THR, gy0, H, a, b, D, D + rows, msg.salts[k++]);
+      if (topArt) useTop(); if (botArt) useBot();
+    } else
     for (const ph of msg.order) {
       const ea = edgeParity(ph, msg.alt | 0);
       moved += wasm.mix_zone(W, GRID, GRID2, ph, ea, st.THR, gy0, H, D - vt, D + rows + vb, D, D + rows, msg.salts[k++]);   // count only the band's own rows
@@ -82,6 +102,7 @@ const Band = (() => {
     // segment influence (msg.influence): before the changer rewrites the pairs, how much each half decides the other's new content
     let infl = null;
     if (msg.influence && msg.pair && msg.pair.mode && msg.changer && !msg.links) { wasm.influence(rows * W, GRID + D * S, st.PRM, st.GRID2, BigInt(msg.influence)); infl = Array.from(new Int32Array(wasm.memory.buffer, st.GRID2, 5)); }
+    if (msg.changer && !msg.links && msg.pair && (msg.pair.mode & 8)) new Uint8Array(wasm.memory.buffer).copyWithin(st.GRID2 + (D - 1) * S, GRID + (D - 1) * S, GRID + (D + rows + 1) * S);   // the vote reads the state before any pixel is rewritten: own rows and one halo row each side
     const rewritten = msg.links ? linkWrites : msg.changer ? wasm.change(rows * W, GRID + D * S, st.PRM) : 0;
     const mutated = msg.mut && msg.mut.lam ? wasm.mutate(rows * W, GRID + D * S, y0 * W, msg.mut.lam, msg.mut.salt) : 0;   // own rows, global pixel indices
     return { rewritten, mutated, infl };
@@ -180,5 +201,5 @@ const Band = (() => {
   // The swap slider p -> the per-position exchange rate 2 p (1 - p): p = 0 and p = 1 are the identity (exchanging every
   // differing bit only swaps the two pixels' places), p = 1/2 the maximal mixing, half of the differing bits crossing over.
   const mixRate = p => 2 * p * (1 - p);
-  return { PHASE_NAMES, ORDER, order, orderName, edgeParity, leftover, radius, depthFor, runTurn, runHead, runTail, linkBand, linkStateBytes, linkPhases, edges, split, toThreshold, gradient, shape, mixRate, POST_HALO, POST_BYTES, postFrame };
+  return { PHASE_NAMES, ORDER, SCHEMES, orderFor, order, orderName, edgeParity, leftover, radius, depthFor, runTurn, runHead, runTail, linkBand, linkStateBytes, linkPhases, edges, split, toThreshold, gradient, shape, mixRate, POST_HALO, POST_BYTES, postFrame };
 })();

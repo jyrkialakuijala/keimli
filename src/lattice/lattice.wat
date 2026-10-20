@@ -308,6 +308,80 @@
     (i64.store offset=8 (local.get $d) (local.get $res))
     (local.get $changed))
 
+  ;; mix_sync_px(src, o, x, w, g, h, stride, d, thr, salt) -> bits changed. The synchronous, isotropic mixing: at every bit
+  ;; position where a 4-connected neighbour differs, each differing neighbour is given the swaps' own pair key ($decide of
+  ;; the two contexts, the salt added), the bit takes the neighbour with the lowest key, and moves when a fresh hash of
+  ;; that key is under the column's threshold (probability p a turn for a differing bit). No direction is built in: in the quenched mode the choice is a function of the pair contexts,
+  ;; as a swap's decision is. Reads src only, writes the pixel to d: computed once, written to the local pixel.
+  ;; Neighbours outside the grid are the pixel itself (never differing).
+  (func $mix_sync_px (param $src i32) (param $o i32) (param $x i32) (param $w i32) (param $g i32) (param $h i32) (param $stride i32) (param $d i32) (param $thr i64) (param $salt i64) (result i32)
+    (local $s0 i64) (local $s1 i64) (local $n0 i64) (local $n1 i64)
+    (local $diff i64) (local $res0 i64) (local $res1 i64) (local $i i32) (local $changed i32) (local $p i32) (local $q i32) (local $k i32)
+    (local $best i64) (local $hv i64) (local $cs i64) (local $bit i64) (local $take i32)
+    (local.set $p (i32.add (local.get $src) (local.get $o)))
+    (local.set $s0 (i64.load (local.get $p))) (local.set $s1 (i64.load offset=8 (local.get $p)))
+    (local.set $res0 (local.get $s0)) (local.set $res1 (local.get $s1))
+    (if (i64.eqz (local.get $thr)) (then (i64.store (local.get $d) (local.get $s0)) (i64.store offset=8 (local.get $d) (local.get $s1)) (return (i32.const 0))))
+    (local.set $salt (call $psalt (local.get $salt) (local.get $x) (local.get $g) (i32.const 3)))
+    ;; the positions where any neighbour differs, over both halves: a 128-bit loop done as two 64-bit ones
+    (local.set $i (i32.const 0))
+    (block $bits (loop $bl
+      (br_if $bits (i32.ge_u (local.get $i) (i32.const 128)))
+      ;; is there a differing neighbour at i? scan the four
+      (local.set $best (i64.const -1)) (local.set $take (i32.const 0))
+      (local.set $cs (call $ctx (local.get $s0) (local.get $s1) (local.get $i)))
+      (local.set $bit (i64.shl (i64.const 1) (i64.extend_i32_u (i32.and (local.get $i) (i32.const 63)))))
+      (local.set $k (i32.const 0))
+      (block $nbrs (loop $nl
+        (br_if $nbrs (i32.ge_u (local.get $k) (i32.const 4)))
+        (local.set $q (local.get $p))
+        (if (i32.eqz (local.get $k)) (then (if (i32.gt_u (local.get $x) (i32.const 0)) (then (local.set $q (i32.sub (local.get $p) (i32.const 16)))))))
+        (if (i32.eq (local.get $k) (i32.const 1)) (then (if (i32.lt_u (i32.add (local.get $x) (i32.const 1)) (local.get $w)) (then (local.set $q (i32.add (local.get $p) (i32.const 16)))))))
+        (if (i32.eq (local.get $k) (i32.const 2)) (then (if (i32.gt_u (local.get $g) (i32.const 0)) (then (local.set $q (i32.sub (local.get $p) (local.get $stride)))))))
+        (if (i32.eq (local.get $k) (i32.const 3)) (then (if (i32.lt_u (i32.add (local.get $g) (i32.const 1)) (local.get $h)) (then (local.set $q (i32.add (local.get $p) (local.get $stride)))))))
+        (local.set $n0 (i64.load (local.get $q))) (local.set $n1 (i64.load offset=8 (local.get $q)))
+        (if (i64.ne (i64.and (i64.xor (select (local.get $s1) (local.get $s0) (i32.ge_u (local.get $i) (i32.const 64)))
+                                      (select (local.get $n1) (local.get $n0) (i32.ge_u (local.get $i) (i32.const 64)))) (local.get $bit)) (i64.const 0))
+          (then
+            (local.set $hv (call $decide (local.get $cs) (call $ctx (local.get $n0) (local.get $n1) (local.get $i)) (local.get $salt)))
+            (if (i64.lt_u (local.get $hv) (local.get $best)) (then (local.set $best (local.get $hv)) (local.set $take (i32.const 1))))))
+        (local.set $k (i32.add (local.get $k) (i32.const 1)))
+        (br $nl)))
+      ;; the lowest key picks the neighbour; the decision is a fresh hash of that key against the threshold, so that a
+      ;; differing bit moves with probability p a turn whatever the number of differing neighbours
+      (if (i32.and (local.get $take) (i64.lt_u (i64.add (local.get $salt) (call $mix64 (i64.xor (local.get $best) (i64.const 0x7f4a7c157f4a7c15)))) (local.get $thr)))
+        (then   ;; the bit flips to the neighbour's value (it differs, so a flip)
+          (if (i32.ge_u (local.get $i) (i32.const 64))
+            (then (local.set $res1 (i64.xor (local.get $res1) (local.get $bit))))
+            (else (local.set $res0 (i64.xor (local.get $res0) (local.get $bit)))))
+          (local.set $changed (i32.add (local.get $changed) (i32.const 1)))))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br $bl)))
+    (i64.store (local.get $d) (local.get $res0)) (i64.store offset=8 (local.get $d) (local.get $res1))
+    (local.get $changed))
+
+  ;; mix_sync_zone(w, src, dst, thrTab, gy0, h, a, b, ca, cb, salt) -> bits changed in rows [ca, cb). The synchronous mixing
+  ;; over local rows [a, b) of a buffer whose local row 0 is global row gy0, reading one row above a and below b (which
+  ;; must exist in the buffer unless they lie outside the grid). Reads src, writes dst. thrTab is indexed by column.
+  (func $mix_sync_zone (export "mix_sync_zone") (param $w i32) (param $src i32) (param $dst i32) (param $thrTab i32) (param $gy0 i32) (param $h i32) (param $a i32) (param $b i32) (param $ca i32) (param $cb i32) (param $salt i64) (result i32)
+    (local $r i32) (local $x i32) (local $o i32) (local $stride i32) (local $changed i32) (local $c i32)
+    (local.set $stride (i32.shl (local.get $w) (i32.const 4)))
+    (local.set $r (local.get $a))
+    (block $rows (loop $rl
+      (br_if $rows (i32.ge_s (local.get $r) (local.get $b)))
+      (local.set $x (i32.const 0))
+      (block $cols (loop $cl
+        (br_if $cols (i32.ge_u (local.get $x) (local.get $w)))
+        (local.set $o (i32.add (i32.mul (local.get $r) (local.get $stride)) (i32.shl (local.get $x) (i32.const 4))))
+        (local.set $c (call $mix_sync_px (local.get $src) (local.get $o) (local.get $x) (local.get $w) (i32.add (local.get $gy0) (local.get $r)) (local.get $h) (local.get $stride)
+                                          (i32.add (local.get $dst) (local.get $o)) (i64.load (i32.add (local.get $thrTab) (i32.shl (local.get $x) (i32.const 3)))) (local.get $salt)))
+        (if (i32.and (i32.ge_s (local.get $r) (local.get $ca)) (i32.lt_s (local.get $r) (local.get $cb))) (then (local.set $changed (i32.add (local.get $changed) (local.get $c)))))
+        (local.set $x (i32.add (local.get $x) (i32.const 1)))
+        (br $cl)))
+      (local.set $r (i32.add (local.get $r) (i32.const 1)))
+      (br $rl)))
+    (local.get $changed))
+
   ;; smooth_zone(w, src, dst, thrTab, gy0, h, a, b, ca, cb, salt, nbr) -> bits changed in rows [ca, cb). Smooths local rows [a, b)
   ;; of a buffer whose local row 0 is global row gy0, reading up to R rows above a and below b (R = 1 for
   ;; nbr 0 and 1, r for nbr r >= 2), which must exist in the buffer unless they lie outside the grid. Coordinates

@@ -1,0 +1,245 @@
+{
+ "name": "ca-paircat3",
+ "pairMode": 1,
+ "species": 3,
+ "cycles": [
+  8,
+  8,
+  8
+ ],
+ "V": 60000,
+ "len": 61440,
+ "headerBits": 16,
+ "form": {
+  "cmds": [
+   {
+    "len": 6,
+    "explicit": true,
+    "tf": 2
+   },
+   {
+    "len": 13,
+    "explicit": true,
+    "tf": 2
+   },
+   {
+    "len": 13,
+    "explicit": true,
+    "tf": 2
+   }
+  ],
+  "d": 33,
+  "spots": 26,
+  "end": 70,
+  "bytes": 9
+ },
+ "d": 33,
+ "headBytesC": 9,
+ "jointHeadBytes": 9,
+ "states": [
+  {
+   "species": "A",
+   "H0": 43136,
+   "letter": "7",
+   "reading": 64,
+   "states": [
+    {
+     "k": 0,
+     "pos": 44127,
+     "header": 43136,
+     "text": "0 *#(?(?(1111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 43103,
+     "header": 43168,
+     "text": "0(*#(?(?(3111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 43135,
+     "header": 43232,
+     "text": "08*#(?(?(1111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 43199,
+     "header": 43200,
+     "text": "00*#(?(?(3111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 43167,
+     "header": 44224,
+     "text": "00+#(?(?(1111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 44191,
+     "header": 44256,
+     "text": "08+#(?(?(3111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 44223,
+     "header": 44192,
+     "text": "0(+#(?(?(1111111",
+     "hammingToNext": 2
+    },
+    {
+     "k": 7,
+     "pos": 44159,
+     "header": 44160,
+     "text": "0 +#(?(?(3111111",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "B",
+   "H0": 41088,
+   "letter": "?",
+   "reading": 64,
+   "states": [
+    {
+     "k": 0,
+     "pos": 42079,
+     "header": 41088,
+     "text": "1 (#(?(?(2222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 41055,
+     "header": 41120,
+     "text": "1((#(?(?(3222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 41087,
+     "header": 41184,
+     "text": "18(#(?(?(2222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 41151,
+     "header": 41152,
+     "text": "10(#(?(?(3222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 41119,
+     "header": 42176,
+     "text": "10)#(?(?(2222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 42143,
+     "header": 42208,
+     "text": "18)#(?(?(3222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 42175,
+     "header": 42144,
+     "text": "1()#(?(?(2222222",
+     "hammingToNext": 2
+    },
+    {
+     "k": 7,
+     "pos": 42111,
+     "header": 42112,
+     "text": "1 )#(?(?(3222222",
+     "hammingToNext": 2
+    }
+   ]
+  },
+  {
+   "species": "C",
+   "H0": 32896,
+   "letter": ";",
+   "reading": 64,
+   "states": [
+    {
+     "k": 0,
+     "pos": 33887,
+     "header": 32896,
+     "text": "2  #(?(?(3333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 32863,
+     "header": 32928,
+     "text": "2( #(?(?(1333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 32895,
+     "header": 32992,
+     "text": "28 #(?(?(3333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 32959,
+     "header": 32960,
+     "text": "20 #(?(?(1333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 32927,
+     "header": 33984,
+     "text": "20!#(?(?(3333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 33951,
+     "header": 34016,
+     "text": "28!#(?(?(1333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 33983,
+     "header": 33952,
+     "text": "2(!#(?(?(3333333",
+     "hammingToNext": 2
+    },
+    {
+     "k": 7,
+     "pos": 33919,
+     "header": 33920,
+     "text": "2 !#(?(?(1333333",
+     "hammingToNext": 2
+    }
+   ]
+  }
+ ],
+ "census": {
+  "shares": {
+   "A": 0.4145,
+   "B": 0.1911,
+   "C": 0.3944,
+   "none": 0
+  },
+  "transientMean": 6.1889,
+  "p90": 10,
+  "max": 26,
+  "onBy8": 0.8166
+ }
+}

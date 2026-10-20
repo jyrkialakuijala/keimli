@@ -259,9 +259,13 @@ packing search finds fully landing patterns for every species up to 32:
 | 10 | 92 % | 0.03 % | 5.3 / 8 | 2: 53 / 44 % | 2 |
 | 11 | 89 % | 0.01 % | 5.6 / 9 | 2: 96 / 3 % | 1 |
 | 12 | 76 % | 7.9 % | 6.3 / 10 | **0: never orders** | 0 |
+| 13 | 86 % | 0.3 % | 5.9 / 9 | 2: 54 / 46 % | 2 |
 | 14 | 80 % | 5.6 % | 6.1 / 10 | 0: never orders | 0 |
+| 15 | 79 % | 7.2 % | 6.1 / 10 | 0: never orders | 0 |
 | 16 | 73 % | 9.8 % | 6.8 / 11 | 0: never orders | 0 |
+| 17 | 74 % | 0.01 % | 7.0 / 12 | 1 | 1 |
 | 18 | 84 % | 0.3 % | 6.1 / 10 | 1 | 1 |
+| 19 | 85 % | 0.2 % | 6.2 / 10 | 3: 94 / 3 / 2 % | 1 |
 | 20 | 85 % | 0.01 % | 6.1 / 10 | 1: 99 % | 1 |
 | 21 | 85 % | 0.05 % | 6.0 / 10 | 3: 85 / 13 / 1 % | 2 |
 | 22 | 84 % | 0.02 % | 6.1 / 10 | 3: 76 / 14 / 9 %, 50 domains | 2 |
@@ -285,8 +289,8 @@ stray cycle worth the name, and a funnel at F's level or better (F: 50 %
 after 8 steps, transient 9.6). What does not scale is coexistence on the
 lattice. Two regularities:
 
-- **Stray cycles are fatal.** The three dictionaries whose random cells end
-  in stray cycles 6 to 10 % of the time (12, 14, 16 species) never order at
+- **Stray cycles are fatal.** The four dictionaries whose random cells end
+  in stray cycles 6 to 10 % of the time (12, 14, 15, 16 species) never order at
   all: the swaps keep producing the junk that feeds those cycles, and the
   designed species never get a foothold. Below 0.5 % stray the lattice
   orders every time. The design rule is therefore: no stray cycles, before
@@ -343,3 +347,126 @@ same advantage a steeper funnel gives. One seed and one design; the test
 is a set of equal-reading patterns with the lengths permuted over them.
 Both dictionaries are in the page manifest; the mixed one needs the window
 range 60000.
+
+## 10. The pair modes (2026-10-19)
+
+The page can hand the decoder two neighbouring cells (pixels 2i and 2i+1)
+as one 32-byte joint cell, concatenated or interleaved by bit, nibble or
+byte, with the roles of the two swapping every turn. `decode36.mjs` now
+decodes 32-byte cells and has the join and split maps; it agrees with the
+module on 4,096 pairs in all four modes (`verify-pairs.mjs`).
+
+**Construction (`design-pair.mjs`).** Both cells of a pair carry the same
+designed state C, so the joint cell is the same whichever cell leads: C‖C
+(concatenated) or C with every bit doubled (bit-interleaved). The joint
+cell's head says "copies from the dictionary adding up to 32 bytes at a
+distance d ≥ 32" and points at a 32-byte word holding the joint form of the
+next state, so the split leaves both cells on the next state. Slots are 32
+bytes apart on a Gray code over header bits 5, 6 and 10. The command form
+is searched for printable bytes; the landing pad must cover the heads of
+*both* halves of the joint word, because the trailing half leads on the
+next turn (with a pad covering one half the funnel failed: 2 % landed).
+
+**Concatenated pairs work at the 16-bit window only.** 894,168 forms were
+tried; the printable one is copies 6 + 13 + 13 at distance 33 with the
+uppercase transform on the first, 70 cell bits. At V = 4096 no filler
+letter lands a 32-byte pad; at 60000 six letters do (`7 ; ? + / '`,
+readings 64 to 96 bits). Dictionaries `ca-paircat3`, `ca-paircat4`,
+`ca-paircat6` (61,440 bytes): 100 % of random pairs land on one designed
+cycle, 82 % within 8 turns, transient mean 6.1 to 6.4; verified bit-exactly
+against the module in pair mode.
+
+**Bit-interleaving is not possible in printable bytes.** The joint cell's
+read bits must come in equal pairs, which leaves copy lengths 2, 6, 9, 10,
+13 and distances 49, 52, 61, 64; every distance above 32 puts a one in the
+top bit of some dictionary byte, and allowing control bytes 1..31 does not
+help (64 forms, none printable at V = 4096 or 60000). The same holds for
+nibble and byte interleaving. A design needs dictionary bytes above 127,
+which the page cannot carry (dictionaries travel as UTF-8), or a decoder
+change (one more distance bit, or a short code for 32).
+
+**On the lattice the pair coupling over-synchronises.** 256², swap ½,
+1,000 turns, Cells = pairs concatenated:
+
+| dictionary | median 1 quenched | median 1 annealed | median 0.6 annealed | page frame |
+|---|---|---|---|---|
+| paircat3 | one species, 5 phase domains | 2 species (94 / 6 %), 5 phase domains | one species, 2 phase domains | 50 % off-cycle, one species below |
+| paircat4 | one species, 37 phase domains | one species, 21 | one species, 4 | 54 % off-cycle, one species |
+| paircat6 | one species, 1 phase domain | one species, 3 | one species, 32 | 53 % off-cycle, one species |
+
+Compare the single-cell designs at the same points: three to seven species
+and hundreds of phase domains. In a pair the leading cell overwrites both
+every turn, so a pair is one 32-byte oscillator with twice the neighbours,
+and the collective selection runs to a single species and almost a single
+phase within 1,000 turns. The pair modes make the lattice *more* ordered,
+not richer; the picture they give is the granular sky over a flat field.
+To get structure from pairs the two halves would have to be designed to
+differ (a pair state (A, B) with two words per state, one per role), which
+the printable constraint forbids for interleaving and which for
+concatenation would need the next word to hold (A', B') with B' a valid head
+too: possible, since both halves of the word are free, and the natural
+next step if pair pictures are wanted.
+
+## 11. Interleaved pairs: a valid decoder, a dead lattice (2026-10-20)
+
+Dropping the identical halves gives a construction for every pair mode: let
+J be the joint cell as the decoder sees it this turn; the word at J's
+pointer is swap(J_next), the next state in its role-swapped form, so the
+pair walks the cycle whichever cell leads, and the two cells differ. The
+head bytes must come from an alphabet closed under the mode's swap and
+printable: any non-lowercase byte for concatenation and byte interleaving,
+the sixteen bytes `0`..`?` for bit interleaving (bits 4, 5 set and 6, 7
+clear survive the bit-pair swap), none for nibble interleaving (no command
+form fits). `design-pair.mjs` now builds all of these; the filler letter
+must itself survive the swap (for bits: `0 3 < ?`), or the all-X joint of
+one turn is a different cell the next.
+
+| dictionary | mode | species | random pairs landing | within 8 turns | module check |
+|---|---|---|---|---|---|
+| `ca-pairbit1` | bit-interleaved | 1 (two header spots fit the alphabet) | 91.5 % | 85 % | 0 mismatches |
+| `ca-pairbyte4` | byte-interleaved | 4 | 100 % | 87 % | 0 mismatches |
+| `ca-pairbyte6` | byte-interleaved | 6 | 99.6 % | 91 % | — |
+
+**On the lattice they never order**: 99 to 100 % of cells off-cycle at
+every setting (256², 1,000 turns, Cells set to the mode), against the
+concatenated designs with identical halves, which order fully. The reason
+is the mixing stage: the two cells of a pair are horizontal neighbours, so
+one of the two left–right swap phases exchanges bits between them every
+turn, at rate ½ where they differ. Identical halves have nothing to
+exchange; halves that differ by design are scrambled before the decoder
+reads them. So within the page as it is, pair designs need identical
+halves, which the bit-pair swap makes impossible in printable bytes.
+
+What would make interleaved designs live: a lattice option that skips the
+swap phase pairing the two cells of a pair (a model change, one phase of
+four), or dictionary bytes above 127 (a transport change), or mixing at
+p near 0 or 1, where there is nothing to design against. The three
+dictionaries stay in the menu as what they are: clean decoders whose
+pictures show the pair mixing itself.
+
+### 11a. More interleaved designs (2026-10-20, later)
+
+Two corrections widened the construction. First, only the dictionary word
+W = swap(J) must be printable, not the joint cell J, so a head byte of J is
+allowed whenever its swapped image is printable and not lowercase: 69 bytes
+for bit interleaving instead of 16. Second, a filler letter that does not
+survive the swap can still serve if both the all-X and the all-swap(X)
+joint get a landing pad on the same word, which the tool now lays. The Gray
+bits are chosen among all triples of header bits 5 to 13, and the header
+may sit at any offset within the 32-byte slot spacing (nibble interleaving
+needs header bit 3 or 4 set for byte 1's low nibble).
+
+| dictionary | mode | species | random pairs landing | within 8 turns | module check |
+|---|---|---|---|---|---|
+| `ca-pairbit2` | bit | 2 | 34 % (the packing drew weak letters) | 26 % | 0 mismatches |
+| `ca-pairbit4` | bit | 4 | 98.7 % | 81 % | 0 mismatches |
+| `ca-pairbyte8` | byte | 8 | 96.9 % | 89 % | 0 mismatches |
+| `ca-pairbyte10` | byte | 10 | 93.8 % | 84 % | 0 mismatches |
+
+Nibble interleaving now has a head form (copies 2 + 6 + 12 + 12 at
+distance 55, 83 bits, header offset 8, 34 header spots) but no landing
+pad: its head is 11 bytes, and no letter whose all-X joint copies 11
+distinct dictionary bytes has a swapped image that lands too. It stays
+undone. All of these share the lattice fate of section 11: the swap phase
+between the two cells of a pair keeps them off their cycles at swap p near
+½; they are in the menu for their pictures.

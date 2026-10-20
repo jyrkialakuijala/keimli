@@ -1,7 +1,11 @@
 # Research status, 2026-10-18
 
 The plan is `../RESEARCH_PLAN.md`; the reviews are in `../reviews/`; the
-amendments and the pre-registration are `../PLAN_AMENDMENTS.md`. This file
+amendments and the pre-registration are `../PLAN_AMENDMENTS.md`; the
+bibliography with verification flags is `../references.bib` and the
+related-work map with the prior-art search log is `../RELATED_WORK.md`
+(started 2026-10-19: 16 entries verified, 19 partly, 33 from memory; no
+prior use of a decoder as a lattice rule found). This file
 is the index of what has been measured and what each hypothesis looks like
 now. Every number below comes from a table under `../data/` produced by a
 script under `../experiments/`; nothing is from a screenshot.
@@ -14,7 +18,10 @@ script under `../experiments/`; nothing is from a screenshot.
 | `ablation-main.md` | the seven-condition ablation matrix at six uniform parameter points, quenched and annealed, 10 seeds, with the hash nulls; the decoder's attractor census | `../data/ablation/`, `../data/decoder-map/cycles.md` |
 | `ablation-structure.md` | F against its byte shuffles, word shuffle and reversal at the lattice level; the 128/256/512 scaling check | same |
 | `ablation-scan.md` | the median-probability scan 0.02 to 0.3 with all nulls, and the cycle null models | same |
-| `design-gray3.md` | dictionaries built, not searched: three to thirty-two Gray-coded 8-cycles (3 to 6 at the page's window, 7 to 32 with a 61 kB dictionary and a 16-bit window), the invasion tables, the lattice's phase mosaics and species coexistence, the reading-length rule for which species wins, the stray-cycle rule for whether the lattice orders at all, and cycle lengths 5 to 12 (the longest cycle wins at equal reading length) | `../data/design/` |
+| `codebook-vote.md` | the codebook cycles on isolated pairs break under any swap or median noise; coupled through the 4-neighbour vote partner they coarsen into domains (two page presets) | scratch run |
+| `life-vote.md` | the author's synchronous 4-neighbour vote equals the 4-connected median at one pass; without swaps it is isotropic but leaves F's phases uncorrelated beyond 8 cells, while the designed dictionaries order under it | `../data/design/life/` |
+| `swap-order.md` | the fixed phase order UD0 LR0 UD1 LR1 is anisotropic (ξy/ξx 1.37 for F at swap ½, median 1); turning the pattern by 90° each turn, the page's default from 2026-10-20, makes C(1) and C(8) equal along x and y and gives the most ordered lattice of six schemes; the article's runs must be repeated with it | `../data/design/order/` |
+| `design-gray3.md` | dictionaries built, not searched: three to thirty-two Gray-coded 8-cycles (3 to 6 at the page's window, 7 to 32 with a 61 kB dictionary and a 16-bit window), the invasion tables, the lattice's phase mosaics and species coexistence, the reading-length rule for which species wins, the stray-cycle rule for whether the lattice orders at all, cycle lengths 5 to 12 (the longest cycle wins at equal reading length), and the pair modes (concatenated pairs designed at the 16-bit window; bit-interleaving impossible in printable bytes; pairs over-synchronise) | `../data/design/` |
 
 Run counts: 67 + 9 decoder-map runs of 10⁶ cells, 9 + 6 attractor censuses,
 1,192 lattice runs of 256 × 256 × 1,000 turns (plus 12 at 128 and 512).
@@ -76,7 +83,7 @@ Run counts: 67 + 9 decoder-map runs of 10⁶ cells, 9 + 6 attractor censuses,
 
 ## Next experiments, in order
 
-0. On the designed dictionaries (`design-gray3.md` sections 5 to 9): a
+0. On the designed dictionaries (`design-gray3.md` sections 5 to 10): a
    census-scored packing search with one reading length and no stray cycle,
    so that many species coexist (the 24-species dictionary keeps seven in a
    quenched mosaic; the ones with 6 to 10 % stray cycles never order); a header

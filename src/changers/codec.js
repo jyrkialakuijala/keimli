@@ -156,7 +156,7 @@ const Codec = (() => {
     m8.set(built.bytes, LAYOUT.TEXT);
     decoderTables(memory, built.bytes);
     const headerBits = built.headerBits ?? cursorBits(textLen), offsetUnit = Math.ceil(textLen / 2 ** headerBits);
-    put(LAYOUT.PRM, [OUT, OUT_BYTES, LAYOUT.LIT, 0, 0, 0, 0, 0, textLen, FLAGS, 0, offsetUnit, 0, 0, LAYOUT.LUT, meanRaw, meanDec, gain, 0, 0, 0, 0, 0, 256, headerBits, CURSOR_OFFSET, 0, 0, FLAGS + 128]);   // ..., pairMode, pairFlip, pairBuf
+    put(LAYOUT.PRM, [OUT, OUT_BYTES, LAYOUT.LIT, 0, 0, 0, 0, 0, textLen, FLAGS, 0, offsetUnit, 0, 0, LAYOUT.LUT, meanRaw, meanDec, gain, 0, 0, 0, 0, 0, 256, headerBits, CURSOR_OFFSET, 0, 0, FLAGS + 128, 3, 0, 0, 0, 0]);   // ..., pairBuf, pairWrite (3: both cells), gridW, gridY0, gridH, snap   // ..., pairMode, pairFlip, pairBuf
     const cosTab = new Float64Array(memory.buffer, LAYOUT.COS, 33);   // cos(pi m / 64), m = 0..32, for the DCT processors (16 and 32 points, the rest by symmetry)
     for (let m = 0; m <= 32; m++) cosTab[m] = Math.cos(Math.PI * m / 64);
     const io = { OUT, FLAGS, textLen, OUT_BYTES, offsetUnit, headerBits, cursorOffset: CURSOR_OFFSET, skipBits: 0, cursorRead: 0, meanRaw, meanDec, gain, lastOffset: () => new Int32Array(memory.buffer, LAYOUT.PRM, 13)[12],
@@ -168,7 +168,7 @@ const Codec = (() => {
              // bits of the pixel skipped before the LZ header, 0..16
              setSkipBits: n => { io.skipBits = n; new Int32Array(memory.buffer, LAYOUT.PRM, 11)[10] = n; },
              // pairs: mode 0 single cells, 1 concatenated, 2 bit-interleaved, 3 xor then add, 4 add then subtract, 5 byte-interleaved; flip swaps the roles of the two cells (alternate it per turn)
-             setPair: (mode, flip) => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 28); a[26] = mode | 0; a[27] = flip ? 1 : 0; },
+             setPair: (mode, flip, w, gy0, h, snap) => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 34); a[26] = mode | 0; a[27] = flip ? 1 : 0; if (w !== undefined) { a[30] = w | 0; a[31] = gy0 | 0; a[32] = h | 0; a[33] = snap | 0; } },   // the geometry and the snapshot: for the vote partner (pair modes 8 + m)
              setChanger: m => { new Int32Array(memory.buffer, LAYOUT.PRM, 19)[18] = m; },
              setSteps: n => { new Int32Array(memory.buffer, LAYOUT.PRM, 24)[23] = n; },
              frameSums: () => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 23); return { r: a[19], g: a[20], b: a[21], n: a[22] }; },
