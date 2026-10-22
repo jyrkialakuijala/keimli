@@ -26,11 +26,14 @@ if a.dicts:
     import json, unicodedata
     man = pathlib.Path(a.dicts); entries = json.loads(man.read_text(encoding='utf-8'))
     for e in entries:
-        text = unicodedata.normalize('NFC', (man.parent / e['file']).read_text(encoding='utf-8')).strip('\n') + '\n'
-        if e.get('url'):   # a large dictionary: the page fetches it from its url when selected; only its size is inlined
-            e['bytes'] = len(text.encode('utf-8'))
+        f = man.parent / e['file']
+        if e.get('url'):   # a large dictionary: the page fetches it from its url when selected; only its size is inlined,
+            if f.exists():   # measured from the file when it is there, else the manifest's count (the files are generated, not tracked)
+                e['bytes'] = len(unicodedata.normalize('NFC', f.read_text(encoding='utf-8')).strip('\n').encode('utf-8')) + 1
+            elif 'bytes' not in e:
+                raise SystemExit(f'{e["file"]} is absent and the manifest gives no byte count')
         else:
-            e['text'] = text
+            e['text'] = unicodedata.normalize('NFC', f.read_text(encoding='utf-8')).strip('\n') + '\n'
     page = page.replace('__DICTS_JSON__', json.dumps(entries, ensure_ascii=False).replace('</', '<\\/'))
 if a.band:
     page = page.replace('__BAND_JS__', pathlib.Path(a.band).read_text())
