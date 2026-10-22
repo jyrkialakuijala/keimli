@@ -55,7 +55,7 @@
 
 ## The processors on single cells (256 instructions, 256², 5 seeds)
 
-The 6502 and Redcode runs see millions of short-lived types, 0.76–2.2 million species per seed. Their result files
+The 6502 and Redcode runs see millions of short-lived types, 0.76–2.2 million types per seed. Their result files
 exceeded JavaScript's string limit and were not written, so these numbers are read from the run logs. The script now
 lists only types that ever held 0.1 % and counts the rest.
 

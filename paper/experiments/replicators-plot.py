@@ -30,7 +30,7 @@ dicts = sorted({r['dict'] for r in runs}, key=lambda d: [i for i, (_, f) in enum
 COL = {False: '#1f6fb2', True: '#d9541e'}   # uniform, frame
 STYLE = {128: ':', 256: '-', 512: '--'}
 
-# ---- figure 1: every species that held 1 % or more, its share against the turn (the leader at the end drawn full, the
+# ---- figure 1: every type that held 1 % or more, its share against the turn (the leader at the end drawn full, the
 # others thin), so that a change of leader shows as two crossing curves and not as a kink of one
 import numpy as np
 cols = 4 if len(dicts) > 9 else 3; rows_n = max(1, math.ceil(len(dicts) / cols))

@@ -2,40 +2,40 @@
 // whose consecutive states differ in one header bit (a reflected Gray code over bits 4..6 of the header) and,
 // optionally, one tail byte. Construction: a 16-byte cell whose first 30 + HB bits (HB = ceil(log2 V) header bits)
 // read "no literals, copy 10 bytes from the dictionary at distance d, then copy 6 more at the same distance" outputs
-// the 16 dictionary bytes at h - d, where h is the header; the other bits are not read. Species s has its states at
+// the 16 dictionary bytes at h - d, where h is the header; the other bits are not read. Type s has its states at
 // H0_s - d + 16 g(k-1) with headers H0_s + 16 g(k), g the Gray code, so state k decodes exactly to state k+1.
 // The rest of the dictionary (the filler) decides how fast random cells fall into the cycles. mode=const (default):
 // the header range is cut into S regions, each tiled with a short pattern P_s (one byte, or two bytes when more
-// species are wanted than there are single bytes that qualify), so every misaligned reading is one of the pattern's
+// type are wanted than there are single bytes that qualify), so every misaligned reading is one of the pattern's
 // rotations, whose decoding (fixed by the bits of the pattern) copies from dictionary positions we control: a
-// "landing pad" holding state 0 of species s is written there, so rotation -> state 0 in one step; the alphabet
+// "landing pad" holding state 0 of types s is written there, so rotation -> state 0 in one step; the alphabet
 // stays tiny, as in the swarm's dictionaries, and the funnel is steep. A pattern qualifies when every rotation's
 // cell begins with enough dictionary bytes from distinct positions to cover the head; the S patterns are chosen with
 // the shortest and most equal reading lengths (the number of bits the decoder reads from the pattern cell), since the
-// lattice favours the species with the shortest reading. The blocks go to header spots whose eight heads are
+// lattice favours the type with the shortest reading. The blocks go to header spots whose eight heads are
 // printable, inside their own region when one is free, and for S <= 6 the region bounds are hill-climbed for equal
-// basins. mode=words (3 species only, the first version): a 16-byte word per species tiled over its region, ten
+// basins. mode=words (3 types only, the first version): a 16-byte word per type tiled over its region, ten
 // bytes hill-climbed; slow funnel, kept as a control.
 // A pattern qualifies when at least one rotation's cell begins with enough dictionary bytes; patterns landing in
 // every rotation are preferred. With V = 4096 (the page default) and a 4,400-byte dictionary there are 16 block spots
-// (12 with printable heads, 4 whose byte 1 is a control character), so at most 16 species; V=8122 (the page's
-// largest window range) with len=8800 gives 13 header bits and 32 spots, so up to 32 species.
+// (12 with printable heads, 4 whose byte 1 is a control character), so at most 16 types; V=8122 (the page's
+// largest window range) with len=8800 gives 13 header bits and 32 spots, so up to 32 types.
 // Every byte printable ASCII, no lowercase in the tails (the decoder's case transforms), file ends with one newline
 // so the page and the harness see the same bytes.
-// Usage: node paper/experiments/design-dict.mjs [name=ca-gray3c] [species=3] [V=4096] [len=4400] [letters=123] [blocks=128,2304,3328]
+// Usage: node paper/experiments/design-dict.mjs [name=ca-gray3c] [types=3] [V=4096] [len=4400] [letters=123] [blocks=128,2304,3328]
 //        [bounds=1365,2730] [balance=0|1] [period=1|2|auto] [mode=const|words] [d=16] [tailgray=1] [iters=0] [N=400] [seed=1] [census=10000] [wt=0.01]
 import fs from 'node:fs';
 import { decode36, rangeBits } from './decode36.mjs';
 const dir = new URL('../..', import.meta.url).pathname.replace(/\/$/, '');
 const opt = Object.fromEntries(process.argv.slice(2).map(a => { const i = a.indexOf('='); return [a.slice(0, i), a.slice(i + 1)]; }));
-const MODE = opt.mode || 'const', S = Number(opt.species ?? (opt.letters ? opt.letters.length : 3));
+const MODE = opt.mode || 'const', S = Number((opt.types ?? opt.species) ?? (opt.letters ? opt.letters.length : 3));
 const V = Number(opt.V ?? (S > 12 ? 60000 : 4096)), TL = Number(opt.len ?? (V > 8192 ? 61440 : V > 4096 ? 8800 : 4400)), HB = rangeBits(V), SKIP = 6, OPTS = { skip: SKIP, V, coff: 0 };
 const DEFAULT_LETTERS = { 3: '123', 4: '0123', 5: '0"123', 6: '0!"123', 7: '0!1"2#3' };
 const LETTERS = opt.letters || null;   // the first designs (3 to 6 species) were built from letters= with blocks= and bounds=; the automatic selection is the default
 const NAME = opt.name || `ca-gray${S}c`, TAILGRAY = Number(opt.tailgray ?? 1), ITERS = Number(opt.iters ?? (MODE === 'const' ? 0 : 1500)), NS = Number(opt.N ?? 400), SEED = Number(opt.seed ?? 1), NCENSUS = Number(opt.census ?? 10000);
 const BALANCE = Number(opt.balance ?? (MODE === 'const' && !opt.bounds && S <= 6 ? 1 : 0));
 const PERIOD = opt.period || 'auto';
-// cycles=8 (default) or a list, one length per species (5 to 16): the cycle is a closed walk on the header cube over
+// cycles=8 (default) or a list, one length per type (5 to 16): the cycle is a closed walk on the header cube over
 // bits 4..6 (lengths up to 8) or bits 4..7 (9 to 16) with one-bit steps; an odd length takes one two-bit step. The tail
 // byte 6 then flips on every one-bit step and stays on the two-bit step (its parity), so every step is two bits.
 const CYCLES = (opt.cycles || '8').split(',').map(Number); if (CYCLES.length !== 1 && CYCLES.length !== S) throw new Error('cycles= needs one length or one per species');
@@ -119,7 +119,7 @@ function patternInfo(P) {
   const good = rots.filter(r => r.ok); if (!good.length) return null;
   return { P, rots, full: good.length === L, reading: Math.max(...good.map(r => r.consumed)) };
 }
-// ---- species, blocks, regions, patterns
+// ---- type, blocks, regions, patterns
 let SPECIES, REGIONS, pads = null, patterns = null;
 if (MODE === 'words') {
   if (S !== 3 || V !== 4096) throw new Error('mode=words is the three-species control at V = 4096');
@@ -223,7 +223,7 @@ const fixed = new Uint8Array(TL).fill(0x20), isFixed = new Uint8Array(TL);
 for (const s of SPECIES) for (let k = 0; k < lenOf(s); k++) { const p = posOf(s, k), w = stateOf(s, k); for (let i = 0; i < 16; i++) { if (isFixed[p + i]) throw new Error('blocks overlap'); fixed[p + i] = w[i]; isFixed[p + i] = 1; } }
 fixed[TL - 1] = 10; isFixed[TL - 1] = 1;
 if (patterns) pads = SPECIES.map((s, i) => { const s0 = stateOf(s, 0); for (const r of patterns[i].rots) if (r.ok) r.pos.forEach((p, j) => { if (isFixed[p] && fixed[p] !== s0[j]) throw new Error(`landing pad of ${s.name} at ${p} collides with a block or another pad`); fixed[p] = s0[j]; isFixed[p] = 1; }); return { pattern: key(Uint8Array.from(patterns[i].P)), reading: patterns[i].reading, full: patterns[i].full, rots: patterns[i].rots.map(r => ({ ok: r.ok, pos: r.pos, consumed: r.consumed, src: r.src })) }; });
-// mode=words: filler word per species, the head that maps to state 0 (header H0 + 64), ten searched bytes
+// mode=words: filler word per type, the head that maps to state 0 (header H0 + 64), ten searched bytes
 const fillers = SPECIES.map(s => ({ b0: s.b0, tail: s.tail.slice() }));
 const fillerWord = (s, f) => [...head(s.H0 ^ codeOf(walkOf(s)[lenOf(s) - 1]), D, f.b0), ...f.tail];
 function build() {
@@ -271,7 +271,7 @@ const score = c => { const sh = SPECIES.map(s => c.shares[s.name]), designedFrac
 const cells = makeCells(NS, 0x9e3779b9 ^ SEED);
 let rs = (SEED * 2654435761 + 7) >>> 0; const rnd = () => { rs ^= rs << 13; rs >>>= 0; rs ^= rs >>> 17; rs ^= rs << 5; rs >>>= 0; return rs / 4294967296; };
 const ri = n => Math.floor(rnd() * n);
-// ---- const mode, few species: hill-climb the region bounds for equal basins
+// ---- const mode, few types: hill-climb the region bounds for equal basins
 if (BALANCE && MODE === 'const' && S > 1) {
   const lo = i => SPECIES[i].H0 - D, hi = i => SPECIES[i].H0 - D + SPAN(i);
   const bounds = REGIONS.slice(0, S - 1).map(r => r[1]);

@@ -1,4 +1,4 @@
-| dictionary | setting | n | leader k | basin b | 1/(N b) turns | first seen (median) | 10 % | 50 % | 90 % | final share | species ever ≥ 1 % | seeds where leader took 90 % | latest newcomer ≥ 1 %: first seen, k, basin, peak |
+| dictionary | setting | n | leader k | basin b | 1/(N b) turns | first seen (median) | 10 % | 50 % | 90 % | final share | type ever ≥ 1 % | seeds where leader took 90 % | latest newcomer ≥ 1 %: first seen, k, basin, peak |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | ca-brotli-1 | page frame | 128 | 2 | 77.79 % | < 1 | 7 | 11 | 41 | - | 54 % | 2 | 0 of 5 | 8, 2, 0.00 %, 1 % |
 | ca-brotli-1 | page frame | 256 | 2 | 77.73 % | < 1 | 7 | 11 | 39 | - | 54 % | 2 | 0 of 5 | 8, 2, 0.00 %, 1 % |

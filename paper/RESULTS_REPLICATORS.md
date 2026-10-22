@@ -43,7 +43,7 @@ neighbours agree, and the decoder's funnel, the transient that returns a
 perturbed cell to the cycle, turns an approximate copy into an exact one.
 Under this budget a cycle takes over a domain, a domain's phase
 synchronises, two cycles compete at a front with a rule for which wins
-(the one whose head the decoder reads in fewer bits), and species
+(the one whose head the decoder reads in fewer bits), and types
 coexist in a mosaic or one wets the boundary between two others (Section
 5.y). None of this involves an instruction that copies; the copying is
 done by exchange and majority, and the program's only contribution is to
@@ -79,26 +79,26 @@ population searched, learned or built. The decompressive automaton
 shows late and elaborate appearances without any such thing, and a
 Monte Carlo over the dictionaries says what they are
 (`results/replicators.md`). First appearance is never late for an
-attractor that matters: every species that ever held one per cent of
+attractor that matters: every type that ever held one per cent of
 the cells was present at the earliest turn the detector allows, in
 every run, because the first of N cells to fall into a basin b is
 expected after 1 / (N b) turns and no detectable basin is below 1 / N.
-What is late is takeover. A species present from the start at a share
+What is late is takeover. A type present from the start at a share
 below notice takes the lattice at the pace of a front, half of a 256²
 lattice after a thousand turns for the fixed point of one searched
 dictionary under the page frame, about 1.5 times longer than at 128²;
-and which species that is depends on the entropy budget rather than on
+and which type that is depends on the entropy budget rather than on
 the basin: under strong uniform settling the attractor with the largest
 basin wins within a few tens of turns, under the frame a fixed point
 whose basin is a three-hundredth of the leading cycle's wins instead,
 because the majority filter propagates what makes neighbours agree. The
-sharpest-looking structures of the page, the species mosaics of the
+sharpest-looking structures of the page, the type mosaics of the
 designed dictionaries, are those that never finish taking over at all.
 Neither the lateness nor the elaboration is the mark of a computation;
 both are the marks of a slow medium choosing among attractors that were
 all there from the start, and the decompressive automaton, which cannot
 compute, produces them on schedule (*to show*: the long runs for any
-species whose basin is below 1 / N, which would be the only genuine
+type whose basin is below 1 / N, which would be the only genuine
 late appearances, and the takeover time against the lattice size and
 the budget as the curves a computational system's late replicators
 should be compared with before anything is attributed to the
@@ -109,6 +109,6 @@ decompressive automaton, replication decomposes into an attractor of the
 rewriting map, which is a matter of enumeration, and a spread through an
 entropy budget, which is a matter of statistical physics; nothing in it
 is a replicator in the sense of a program that copies itself, and yet
-the lattice shows the species, the invasions and the coexistence that
+the lattice shows the type, the invasions and the coexistence that
 replicators are credited with. The burden is on the processor arm to
 show what is left when those two are taken away.

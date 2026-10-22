@@ -1,10 +1,10 @@
 // A Monte Carlo on replicators: when do cycles of the rewriting map first appear on the lattice, and how fast do they take
 // over? No knowledge of the dictionary's cycles is used: a cell is on a k-cycle (k <= KMAX) when its content has repeated
 // with period k over the last 2k turns, and the cycle's identity is the canonical rotation of its k state hashes, so the
-// same cycle is the same species wherever and whenever it is found. For every species the script records the turn of
+// same cycle is the same type wherever and whenever it is found. For every type the script records the turn of
 // first appearance, the turns at which it holds 1, 10, 50 and 90 % of the cells, its peak and its final share; and, for
-// the waiting-time comparison, the basin of each species under the decoder alone (random cells decoded in isolation,
-// mixing and settling off: the share on the species after 200 turns). A k-cycle is visible from turn 2k - 1 on.
+// the waiting-time comparison, the basin of each type under the decoder alone (random cells decoded in isolation,
+// mixing and settling off: the share on the type after 200 turns). A k-cycle is visible from turn 2k - 1 on.
 // Usage: node paper/experiments/replicators.mjs dict=ca-swarm-f [cread=4096] [n=256] [turns=2000] [seeds=5] [pm=0.5] [ps=1]
 //        [page=1] [pair=0] [mixsync=0] [nbr=1] [passes=3] [kmax=64] [order=rotate] [changer=36] [steps=256] [salt=0] [out=paper/data/replicators-v2]
 // changer selects the rewriting rule (36 the Brotli-like decoder on dict; a CPU kind runs steps instructions a cell and

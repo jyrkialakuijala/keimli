@@ -32,8 +32,8 @@ Keimli's rule is a decompressor: a cell's bits are read once, left to
 right, as the commands of a Brotli-like stream against a shared
 dictionary, and the output replaces the cell. That is a program being run
 (the cell's content is the program, the dictionary its library), so the
-phenomena of running code appear: the cycle a cell falls into, the species
-that share a dictionary, the invasion of one species by another, the
+phenomena of running code appear: the cycle a cell falls into, the type
+that share a dictionary, the invasion of one type by another, the
 transients, the dependence on where in the cell a bit sits. But the
 decoder is not a general computation. It has no loop that reads its own
 output, no address arithmetic, no halting question: it consumes each input
@@ -72,7 +72,7 @@ medium. Whatever the decompressive automaton reproduces of Core War's
 and Tierra's phenomenology is, by construction, of the second kind, and
 whatever it cannot reproduce is a candidate for the first. *To show*: a
 list of the phenomena of computational life reproduced here (cycles and
-species, invasion fronts and domains, the dependence of survival on the
+type, invasion fronts and domains, the dependence of survival on the
 dictionary, the synchronisation of phase across a domain, the coarsening
 under the vote partner), measured with the entropy-centric observables
 of the article, and the phenomena that need the CPU changers (the link

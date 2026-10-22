@@ -14,12 +14,12 @@
 // (copy lengths, distance, transforms) is searched for the one with the most header spots within the alphabet.
 // Filler: constant byte regions with landing pads, as design-dict.mjs; the all-X joint cell (width 32) must copy
 // dictionary bytes into the positions that become the next joint's head after the swap.
-// Usage: node paper/experiments/design-pair.mjs mode=1|2|3|4|5 [species=3] [V=60000] [len=61440] [name=] [census=10000] [seed=1]
+// Usage: node paper/experiments/design-pair.mjs mode=1|2|3|4|5 [types=3] [V=60000] [len=61440] [name=] [census=10000] [seed=1]
 import fs from 'node:fs';
 import { decode36, rangeBits, joinPair, splitPair } from './decode36.mjs';
 const dir = new URL('../..', import.meta.url).pathname.replace(/\/$/, '');
 const opt = Object.fromEntries(process.argv.slice(2).map(a => { const i = a.indexOf('='); return [a.slice(0, i), a.slice(i + 1)]; }));
-const MODE = Number(opt.mode ?? 1), S = Number(opt.species ?? 3);
+const MODE = Number(opt.mode ?? 1), S = Number((opt.types ?? opt.species) ?? 3);
 const V = Number(opt.V ?? 60000), TL = Number(opt.len ?? (V > 8192 ? 61440 : 4400)), HB = rangeBits(V), SKIP = 6, OPTS = { skip: SKIP, V, coff: 0, width: 32 };
 const MODENAME = { 1: 'cat', 2: 'bit', 3: 'nib', 4: 'bit2', 5: 'byte' }[MODE]; if (!MODENAME) throw new Error('mode 1, 2, 3, 4 or 5');
 const NAME = opt.name || `ca-pair${MODENAME}${S}`, SEED = Number(opt.seed ?? 1), NCENSUS = Number(opt.census ?? 10000);
@@ -134,7 +134,7 @@ if (process.env.DEBUG_PAD) for (const ch of (process.env.DEBUG_PAD.length > 1 ? 
 const letters = []; for (let v = 0x20; v <= 0x7e; v++) if (!lower(v)) { const p = padOf(v); if (p) letters.push(p); }
 letters.sort((a, b) => a.consumed - b.consumed);
 console.error(`filler letters that land (${PAD_INDEX.length} pad bytes of ${HEAD_BYTES} head bytes): ${letters.map(l => JSON.stringify(String.fromCharCode(l.X)) + (l.partner ? '/' + JSON.stringify(String.fromCharCode(l.partner)) : '') + ':' + l.consumed + (l.lit0 !== null ? ' lit ' + JSON.stringify(String.fromCharCode(l.lit0)) : '')).join(' ')}`);
-// ---- species packing
+// ---- type packing
 const SLOT = 32, slotsOf = H0 => Array.from({ length: 8 }, (_, k) => (H0 ^ codeOf(gray(k), BITS)) - D);
 let rs = (SEED * 2654435761 + 7) >>> 0; const rnd = () => { rs ^= rs << 13; rs >>>= 0; rs ^= rs >>> 17; rs ^= rs << 5; rs >>>= 0; return rs / 4294967296; };
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };

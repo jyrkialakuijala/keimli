@@ -1,7 +1,7 @@
-// The invasion table of a designed dictionary: cross a cell of species X (random phase) with a cell of species Y
+// The invasion table of a designed dictionary: cross a cell of types X (random phase) with a cell of types Y
 // (random phase) by uniform crossover at rate q per bit, iterate the decoder until a designed cycle is reached, and
-// count which species wins. Reports P(X wins | X x Y) for q = 1/2 (the lattice's exchange rate at swap p = 1/2) and
-// q = 1/8, plus the stray share and the mean steps to settle. Also crosses each species with a random cell.
+// count which type wins. Reports P(X wins | X x Y) for q = 1/2 (the lattice's exchange rate at swap p = 1/2) and
+// q = 1/8, plus the stray share and the mean steps to settle. Also crosses each type with a random cell.
 // Usage: node paper/experiments/invasion.mjs design=paper/data/design/ca-gray3c.json [N=20000]
 import fs from 'node:fs';
 import { decode36 } from './decode36.mjs';

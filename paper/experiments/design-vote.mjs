@@ -13,14 +13,14 @@
 // parsing them as the decoder does; the header bytes (cell byte 0 and the low bits of byte 1) then give the windows, and
 // a Gray walk on three bits of cell byte 0 that move the window by 32 or more gives an 8-cycle. Filler: constant regions
 // of a letter X with landing pads for the doubled cell that a filler copy produces, as design-pair.mjs.
-// Usage: node paper/experiments/design-vote.mjs mode=2|3|4|5 [species=1] [V=60000] [len=61440] [name=] [census=10000] [seed=1]
+// Usage: node paper/experiments/design-vote.mjs mode=2|3|4|5 [types=1] [V=60000] [len=61440] [name=] [census=10000] [seed=1]
 import fs from 'node:fs';
 import { decode36, rangeBits, joinPair, splitPair } from './decode36.mjs';
 const dir = new URL('../..', import.meta.url).pathname.replace(/\/$/, '');
 const opt = Object.fromEntries(process.argv.slice(2).map(a => { const i = a.indexOf('='); return [a.slice(0, i), a.slice(i + 1)]; }));
 const MODE = Number(opt.mode ?? 2), V = Number(opt.V ?? 60000), TL = Number(opt.len ?? 61440), HB = rangeBits(V), SKIP = 6, OPTS = { skip: SKIP, V, coff: 0, width: 32 };
 const MODENAME = { 2: 'bit', 3: 'nib', 4: 'bit2', 5: 'byte' }[MODE]; if (!MODENAME) throw new Error('mode 2, 3, 4 or 5');
-const S = Number(opt.species ?? 1), SEED = Number(opt.seed ?? 1), NCENSUS = Number(opt.census ?? 10000);
+const S = Number((opt.types ?? opt.species) ?? 1), SEED = Number(opt.seed ?? 1), NCENSUS = Number(opt.census ?? 10000);
 const key = c => Buffer.from(c).toString('latin1');
 const POP = new Uint8Array(256); for (let i = 0; i < 256; i++) POP[i] = (i & 1) + POP[i >> 1];
 const printable = v => v >= 0x20 && v <= 0x7e, lower = v => v >= 0x61 && v <= 0x7a, letter = v => lower(v) || (v >= 0x41 && v <= 0x5a);
@@ -119,7 +119,7 @@ function lettersFor(padBytes) {
   list.sort((a, b) => a.consumed - b.consumed);
   padCache.set(padBytes, list); return list;
 }
-// ---- species: pick cycles from the candidates without slot or pad collisions
+// ---- type: pick cycles from the candidates without slot or pad collisions
 const SLOT = 32;
 let rs = (SEED * 2654435761 + 7) >>> 0; const rnd = () => { rs ^= rs << 13; rs >>>= 0; rs ^= rs >>> 17; rs ^= rs << 5; rs >>>= 0; return rs / 4294967296; };
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };

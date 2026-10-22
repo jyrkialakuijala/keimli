@@ -1,9 +1,9 @@
 // One lattice run with a designed dictionary (design-dict.mjs): every sampled turn, classify each cell by exact match
-// against the designed cycle states (species A/B/C and phase k) and report the species shares, the off-cycle share,
-// the phase coherence per species |<exp(2 pi i k / 8)>|, the number of species domains (4-connected components of the
-// species label, in the bulk) and d1; write a PNG of the species/phase field at a few turns (species = hue, phase =
+// against the designed cycle states (type A/B/C and phase k) and report the type shares, the off-cycle share,
+// the phase coherence per type |<exp(2 pi i k / 8)>|, the number of types domains (4-connected components of the
+// type label, in the bulk) and d1; write a PNG of the type/phase field at a few turns (type = hue, phase =
 // lightness, off-cycle = dark grey). Uniform parameters as in ablation.mjs, or page=1 for the page's gradient frame.
-// Usage: node paper/experiments/species-run.mjs design=paper/data/design/ca-gray3.json pm=0.5 ps=1 salt=0 seed=1 n=256 turns=1000 [page=1] out=paper/data/design/runs
+// Usage: node paper/experiments/type-run.mjs design=paper/data/design/ca-gray3.json pm=0.5 ps=1 salt=0 seed=1 n=256 turns=1000 [page=1] out=paper/data/design/runs
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { makeSim } from '../../tools/ca-harness.mjs';
@@ -35,7 +35,7 @@ function stats(g, prev, sp, ph) {
     if (sp[i] < 0) cnt[NSP]++; else { cnt[sp[i]]++; re[sp[i]] += Math.cos(2 * Math.PI * ph[i] / NLEN[sp[i]]); im[sp[i]] += Math.sin(2 * Math.PI * ph[i] / NLEN[sp[i]]); }
     if (prev) for (let k = 0; k < 16; k++) d1 += POP[g[16 * i + k] ^ prev[16 * i + k]];
   }
-  // species domains: 4-connected components of equal species label in the bulk (off-cycle cells not counted)
+  // type domains: 4-connected components of equal type label in the bulk (off-cycle cells not counted)
   const seen = new Uint8Array(N), stack = []; let domains = 0, big = 0;
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
     const i = y * W + x; if (seen[i] || sp[i] < 0) continue;
@@ -44,7 +44,7 @@ function stats(g, prev, sp, ph) {
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const qx = jx + dx, qy = jy + dy; if (qx < x0 || qx >= x1 || qy < y0 || qy >= y1) continue; const q = qy * W + qx; if (!seen[q] && sp[q] === sp[i]) { seen[q] = 1; stack.push(q); } } }
     if (size > big) big = size;
   }
-  // phase domains: components of equal (species, phase); wall cells: on-cycle cells with a 4-neighbour of another species or phase
+  // phase domains: components of equal (type, phase); wall cells: on-cycle cells with a 4-neighbour of another type or phase
   const seen2 = new Uint8Array(N); let phaseDomains = 0, walls = 0;
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
     const i = y * W + x; if (sp[i] < 0) continue;

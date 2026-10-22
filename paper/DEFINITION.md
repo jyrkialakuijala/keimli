@@ -131,7 +131,7 @@ stops and never reads τ. Both copies reach past the empty output into the dicti
 
 *Proof.* The pointer lemma, applied to each S_k. ∎
 
-The construction is checked bit-exactly with the reference decoder for all 24 states of the three-species design
+The construction is checked bit-exactly with the reference decoder for all 24 states of the three-type design
 (design-gray3.md).
 
 **What the theorem does not give.**

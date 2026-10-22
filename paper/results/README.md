@@ -18,7 +18,7 @@ script under `../experiments/`; nothing is from a screenshot.
 | `ablation-main.md` | the seven-condition ablation matrix at six uniform parameter points, quenched and annealed, 10 seeds, with the hash nulls; the decoder's attractor census | `../data/ablation/`, `../data/decoder-map/cycles.md` |
 | `ablation-structure.md` | F against its byte shuffles, word shuffle and reversal at the lattice level; the 128/256/512 scaling check | same |
 | `ablation-scan.md` | the median-probability scan 0.02 to 0.3 with all nulls, and the cycle null models | same |
-| `replicators.md` | the replicator Monte Carlo: every major species is present from the first detectable turn (basins above 1/N); lateness is takeover at front speed, and the medium, not the basin, chooses the winner (fixed points under the frame's strong settling, the large-basin cycle under uniform settling) | `../data/replicators/` |
+| `replicators.md` | the replicator Monte Carlo: every major types is present from the first detectable turn (basins above 1/N); lateness is takeover at front speed, and the medium, not the basin, chooses the winner (fixed points under the frame's strong settling, the large-basin cycle under uniform settling) | `../data/replicators/` |
 | `entropy-manipulators.md` | calibration on rules of exactly known loss (elementary rules 150, 170, 60, 90 on the 128-bit ring): collision entropy matches rule 90's 2 bits a turn exactly, block entropy is blind to it; the decoder loses about 110 bits in its first step, a Z80 hardly any | `../data/entropy/` |
 | `mechanism.md` | why the medium picks the winner: the closure index (does bit exchange between a type's own states stay on the type) predicts which types hold domains in random phases (9 of 9 closed types survive, the open one dies); mixing melts open types and closed ones (fixed points, Gray cycles) nucleate in the melt and fill it, mapped on the frame; mutants are repaired or converted, almost never inherited | `../data/closure/`, `../data/droplets/`, `../data/heredity/`, `../data/frame-mechanism/` |
 | `dose-response.md` | six processors at 1–256 instructions against the decoder, look-and-say and rule 90: processors keep most of a cell's information (thousands of attractor types) and order the lattice locally (block entropy falls with the budget) without a leading type, while the decoder collapses the cell onto 1–3 types; on joined pairs Redcode's imp takes over the lattice, 6 % to 85 % as the budget rises, and the type that wins is a fixed point | `../data/dose/` |
@@ -27,11 +27,11 @@ script under `../experiments/`; nothing is from a screenshot.
 | `finite-size.md` | sizes 64–512: the quenched medium freezes at a size-independent length (12.4 → 12.6 cells from 256² to 512²), the turn-salted one coarsens until the lattice stops it (15 → 42), and with the decoder 64² and 128² lattices fall into a uniform absorbing state that larger ones avoid | `../data/ablation-sizes/` |
 | `replicators-v2.md` | the replicator Monte Carlo on the corrected pipeline (rotating order, censoring-aware Kaplan–Meier medians with bootstrap intervals, 20 seeds, 128–512²): rare fixed points take the frame in 99 of 100 seeds (Brotli 12, 13) against cycles with 93–100 % basins; takeover time grows only 1.35–1.6× for a fourfold side (nucleation, not a front); supersedes replicators.md | `../data/replicators-v2/` |
 | `look-and-say.md` | look-and-say on a 128-bit cell: the first step keeps at most the bits it reads (68 bits in hexadecimal, 73 decimal, 98 binary), then collapses onto Conway's 3-cycle; unbounded, it is lossless and LZ-type compressors see the information density fall to zero | (session scripts, numbers quoted) |
-| `design-vote.md` | dictionaries designed for a cell joined with its 4-neighbour vote (`ca-vote1` bit-joined, `ca-votebyte2` byte-joined, two species): doubled words, Gray 8-cycles; the nibble and 2-bit joinings admit no head | `../data/design/ca-vote1.*` |
+| `design-vote.md` | dictionaries designed for a cell joined with its 4-neighbour vote (`ca-vote1` bit-joined, `ca-votebyte2` byte-joined, two types): doubled words, Gray 8-cycles; the nibble and 2-bit joinings admit no head | `../data/design/ca-vote1.*` |
 | `codebook-vote.md` | the codebook cycles on isolated pairs break under any swap or median noise; coupled through the 4-neighbour vote partner they coarsen into domains (two page presets) | scratch run |
 | `life-vote.md` | the author's synchronous 4-neighbour vote equals the 4-connected median at one pass; without swaps it is isotropic but leaves F's phases uncorrelated beyond 8 cells, while the designed dictionaries order under it | `../data/design/life/` |
 | `swap-order.md` | the fixed phase order UD0 LR0 UD1 LR1 is anisotropic (ξy/ξx 1.37 for F at swap ½, median 1); turning the pattern by 90° each turn, the page's default from 2026-10-20, makes C(1) and C(8) equal along x and y and gives the most ordered lattice of six schemes; the article's runs must be repeated with it | `../data/design/order/` |
-| `design-gray3.md` | dictionaries built, not searched: three to thirty-two Gray-coded 8-cycles (3 to 6 at the page's window, 7 to 32 with a 61 kB dictionary and a 16-bit window), the invasion tables, the lattice's phase mosaics and species coexistence, the reading-length rule for which species wins, the stray-cycle rule for whether the lattice orders at all, cycle lengths 5 to 12 (the longest cycle wins at equal reading length), and the pair modes (concatenated pairs designed at the 16-bit window; bit-interleaving impossible in printable bytes; pairs over-synchronise) | `../data/design/` |
+| `design-gray3.md` | dictionaries built, not searched: three to thirty-two Gray-coded 8-cycles (3 to 6 at the page's window, 7 to 32 with a 61 kB dictionary and a 16-bit window), the invasion tables, the lattice's phase mosaics and types coexistence, the reading-length rule for which type wins, the stray-cycle rule for whether the lattice orders at all, cycle lengths 5 to 12 (the longest cycle wins at equal reading length), and the pair modes (concatenated pairs designed at the 16-bit window; bit-interleaving impossible in printable bytes; pairs over-synchronise) | `../data/design/` |
 
 Run counts: 67 + 9 decoder-map runs of 10⁶ cells, 9 + 6 attractor censuses,
 1,192 lattice runs of 256 × 256 × 1,000 turns (plus 12 at 128 and 512).
@@ -71,7 +71,7 @@ Run counts: 67 + 9 decoder-map runs of 10⁶ cells, 9 + 6 attractor censuses,
   consecutive states two bits apart, no stray cycle, a 5-turn transient and
   93 % of random cells on a cycle within 8 steps (F: 50 %). On the lattice it
   gives a q = 8 clock model (phase mosaics that coarsen annealed and pin
-  quenched) and, at median p = 1, three coexisting species with a slow
+  quenched) and, at median p = 1, three coexisting types with a slow
   collective invasion by C and a B wetting layer between A and C. The
   steepness of the funnel (a tiny alphabet) is what the lattice selects on;
   the same cycles with a hill-climbed filler never take hold.
@@ -95,7 +95,7 @@ Run counts: 67 + 9 decoder-map runs of 10⁶ cells, 9 + 6 attractor censuses,
 
 0. On the designed dictionaries (`design-gray3.md` sections 5 to 10): a
    census-scored packing search with one reading length and no stray cycle,
-   so that many species coexist (the 24-species dictionary keeps seven in a
+   so that many types coexist (the 24-type dictionary keeps seven in a
    quenched mosaic; the ones with 6 to 10 % stray cycles never order); a header
    geometry with cyclic dominance (A × B → C, B × C → A, C × A → B) and a
    look for spiral waves; longer Gray cycles.
@@ -123,7 +123,7 @@ node paper/experiments/codebook-image.mjs 128 1000000
 paper/experiments/ablation-all.sh 28 && paper/experiments/ablation-extra.sh 28 && paper/experiments/ablation-scan.sh 28 && paper/experiments/ablation-cycle.sh 28
 node paper/experiments/ablation-summary.mjs
 node paper/experiments/design-dict.mjs name=ca-gray3c mode=const letters=123 && node paper/experiments/invasion.mjs design=paper/data/design/ca-gray3c.json
-node paper/experiments/species-run.mjs design=paper/data/design/ca-gray3c.json pm=0.5 ps=1 salt=1 seed=1 n=256 turns=3000
+node paper/experiments/type-run.mjs design=paper/data/design/ca-gray3c.json pm=0.5 ps=1 salt=1 seed=1 n=256 turns=3000
 ```
 
 Node v22.22.1, `build/keimli.wasm` built from the working tree of

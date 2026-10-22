@@ -10,7 +10,7 @@ ol { padding-left: 1.4em; } li { margin-bottom: 0.3em; }
 figure { margin: 1em 0; page-break-inside: avoid; } figcaption { font-size: 9pt; color: #333; margin-top: 0.3em; text-align: justify; }
 </style></head><body><h1>Keimli: a decompressive cellular automaton</h1>
 <p><strong>Jyrki Alakuijala</strong></p>
-<p><em>Draft assembled 2026-10-21 from the section files under <code>paper/</code>. Sections not yet drafted are listed at the end.</em></p>
+<p><em>Draft assembled 2026-10-22 from the section files under <code>paper/</code>. Sections not yet drafted are listed at the end.</em></p>
 <h2>Abstract</h2>
 <p>Artificial life runs either programs, which give the richest phenomena but are general computations that can only be understood by being run, or rules, which are tractable but compute nothing. We propose a lattice whose local rule is a decompressor: each cell&rsquo;s 128 bits are read once as a Brotli-like stream against a shared dictionary and the decoded bytes replace the cell, so that every cell is a program that is run every turn, while the rule is a fixed-depth map, linear in the cell&rsquo;s size, whose image, fixed points and cycles can be sampled, enumerated and even prescribed. The decompression alone only repeats; we manage the entropy around it with two classical automata, neighbours trading bits and bit planes smoothed by majority, whose strengths vary across the image so that one frame holds the whole parameter range. The construction separates the two things a running program does, the subtle entropy reduction of its memory and the finesse of computation itself: the decoder has the first in full and the second not at all. We show that the replicators of computational life are, here, fixed points and short cycles of the rewriting map, listed by census and built by design, that their spread is the work of the medium, and that late and elaborate appearances are those of rare attractors in a slow medium rather than of computation. Twenty-five emulated processors on the same lattice form the comparison arm. The lattice, its decoders and processors, and every experiment run in the browser from a single page, which is the artifact.</p>
 <h1>1 Introduction</h1>
@@ -68,7 +68,7 @@ tens of turns, that shuffling the dictionary&rsquo;s bytes changes the cycles
 in a way the census of attractors reads off, and that the cycles can be
 prescribed: by placing in the dictionary the words that a cell&rsquo;s own
 head points at, one builds dictionaries whose cells walk Gray-coded
-cycles of eight states two bits apart, for as many species as the
+cycles of eight states two bits apart, for as many types as the
 dictionary has room for (Section 4, Figure 2).</p>
 <p>The choice of a decompressor follows an analogy that the measurement of
 complexity already lives by. The complexity of a genome, a recording or
@@ -155,8 +155,8 @@ field of clocks into a spatial system, with the one-frame phase diagram
 and its uniform controls. (iv) The ablation of the three stages, the
 retraction of the coarsening hypothesis and the identification of hash
 pinning. (v) The comparison between the decoder and the processors on
-the same lattice: cycles and species, invasion with a rule for which
-species wins, phase synchronisation across domains, coexistence and
+the same lattice: cycles and types, invasion with a rule for which
+type wins, phase synchronisation across domains, coexistence and
 wetting layers, and coarsening under a neighbourhood vote, as phenomena
 of the second kind; and the list of what needs a processor.</p>
 <p>Section 2 defines the lattice, the three stages and the decoder to the
@@ -281,7 +281,7 @@ neighbours agree, and the decoder&rsquo;s funnel, the transient that returns a
 perturbed cell to the cycle, turns an approximate copy into an exact one.
 Under this budget a cycle takes over a domain, a domain&rsquo;s phase
 synchronises, two cycles compete at a front with a rule for which wins
-(the one whose head the decoder reads in fewer bits), and species
+(the one whose head the decoder reads in fewer bits), and types
 coexist in a mosaic or one wets the boundary between two others (Section
 5.y). None of this involves an instruction that copies; the copying is
 done by exchange and majority, and the program&rsquo;s only contribution is to
@@ -315,26 +315,26 @@ population searched, learned or built. The decompressive automaton
 shows late and elaborate appearances without any such thing, and a
 Monte Carlo over the dictionaries says what they are
 (<code>results/replicators.md</code>). First appearance is never late for an
-attractor that matters: every species that ever held one per cent of
+attractor that matters: every type that ever held one per cent of
 the cells was present at the earliest turn the detector allows, in
 every run, because the first of N cells to fall into a basin b is
 expected after 1 / (N b) turns and no detectable basin is below 1 / N.
-What is late is takeover. A species present from the start at a share
+What is late is takeover. A type present from the start at a share
 below notice takes the lattice at the pace of a front, half of a 256²
 lattice after a thousand turns for the fixed point of one searched
 dictionary under the page frame, about 1.5 times longer than at 128²;
-and which species that is depends on the entropy budget rather than on
+and which type that is depends on the entropy budget rather than on
 the basin: under strong uniform settling the attractor with the largest
 basin wins within a few tens of turns, under the frame a fixed point
 whose basin is a three-hundredth of the leading cycle&rsquo;s wins instead,
 because the majority filter propagates what makes neighbours agree. The
-sharpest-looking structures of the page, the species mosaics of the
+sharpest-looking structures of the page, the type mosaics of the
 designed dictionaries, are those that never finish taking over at all.
 Neither the lateness nor the elaboration is the mark of a computation;
 both are the marks of a slow medium choosing among attractors that were
 all there from the start, and the decompressive automaton, which cannot
 compute, produces them on schedule (<em>to show</em>: the long runs for any
-species whose basin is below 1 / N, which would be the only genuine
+type whose basin is below 1 / N, which would be the only genuine
 late appearances, and the takeover time against the lattice size and
 the budget as the curves a computational system&rsquo;s late replicators
 should be compared with before anything is attributed to the
@@ -344,18 +344,24 @@ decompressive automaton, replication decomposes into an attractor of the
 rewriting map, which is a matter of enumeration, and a spread through an
 entropy budget, which is a matter of statistical physics; nothing in it
 is a replicator in the sense of a program that copies itself, and yet
-the lattice shows the species, the invasions and the coexistence that
+the lattice shows the type, the invasions and the coexistence that
 replicators are credited with. The burden is on the processor arm to
 show what is left when those two are taken away.</p>
 <h1>Figures</h1>
-<figure><img src="/home/jyrki/life/paper/figures/replicators-basin-vs-takeover.png" style="width:100%"><figcaption>Figure R2. The turn at which the leading species held half the cells against its basin under the decoder alone, per seed. Under the uniform setting the takeover takes 24 to 80 turns whatever the basin; under the frame the time falls with the basin from about a thousand turns at 0.3 % to forty at 100 %, and the winner can be a fixed point whose basin is a three-hundredth of the leading cycle&#x27;s.</figcaption></figure>
+<figure><img src="/home/jyrki/life/paper/figures/dose-response.png" style="width:100%"><figcaption>dose-response.png</figcaption></figure>
 
-<figure><img src="/home/jyrki/life/paper/figures/replicators-groups.png" style="width:100%"><figcaption>Figure R3. Takeover curves by kind of rewriting rule: the share of the species leading at the end, median over seeds, one curve per dictionary or processor; searched dictionaries, texts, designed dictionaries and processors in the four panels.</figcaption></figure>
+<figure><img src="/home/jyrki/life/paper/figures/mechanism-closure.png" style="width:100%"><figcaption>mechanism-closure.png</figcaption></figure>
 
-<figure><img src="/home/jyrki/life/paper/figures/replicators-takeover.png" style="width:100%"><figcaption>Figure R1. Takeover by the leading species: the share of cells on the most common cycle against the turn, one panel per dictionary, every seed a line; blue the uniform setting (swap ½, median 1), orange the page frame; dotted 128², solid 256². Every species that ever mattered is present as soon as its period can be seen (a k-cycle from turn 2k − 1); what differs is how fast, and whether, it takes the lattice. The species leading at the end is the full line, the others thin: under the frame the large-basin cycle of Brotli 12 and 13 rises first and gives way to a fixed point.</figcaption></figure>
+<figure><img src="/home/jyrki/life/paper/figures/mechanism-frame.png" style="width:100%"><figcaption>mechanism-frame.png</figcaption></figure>
+
+<figure><img src="/home/jyrki/life/paper/figures/replicators-basin-vs-takeover.png" style="width:100%"><figcaption>Figure R2. The turn at which the leading type held half the cells against its basin under the decoder alone, per seed. Under the uniform setting the takeover takes 24 to 80 turns whatever the basin; under the frame the time falls with the basin from about a thousand turns at 0.3 % to forty at 100 %, and the winner can be a fixed point whose basin is a three-hundredth of the leading cycle&#x27;s.</figcaption></figure>
+
+<figure><img src="/home/jyrki/life/paper/figures/replicators-groups.png" style="width:100%"><figcaption>Figure R3. Takeover curves by kind of rewriting rule: the share of the type leading at the end, median over seeds, one curve per dictionary or processor; searched dictionaries, texts, designed dictionaries and processors in the four panels.</figcaption></figure>
+
+<figure><img src="/home/jyrki/life/paper/figures/replicators-takeover.png" style="width:100%"><figcaption>Figure R1. Takeover by the leading type: the share of cells on the most common cycle against the turn, one panel per dictionary, every seed a line; blue the uniform setting (swap ½, median 1), orange the page frame; dotted 128², solid 256². Every type that ever mattered is present as soon as its period can be seen (a k-cycle from turn 2k − 1); what differs is how fast, and whether, it takes the lattice. The type leading at the end is the full line, the others thin: under the frame the large-basin cycle of Brotli 12 and 13 rises first and gives way to a fixed point.</figcaption></figure>
 
 <h1>Sections still to draft</h1>
-<p>3 Related work (the map is in <code>RELATED_WORK.md</code>); 4 The decoder as a map and the designed dictionaries (<code>results/decoder-map.md</code>, <code>results/design-gray3.md</code>); 5 Ablations, scans and the one-frame diagram (<code>results/ablation-*.md</code>, <code>results/swap-order.md</code>, <code>results/life-vote.md</code>); 5.y Species, invasion and coexistence (<code>results/design-gray3.md</code>); 6 The processors and the comparison; 7 Discussion. The replicator Monte Carlo (<code>experiments/replicators.mjs</code>) is running and will give Section 5.x its table.</p>
+<p>3 Related work (the map is in <code>RELATED_WORK.md</code>); 4 The decoder as a map and the designed dictionaries (<code>results/decoder-map.md</code>, <code>results/design-gray3.md</code>); 5 Ablations, scans and the one-frame diagram (<code>results/ablation-*.md</code>, <code>results/swap-order.md</code>, <code>results/life-vote.md</code>); 5.y Type, invasion and coexistence (<code>results/design-gray3.md</code>); 6 The processors and the comparison; 7 Discussion. The replicator Monte Carlo (<code>experiments/replicators.mjs</code>) is running and will give Section 5.x its table.</p>
 <h1>References</h1>
 <ol>
 <li>Dewdney, A. K. “Computer recreations: in the game called Core War hostile programs engage in a battle of bits”. Scientific American. 250, 14–22. 1984</li>

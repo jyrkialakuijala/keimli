@@ -83,9 +83,9 @@ read off (*shown*, `results/ablation-structure.md`). More than that: the
 attractor structure can be written down in advance. By placing in the
 dictionary the words that a cell's own head points at, we have built
 dictionaries whose cells walk Gray-coded cycles of eight states two bits
-apart, for three to thirty-two coexisting species and for cycle lengths
+apart, for three to thirty-two coexisting types and for cycle lengths
 from five to twelve, and the lattice behaves as a clock model of as many
-species (*shown*, `results/design-gray3.md`). No system of the first line
+type (*shown*, `results/design-gray3.md`). No system of the first line
 allows its attractors to be constructed; no system of the second line has
 attractors that are programs.
 
@@ -173,11 +173,11 @@ runs twenty-five emulated processors as rewriting rules, the Z80, 6502,
 PDP-11, 68000, VAX and Redcode among them, either on single cells or as
 persistent machines on every link between neighbouring cells, under the
 same mixing and settling and the same gradients. The phenomena the
-decoder already shows are cycles and species, the invasion of one species
-by another with a rule for which wins (the species whose head is read in
+decoder already shows are cycles and types, the invasion of one type
+by another with a rule for which wins (the type whose head is read in
 fewer bits), the synchronisation of phase across a domain and the pinning
-of phase boundaries, the coexistence of species in a mosaic and the
-wetting layer one species forms between two others, and coarsening into
+of phase boundaries, the coexistence of types in a mosaic and the
+wetting layer one type forms between two others, and coarsening into
 domains when a cell is rewritten together with the vote of its four
 neighbours (*shown*, `results/design-gray3.md`, `results/codebook-vote.md`).
 Which of these, and which of the processors' phenomena, need a processor

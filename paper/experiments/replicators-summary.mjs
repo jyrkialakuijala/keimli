@@ -1,4 +1,4 @@
-// Summarise the replicator Monte Carlo (replicators.mjs): per dictionary, size and setting, the leading species of each
+// Summarise the replicator Monte Carlo (replicators.mjs): per dictionary, size and setting, the leading type of each
 // seed, with its basin under the decoder alone, the waiting time 1 / (N b) that basin predicts for a first appearance,
 // the observed first appearance (a k-cycle is visible from turn 2k - 1), and the turns at which it held 10, 50 and 90 %.
 // Usage: node paper/experiments/replicators-summary.mjs [paper/data/replicators] > paper/results/replicators-table.md

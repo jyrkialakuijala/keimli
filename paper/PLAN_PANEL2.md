@@ -30,7 +30,7 @@ no melt at median ½; the block is the n = 5 version with the pre-melted sea and
 
 | # | item | days | who | status |
 |---|---|---|---|---|
-| B1 | DEFINITION.md: the Gray pointer lemma's prefix is 48 bits / 30 command bits / 80-bit tail; "mutation off" in the corollary; Lemma 3's look-and-say formula 128 / (2(1 − 1/b)) and the stopping time one digit longer (72.3 / 87.1 / 98.9 bits); the proposition stated for any bitwise function of any number of same-type states ("pure domain"); cross-type closure marked empirical; the mutual-closure corollary (species whose H₀ differ in one header bit); the Shannon bracket H₂ ≤ H ≤ 87.5 | 0.5 | mathematics 1–4, information 4, 6, 9, 12; professor 7 | |
+| B1 | DEFINITION.md: the Gray pointer lemma's prefix is 48 bits / 30 command bits / 80-bit tail; "mutation off" in the corollary; Lemma 3's look-and-say formula 128 / (2(1 − 1/b)) and the stopping time one digit longer (72.3 / 87.1 / 98.9 bits); the proposition stated for any bitwise function of any number of same-type states ("pure domain"); cross-type closure marked empirical; the mutual-closure corollary (type whose H₀ differ in one header bit); the Shannon bracket H₂ ≤ H ≤ 87.5 | 0.5 | mathematics 1–4, information 4, 6, 9, 12; professor 7 | |
 | B2 | Results regenerated from data with passes stated on every table: mechanism.md (38 / 95; the 11-cycle dies at median 0; the "heritable" column is conversion; the 2 × 2 count with the Swarm F row and the (r, steps) sensitivity in place of r = 0.79; basin-against-survival); replicators-v2.md (share curves and the times to 25 % and 40 % in place of 1.35–1.6× and t₅₀; gray3c's two leaders at 67–69 %; the CPU numbers without files dropped; the Declaration row marked unmeasured); finite-size.md ((½, 1) arrests, (0.2, ½) coarsens at z ≈ 0.26, turn-salted z ≈ 0.36 from series.csv, MSR lengths not printed); decoder-map.md l.38; look-and-say N = 131,044; entropy-manipulators' "110 bits" as a collision figure; infodyn "rest" as neither bound, with the identity-control row; the replicase log₂ definition stated once | 1 | all | |
 | B3 | results/README.md rewritten as an index; superseded banners on ablation-main / -scan / -structure, replicators.md, replicators-table.md, design-gray3; the two replicator figures regenerated from v2 or deleted; provenance in entropy-curves output and the lead files; the harness `altOrder` default rotate; the search tools' generator and seed-11 scoring retired with one paragraph; band.js and docs/lattice.md headers; the lemma test in the test list | 1 | computation 1, 6, 8–9; optimization f; physics 3.1 | |
 
@@ -39,7 +39,7 @@ no melt at median ½; the block is the n = 5 version with the pre-melted sea and
 | # | item | days | CPU-h | who | status |
 |---|---|---|---|---|---|
 | C | Entropy calibration on a non-flat map of known loss; Poisson intervals on every H₂ within 2 bits of the resolution | 0.5 | 1 | information 3, 8 | |
-| D | The design-winner rules at 5 seeds (gray4–6c, cyc567, cyc5to12, the 24/26-species designs), uniform (½, 1) | 0.3 | 4 | optimization d | |
+| D | The design-winner rules at 5 seeds (gray4–6c, cyc567, cyc5to12, the 24/26-type designs), uniform (½, 1) | 0.3 | 4 | optimization d | |
 | F0 | The salt-by-position control at 10 seeds, if "deterministic freezing, not disorder pinning" stays | 0.1 | 0.2 | physics F | |
 
 ### E. The writing (three to four days)

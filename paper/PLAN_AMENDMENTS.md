@@ -214,7 +214,7 @@ Added in response, without looking further:
 - **The attractor census** (`decoder-cycles.mjs`) was run after the main
   batch showed −−R collapsing to four cell contents; it was not planned and
   its results (one 3-cycle for F) are a finding, not a confirmed prediction.
-- **A designed dictionary** (`design-dict.mjs`, `species-run.mjs`,
+- **A designed dictionary** (`design-dict.mjs`, `type-run.mjs`,
   `invasion.mjs`, results in `results/design-gray3.md`) was built after the
   census, on the author's request, to test the conclusion that the attractor
   structure and the funnel's steepness are what the lattice responds to. It

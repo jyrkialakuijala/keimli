@@ -59,7 +59,7 @@ tens of turns, that shuffling the dictionary's bytes changes the cycles
 in a way the census of attractors reads off, and that the cycles can be
 prescribed: by placing in the dictionary the words that a cell's own
 head points at, one builds dictionaries whose cells walk Gray-coded
-cycles of eight states two bits apart, for as many species as the
+cycles of eight states two bits apart, for as many types as the
 dictionary has room for (Section 4, Figure 2).
 
 The choice of a decompressor follows an analogy that the measurement of
@@ -152,8 +152,8 @@ field of clocks into a spatial system, with the one-frame phase diagram
 and its uniform controls. (iv) The ablation of the three stages, the
 retraction of the coarsening hypothesis and the identification of hash
 pinning. (v) The comparison between the decoder and the processors on
-the same lattice: cycles and species, invasion with a rule for which
-species wins, phase synchronisation across domains, coexistence and
+the same lattice: cycles and types, invasion with a rule for which
+type wins, phase synchronisation across domains, coexistence and
 wetting layers, and coarsening under a neighbourhood vote, as phenomena
 of the second kind; and the list of what needs a processor.
 
