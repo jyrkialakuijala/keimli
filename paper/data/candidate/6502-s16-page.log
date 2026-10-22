@@ -1,0 +1,6 @@
+cpu7-page-n128-t1000-steps16: decoder alone after 200 turns, 94.9 % of cells on a cycle, 11561 species: 3-cycle 13.63 %, 1-cycle 4.39 %, 1-cycle 1.86 %, 2-cycle 1.37 %, 1-cycle 0.51 %, 3-cycle 0.35 %, 2-cycle 0.26 %, 1-cycle 0.23 %, 3-cycle 0.19 %, 1-cycle 0.18 %, 2-cycle 0.12 %, 3-cycle 0.10 %
+seed 1: 96971 species seen, 57.6 % of cells on a cycle at the end, leader (2-cycle) 1.5 %, first seen at turn 21, 50 % at -, 90 % at -
+seed 2: 89976 species seen, 51.5 % of cells on a cycle at the end, leader (2-cycle) 1.9 %, first seen at turn 15, 50 % at -, 90 % at -
+seed 3: 100420 species seen, 60.2 % of cells on a cycle at the end, leader (2-cycle) 4.4 %, first seen at turn 17, 50 % at -, 90 % at -
+seed 4: 79497 species seen, 55.1 % of cells on a cycle at the end, leader (2-cycle) 3.0 %, first seen at turn 12, 50 % at -, 90 % at -
+seed 5: 93259 species seen, 55.3 % of cells on a cycle at the end, leader (2-cycle) 2.6 %, first seen at turn 20, 50 % at -, 90 % at -

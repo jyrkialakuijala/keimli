@@ -1,0 +1,79 @@
+decoder ...
+decoder ca-swarm-f: H2 k1 16.50 k2 12.62 k4 7.50 k8 3.50 k16 1.80 k32 1.59 k64 1.58 k128 1.58 k256 1.58 | cycles 11, largest basin 100.0 %, on cycle at 16: 92.8 %, unsettled 0
+hash:93 ...
+hash:93: idempotent on 100000 of 100000
+uniform matched H2: n = 2^(H2+1) seed 1 ...
+uniform random map, matched H2: n = 2^(H2+1) (185734), seed 1: H2 k1 16.50 k2 15.91 k4 15.17 k8 14.30 k16 13.38 k32 12.45 k64 11.54 k128 10.69 k256 9.77 | cycles 9, largest basin 49.6 %, on cycle at 16: 8.7 %, unsettled 0
+uniform matched H2: n = 2^(H2+1) seed 2 ...
+uniform random map, matched H2: n = 2^(H2+1) (185734), seed 2: H2 k1 16.50 k2 15.91 k4 15.18 k8 14.31 k16 13.36 k32 12.38 k64 11.11 k128 9.69 k256 8.44 | cycles 9, largest basin 70.3 %, on cycle at 16: 4.7 %, unsettled 0
+uniform matched H2: n = 2^(H2+1) seed 3 ...
+uniform random map, matched H2: n = 2^(H2+1) (185734), seed 3: H2 k1 16.50 k2 15.91 k4 15.17 k8 14.32 k16 13.37 k32 12.40 k64 11.52 k128 10.67 k256 9.66 | cycles 8, largest basin 85.4 %, on cycle at 16: 4.5 %, unsettled 0
+uniform n = 2^20 seed 1 ...
+uniform random map, n = 2^20 (1048576), seed 1: H2 k1 19.00 k2 18.42 k4 17.68 k8 16.83 k16 15.91 k32 14.97 k64 14.03 k128 12.97 k256 12.04 | cycles 5, largest basin 38.7 %, on cycle at 16: 3.7 %, unsettled 0
+uniform n = 2^20 seed 2 ...
+uniform random map, n = 2^20 (1048576), seed 2: H2 k1 19.00 k2 18.41 k4 17.68 k8 16.84 k16 15.91 k32 14.97 k64 13.98 k128 13.03 k256 12.22 | cycles 11, largest basin 89.3 %, on cycle at 16: 4.5 %, unsettled 0
+uniform n = 2^20 seed 3 ...
+uniform random map, n = 2^20 (1048576), seed 3: H2 k1 19.00 k2 18.42 k4 17.68 k8 16.84 k16 15.93 k32 14.99 k64 14.00 k128 13.07 k256 12.11 | cycles 8, largest basin 78.5 %, on cycle at 16: 2.8 %, unsettled 0
+uniform n = 2^24 seed 1 ...
+uniform random map, n = 2^24 (16777216), seed 1: H2 k1 22.93 k2 22.33 k4 21.57 k8 20.71 k16 19.79 k32 18.84 k64 17.86 k128 16.87 k256 15.88 | cycles 7, largest basin 99.9 %, on cycle at 16: 0.1 %, unsettled 0
+uniform n = 2^24 seed 2 ...
+uniform random map, n = 2^24 (16777216), seed 2: H2 k1 22.94 k2 22.33 k4 21.57 k8 20.71 k16 19.79 k32 18.82 k64 17.84 k128 16.85 k256 15.87 | cycles 7, largest basin 48.1 %, on cycle at 16: 0.4 %, unsettled 0
+uniform n = 2^24 seed 3 ...
+uniform random map, n = 2^24 (16777216), seed 3: H2 k1 22.94 k2 22.33 k4 21.58 k8 20.72 k16 19.79 k32 18.83 k64 17.85 k128 16.87 k256 15.89 | cycles 6, largest basin 89.8 %, on cycle at 16: 0.3 %, unsettled 0
+P-map: building the one-step law ...
+P-map seed 1 ...
+P-random map (decoder's one-step law), seed 1: H2 k1 16.44 k2 15.44 k4 14.47 k8 13.51 k16 12.58 k32 11.67 k64 10.75 k128 9.98 k256 8.68 | cycles 4, largest basin 98.2 %, on cycle at 16: 5.2 %, unsettled 0
+P-map seed 2 ...
+P-random map (decoder's one-step law), seed 2: H2 k1 16.40 k2 15.47 k4 14.47 k8 13.51 k16 12.54 k32 11.65 k64 10.90 k128 10.26 k256 9.11 | cycles 2, largest basin 99.2 %, on cycle at 16: 5.2 %, unsettled 0
+P-map seed 3 ...
+P-random map (decoder's one-step law), seed 3: H2 k1 16.50 k2 15.51 k4 14.49 k8 13.50 k16 12.57 k32 11.71 k64 10.93 k128 9.95 k256 8.43 | cycles 5, largest basin 98.3 %, on cycle at 16: 5.2 %, unsettled 0
+<!-- provenance: paper/experiments/map-null.mjs (6be31584a90e189a) 1000000 300 | commit 48f9653+dirty | wasm 90ec8c30bca92b5b | 2026-10-21T13:05:07.756Z -->
+
+# The decoder map against random-mapping nulls (ca-swarm-f)
+
+N = 1000000 samples, T = 300 steps. H2 = -log2 of the unbiased collision probability among the N samples (">" = no collision: above the resolution 2 log2 N - 1), H_inf = -log2(max share).
+
+## H2 / H_inf / distinct after k steps
+
+| map | k=1 | k=2 | k=4 | k=8 | k=16 | k=32 | k=64 | k=128 | k=256 |
+|---|---|---|---|---|---|---|---|---|---|
+| decoder ca-swarm-f H2 | 16.50 | 12.62 | 7.50 | 3.50 | 1.80 | 1.59 | 1.58 | 1.58 | 1.58 |
+| decoder ca-swarm-f H_inf | 8.27 | 6.56 | 4.61 | 2.41 | 1.65 | 1.54 | 1.54 | 1.54 | 1.54 |
+| decoder ca-swarm-f distinct | 988284 | 881637 | 430427 | 53399 | 1505 | 37 | 18 | 18 | 18 |
+| P-random map (decoder's one-step law), seed 1 H2 | 16.44 | 15.44 | 14.47 | 13.51 | 12.58 | 11.67 | 10.75 | 9.98 | 8.68 |
+| P-random map (decoder's one-step law), seed 1 H_inf | 8.24 | 8.24 | 8.24 | 8.24 | 8.24 | 8.24 | 8.24 | 8.24 | 7.56 |
+| P-random map (decoder's one-step law), seed 1 distinct | 987884 | 975836 | 952443 | 907868 | 825727 | 686878 | 486345 | 265139 | 100238 |
+| uniform random map, matched H2: n = 2^(H2+1) (185734), seed 1 H2 | 16.50 | 15.91 | 15.17 | 14.30 | 13.38 | 12.45 | 11.54 | 10.69 | 9.77 |
+| uniform random map, matched H2: n = 2^(H2+1) (185734), seed 1 H_inf | 14.41 | 13.52 | 12.80 | 11.73 | 11.14 | 10.59 | 10.05 | 9.47 | 8.50 |
+| uniform random map, matched H2: n = 2^(H2+1) (185734), seed 1 distinct | 116994 | 86632 | 57732 | 35058 | 19815 | 10632 | 5788 | 2810 | 1675 |
+| uniform random map, n = 2^20 (1048576), seed 1 H2 | 19.00 | 18.42 | 17.68 | 16.83 | 15.91 | 14.97 | 14.03 | 12.97 | 12.04 |
+| uniform random map, n = 2^20 (1048576), seed 1 H_inf | 15.84 | 15.68 | 14.84 | 14.12 | 13.30 | 12.22 | 11.58 | 11.01 | 10.55 |
+| uniform random map, n = 2^20 (1048576), seed 1 distinct | 481534 | 386262 | 278265 | 179854 | 106054 | 58771 | 31404 | 16278 | 8452 |
+| uniform random map, n = 2^24 (16777216), seed 1 H2 | 22.93 | 22.33 | 21.57 | 20.71 | 19.79 | 18.84 | 17.86 | 16.87 | 15.88 |
+| uniform random map, n = 2^24 (16777216), seed 1 H_inf | 17.35 | 17.12 | 17.12 | 16.76 | 16.35 | 15.54 | 14.89 | 14.10 | 13.72 |
+| uniform random map, n = 2^24 (16777216), seed 1 distinct | 940791 | 912660 | 861156 | 773318 | 642508 | 482106 | 321298 | 193710 | 106796 |
+| FO n = 2^128, H2 ≈ 128 - log2(k+1) | 127.0 | 126.4 | 125.7 | 124.8 | 123.9 | 123.0 | 122.0 | 121.0 | 120.0 |
+
+## Cycles
+
+| map | cycles reached | unsettled at T | largest basin | top 5 basins | on a cycle at k = 1 / 4 / 16 / 64 / 256 | tail mean / p99 / max | periods (cycles: count) | periods (share of samples) |
+|---|---|---|---|---|---|---|---|---|
+| decoder ca-swarm-f | 11 | 0 | 100.0 % | 100.0, 0.0, 0.0, 0.0, 0.0 | 0.000 % / 5.2 % / 92.8 % / 100.0 % / 100.0 % | 9.6 / 26 / 41 | 1: 3, 2: 5, 3: 1, 4: 2 | 1: 0.0, 2: 0.0, 3: 100.0, 4: 0.0 |
+| P-random map (decoder's one-step law), seed 1 | 4 | 0 | 98.2 % | 98.2, 1.4, 0.2, 0.1 | 0.342 % / 1.3 % / 5.2 % / 19.6 % / 60.6 % | 262.7 / 1001 / 1668 | 9: 1, 99: 1, 163: 1, 287: 1 | 9: 1.4, 99: 0.2, 163: 98.2, 287: 0.1 |
+| P-random map (decoder's one-step law), seed 2 | 2 | 0 | 99.2 % | 99.2, 0.8 | 0.344 % / 1.3 % / 5.2 % / 18.3 % / 51.9 % | 350.9 / 1433 / 2175 | 169: 1, 195: 1 | 169: 99.2, 195: 0.8 |
+| P-random map (decoder's one-step law), seed 3 | 5 | 0 | 98.3 % | 98.3, 1.0, 0.5, 0.1, 0.0 | 0.335 % / 1.3 % / 5.2 % / 18.4 % / 59.2 % | 280.8 / 1210 / 2085 | 77: 1, 84: 1, 113: 1, 120: 1, 184: 1 | 77: 0.1, 84: 1.0, 113: 0.0, 120: 98.3, 184: 0.5 |
+| uniform random map, matched H2: n = 2^(H2+1) (185734), seed 1 | 9 | 0 | 49.6 % | 49.6, 41.0, 3.4, 2.8, 2.4 | 0.996 % / 2.5 % / 8.7 % / 26.6 % / 77.6 % | 168.7 / 509 / 588 | 1: 3, 25: 1, 42: 1, 132: 1, 201: 1, 222: 1, 304: 1 | 1: 0.0, 25: 2.4, 42: 0.8, 132: 3.4, 201: 41.0, 222: 2.8, 304: 49.6 |
+| uniform random map, matched H2: n = 2^(H2+1) (185734), seed 2 | 9 | 0 | 70.3 % | 70.3, 22.5, 3.1, 2.3, 1.1 | 0.437 % / 1.2 % / 4.7 % / 20.6 % / 69.9 % | 205.5 / 606 / 695 | 2: 2, 5: 1, 6: 1, 8: 1, 20: 1, 33: 1, 39: 1, 303: 1 | 2: 3.1, 5: 0.0, 6: 0.6, 8: 0.0, 20: 22.5, 33: 2.3, 39: 1.1, 303: 70.3 |
+| uniform random map, matched H2: n = 2^(H2+1) (185734), seed 3 | 8 | 0 | 85.4 % | 85.4, 7.6, 4.9, 1.9, 0.1 | 0.495 % / 1.3 % / 4.5 % / 16.4 % / 49.7 % | 277.7 / 884 / 956 | 1: 1, 2: 1, 9: 1, 10: 1, 37: 1, 46: 1, 110: 1, 234: 1 | 1: 0.0, 2: 0.0, 9: 0.1, 10: 0.0, 37: 7.6, 46: 1.9, 110: 4.9, 234: 85.4 |
+| uniform random map, n = 2^20 (1048576), seed 1 | 5 | 0 | 38.7 % | 38.7, 24.5, 19.5, 17.3, 0.0 | 0.446 % / 1.1 % / 3.7 % / 14.3 % / 48.4 % | 334.7 / 1080 / 1240 | 2: 1, 160: 1, 668: 1, 693: 1, 854: 1 | 2: 0.0, 160: 24.5, 668: 38.7, 693: 19.5, 854: 17.3 |
+| uniform random map, n = 2^20 (1048576), seed 2 | 11 | 0 | 89.3 % | 89.3, 4.2, 3.6, 1.5, 1.0 | 0.534 % / 1.3 % / 4.5 % / 15.9 % / 49.2 % | 363.3 / 1323 / 1432 | 2: 1, 6: 2, 11: 1, 12: 1, 67: 1, 85: 1, 169: 1, 173: 1, 291: 1, 1957: 1 | 2: 0.0, 6: 0.0, 11: 0.1, 12: 0.0, 67: 0.2, 85: 1.5, 169: 1.0, 173: 3.6, 291: 4.2, 1957: 89.3 |
+| uniform random map, n = 2^20 (1048576), seed 3 | 8 | 0 | 78.5 % | 78.5, 6.2, 6.2, 4.6, 3.9 | 0.321 % / 0.816 % / 2.8 % / 9.4 % / 32.5 % | 471.2 / 1382 / 1518 | 3: 1, 8: 1, 13: 1, 149: 1, 249: 1, 297: 1, 377: 1, 626: 1 | 3: 0.0, 8: 0.0, 13: 0.7, 149: 3.9, 249: 6.2, 297: 4.6, 377: 6.2, 626: 78.5 |
+| uniform random map, n = 2^24 (16777216), seed 1 | 7 | 0 | 99.9 % | 99.9, 0.1, 0.0, 0.0, 0.0 | 0.011 % / 0.029 % / 0.101 % / 0.394 % / 2.1 % | 3100.6 / 7163 / 7837 | 1: 1, 2: 1, 8: 2, 34: 1, 49: 1, 883: 1 | 1: 0.0, 2: 0.0, 8: 0.0, 34: 0.1, 49: 0.0, 883: 99.9 |
+| uniform random map, n = 2^24 (16777216), seed 2 | 7 | 0 | 48.1 % | 48.1, 37.1, 13.4, 1.2, 0.3 | 0.050 % / 0.124 % / 0.439 % / 1.6 % / 5.9 % | 1888.3 / 4382 / 5107 | 2: 1, 5: 1, 142: 1, 150: 1, 423: 1, 903: 1, 2306: 1 | 2: 0.0, 5: 0.0, 142: 0.3, 150: 1.2, 423: 13.4, 903: 37.1, 2306: 48.1 |
+| uniform random map, n = 2^24 (16777216), seed 3 | 6 | 0 | 89.8 % | 89.8, 7.5, 1.4, 1.3, 0.0 | 0.026 % / 0.071 % / 0.277 % / 1.3 % / 5.5 % | 4332.9 / 9728 / 10336 | 1: 1, 4: 1, 115: 1, 271: 1, 478: 1, 1305: 1 | 1: 0.0, 4: 0.0, 115: 1.3, 271: 7.5, 478: 1.4, 1305: 89.8 |
+
+hash:93: idempotent on 100.0 % of 10^5 samples: every sample is on a fixed point after one step; 2^93 attractors.
+
+P-law: 3087 atoms carrying 1.5 % of the mass, H2 16.47, H_inf 8.25.
+
+Flajolet–Odlyzko at n = 2^128: 44.4 cycles expected, 64.3 log2 cyclic nodes, expected rho length 2^64.3, largest component 75.8 %, 1 fixed point and 1/2 two-cycle expected. At the matched n = 185734: 6.1 cycles, rho 540 steps, cycle length 270.

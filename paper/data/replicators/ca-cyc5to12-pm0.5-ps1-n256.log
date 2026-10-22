@@ -1,0 +1,6 @@
+ca-cyc5to12-pm0.5-ps1-n256-t2000: decoder alone after 200 turns, 100.0 % of cells on a cycle, 12 species: 5-cycle 28.32 %, 11-cycle 20.17 %, 12-cycle 18.57 %, 9-cycle 11.44 %, 6-cycle 7.66 %, 8-cycle 5.82 %, 10-cycle 3.91 %, 7-cycle 3.77 %, 1-cycle 0.32 %
+seed 1: 1171 species seen, 100.0 % of cells on a cycle at the end, leader (12-cycle) 98.3 %, first seen at turn 25, 50 % at 39, 90 % at 82
+seed 2: 1208 species seen, 99.9 % of cells on a cycle at the end, leader (12-cycle) 98.5 %, first seen at turn 25, 50 % at 40, 90 % at 88
+seed 3: 1037 species seen, 99.9 % of cells on a cycle at the end, leader (12-cycle) 98.9 %, first seen at turn 25, 50 % at 40, 90 % at 84
+seed 4: 1123 species seen, 99.9 % of cells on a cycle at the end, leader (12-cycle) 98.4 %, first seen at turn 25, 50 % at 39, 90 % at 79
+seed 5: 1039 species seen, 99.9 % of cells on a cycle at the end, leader (12-cycle) 98.8 %, first seen at turn 25, 50 % at 40, 90 % at 93

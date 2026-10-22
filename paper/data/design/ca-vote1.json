@@ -1,0 +1,129 @@
+{
+ "name": "ca-vote1",
+ "pairMode": 10,
+ "species": 1,
+ "cycles": [
+  8
+ ],
+ "V": 60000,
+ "len": 61440,
+ "headerBits": 16,
+ "form": {
+  "cmds": [
+   {
+    "len": 10,
+    "explicit": true
+   },
+   {
+    "len": 13,
+    "explicit": true
+   },
+   {
+    "len": 9,
+    "explicit": false
+   }
+  ],
+  "d": 49,
+  "tf": 0,
+  "grayBits": [
+   4,
+   6,
+   10
+  ]
+ },
+ "states": [
+  {
+   "species": "A",
+   "H0": 12288,
+   "letter": "?",
+   "cellLetter": 119,
+   "reading": 64,
+   "states": [
+    {
+     "k": 0,
+     "pos": 12239,
+     "header": 12288,
+     "text": "\u0000Rr2@DDDDDDDDDDD",
+     "joint": "\u0000\u0000\f3\f?\f\u000f\u000000000000000000000000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 1,
+     "pos": 12287,
+     "header": 12336,
+     "text": " Rr2PDDDDDDDDDDD",
+     "joint": "\u0000\f\f3\f?\f\u000f\u000030000000000000000000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 2,
+     "pos": 12479,
+     "header": 12528,
+     "text": "`Rr2@DDDDDDDDDDD",
+     "joint": "\u0000<\f3\f?\f\u000f\u000000000000000000000000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 3,
+     "pos": 12431,
+     "header": 12480,
+     "text": "@Rr2PDDDDDDDDDDD",
+     "joint": "\u00000\f3\f?\f\u000f\u000030000000000000000000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 4,
+     "pos": 15503,
+     "header": 15552,
+     "text": "@Sr2@DDDDDDDDDDD",
+     "joint": "\u00000\u000f3\f?\f\u000f\u000000000000000000000000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 5,
+     "pos": 15551,
+     "header": 15600,
+     "text": "`Sr2PDDDDDDDDDDD",
+     "joint": "\u0000<\u000f3\f?\f\u000f\u000030000000000000000000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 6,
+     "pos": 15359,
+     "header": 15408,
+     "text": " Sr2@DDDDDDDDDDD",
+     "joint": "\u0000\f\u000f3\f?\f\u000f\u000000000000000000000000000",
+     "hammingToNext": 2
+    },
+    {
+     "k": 7,
+     "pos": 15311,
+     "header": 15360,
+     "text": "\u0000Sr2PDDDDDDDDDDD",
+     "joint": "\u0000\u0000\u000f3\f?\f\u000f\u000030000000000000000000000",
+     "hammingToNext": 2
+    }
+   ]
+  }
+ ],
+ "census": {
+  "shares": {
+   "A": 0.7665,
+   "none": 0.2335
+  },
+  "transientMean": 5.20587084148728,
+  "p90": 7,
+  "max": 15,
+  "onBy8": 0.7317
+ },
+ "censusRandomVote": {
+  "shares": {
+   "A": 0.8199,
+   "none": 0.1801
+  },
+  "transientMean": 5.193804122453958,
+  "p90": 7,
+  "max": 13,
+  "onBy8": 0.7998
+ }
+}

@@ -3,6 +3,8 @@
 %          repository or arXiv record on 2026-10-19 (see RELATED_WORK.md for the source of each check);
 %   partly some fields checked, the ones in `note` still to confirm;
 %   no     written from memory from the research plan; must be checked before it is cited.
+% 2026-10-21: six related-work searches re-checked every entry and added 181 (notes per thread in related/*.md); new
+% threads K (classical dynamics of lattices and maps) and the additions marked C+, E+, P+, D+, F+/G+ at the end.
 % Threads follow RESEARCH_PLAN.md section 3: A edge of chaos and classification, B voting automata and coarsening,
 % C program substrates, D continuous automata and interestingness, E compression and algorithmic information,
 % F genotype-to-phenotype decoders, G recombination on lattices, H colour and display, P prior-art candidates.
@@ -10,25 +12,29 @@
 % ---------------------------------------------------------------- A. cellular automata as pattern generators
 @article{wolfram1984,
   author = {Wolfram, Stephen}, title = {Universality and complexity in cellular automata},
-  journal = {Physica D}, volume = {10}, pages = {1--35}, year = {1984}, verified = {no}, thread = {A}}
+  journal = {Physica D}, volume = {10}, number = {1--2}, pages = {1--35}, year = {1984}, doi = {10.1016/0167-2789(84)90245-8},
+  verified = {yes}, note = {Crossref record of the DOI; issue 1--2 added}, thread = {A}}
 @book{wolfram2002,
-  author = {Wolfram, Stephen}, title = {A New Kind of Science}, publisher = {Wolfram Media}, year = {2002}, verified = {no}, thread = {A}}
+  author = {Wolfram, Stephen}, title = {A New Kind of Science}, publisher = {Wolfram Media}, address = {Champaign, IL}, year = {2002},
+  verified = {yes}, note = {zbMATH Open record: Champaign, IL: Wolfram Media, xiv+1197 p. (2002)}, thread = {A}}
 @article{langton1990,
   author = {Langton, Christopher G.}, title = {Computation at the edge of chaos: phase transitions and emergent computation},
-  journal = {Physica D}, volume = {42}, pages = {12--37}, year = {1990}, verified = {partly},
-  note = {Volume and year confirmed; the page range 12--37 comes from one secondary database and must be checked on the publisher's record}, thread = {A}}
+  journal = {Physica D}, volume = {42}, number = {1--3}, pages = {12--37}, year = {1990}, doi = {10.1016/0167-2789(90)90064-V},
+  verified = {yes}, note = {Crossref record: vol 42, issue 1--3, pp. 12--37, June 1990 (Crossref gives the forename as Chris G.)}, thread = {A}}
 @incollection{packard1988,
   author = {Packard, Norman H.}, title = {Adaptation toward the edge of chaos},
   booktitle = {Dynamic Patterns in Complex Systems}, editor = {Kelso, J. A. S. and Mandell, A. J. and Shlesinger, M. F.},
-  publisher = {World Scientific}, pages = {293--301}, year = {1988}, verified = {no}, thread = {A}}
+  publisher = {World Scientific}, address = {Singapore}, pages = {293--301}, year = {1988}, doi = {10.1142/0534},
+  verified = {yes}, note = {zbMATH Open record of the proceedings (2nd conference, Fort Lauderdale, Oct. 1987) lists ``Norman H. Packard, Adaptation toward the edge of chaos (pp. 293--301)''; the DOI is the volume's (Crossref), chapters have no DOI}, thread = {A}}
 @article{mitchell1993,
   author = {Mitchell, Melanie and Hraber, Peter T. and Crutchfield, James P.},
   title = {Revisiting the edge of chaos: evolving cellular automata to perform computations},
   journal = {Complex Systems}, volume = {7}, pages = {89--130}, year = {1993}, eprint = {adap-org/9303003}, verified = {yes}, thread = {A}}
 @article{wuensche1999,
   author = {Wuensche, Andrew}, title = {Classifying cellular automata automatically: finding gliders, filtering, and relating space-time patterns, attractor basins, and the {Z} parameter},
-  journal = {Complexity}, volume = {4}, number = {3}, pages = {47--66}, year = {1999}, verified = {partly},
-  note = {Volume, issue, pages confirmed from the author's page and citations; the subtitle is from memory}, thread = {A}}
+  journal = {Complexity}, volume = {4}, number = {3}, pages = {47--66}, year = {1999},
+  doi = {10.1002/(SICI)1099-0526(199901/02)4:3<47::AID-CPLX9>3.0.CO;2-V},
+  verified = {yes}, note = {Crossref record; the full subtitle is confirmed exactly}, thread = {A}}
 @article{crutchfield1993,
   author = {Crutchfield, James P. and Hanson, James E.}, title = {Turbulent pattern bases for cellular automata},
   journal = {Physica D}, volume = {69}, number = {3--4}, pages = {279--301}, year = {1993}, note = {Also Santa Fe Institute Working Paper 93-03-010}, verified = {yes}, thread = {A}}
@@ -45,8 +51,9 @@
   note = {Checked on the Computer History Museum scan; the voting and annealing rules are in this paper's examples}, thread = {B}}
 @incollection{toom1980,
   author = {Toom, Andrei L.}, title = {Stable and attractive trajectories in multicomponent systems},
-  booktitle = {Multicomponent Random Systems}, editor = {Dobrushin, R. L. and Sinai, Ya. G.}, publisher = {Dekker}, pages = {549--575}, year = {1980}, verified = {no},
-  note = {Not found by the first search; check the Advances in Probability volume 6 record}, thread = {B}}
+  booktitle = {Multicomponent Random Systems}, editor = {Dobrushin, R. L. and Sinai, Ya. G.}, series = {Advances in Probability and Related Topics}, volume = {6},
+  publisher = {Dekker}, address = {New York}, pages = {549--575}, year = {1980},
+  verified = {yes}, note = {zbMATH Open record: Adv. Probab. relat. Top., Vol. 6, 549--575 (1980); some citing papers give 549--576}, thread = {B}}
 @article{gacs2001,
   author = {G{\'a}cs, Peter}, title = {Reliable cellular automata with self-organization},
   journal = {Journal of Statistical Physics}, volume = {103}, number = {1--2}, pages = {45--267}, year = {2001}, eprint = {math/0003117}, verified = {yes}, thread = {B}}
@@ -58,54 +65,66 @@
   journal = {Journal of Statistical Physics}, volume = {66}, number = {1--2}, pages = {273--281}, year = {1992}, doi = {10.1007/BF01060069}, verified = {yes}, thread = {B}}
 @article{bray1994,
   author = {Bray, Alan J.}, title = {Theory of phase-ordering kinetics},
-  journal = {Advances in Physics}, volume = {43}, number = {3}, pages = {357--459}, year = {1994}, eprint = {cond-mat/9501089}, verified = {partly},
-  note = {Volume 43 page 357 confirmed; the end page from memory. A 2002 reprint is Advances in Physics 51(2) 481--587}, thread = {B}}
-@incollection{gacs1978,
+  journal = {Advances in Physics}, volume = {43}, number = {3}, pages = {357--459}, year = {1994}, doi = {10.1080/00018739400101505}, eprint = {cond-mat/9501089},
+  verified = {yes}, note = {Crossref record: end page 459 confirmed. 2002 reprint: Advances in Physics 51(2) 481--587, doi 10.1080/00018730110117433 (Crossref)}, thread = {B}}
+@article{gacs1978,
   author = {G{\'a}cs, Peter and Kurdyumov, G. L. and Levin, Leonid A.}, title = {One-dimensional uniform arrays that wash out finite islands},
-  booktitle = {Problemy Peredachi Informatsii}, volume = {14}, pages = {92--98}, year = {1978}, verified = {no}, thread = {B}}
+  journal = {Problemy Peredachi Informatsii}, volume = {14}, number = {3}, pages = {92--96}, year = {1978},
+  verified = {yes}, note = {zbMATH Open Zbl 0393.68060: Probl. Peredachi Inf. 14, No. 3, 92--96 (1978). Pages were 92--98; entry type was incollection. English translation reported (secondary sources only) as Problems of Information Transmission 14(3) 223--226}, thread = {B}}
 @inproceedings{mitchell1996,
   author = {Mitchell, Melanie and Crutchfield, James P. and Das, Rajarshi},
   title = {Evolving cellular automata with genetic algorithms: a review of recent work},
-  booktitle = {Proceedings of the First International Conference on Evolutionary Computation and Its Applications (EvCA'96)}, address = {Moscow}, year = {1996}, verified = {partly},
-  note = {Venue and year confirmed; a page range 1--14 appears in one listing only}, thread = {B}}
+  booktitle = {Proceedings of the First International Conference on Evolutionary Computation and Its Applications (EvCA'96)}, publisher = {Russian Academy of Sciences}, address = {Moscow}, year = {1996},
+  verified = {yes}, note = {Authors' EvCA project page csc.ucdavis.edu/~evca/Papers/evca-review.html; no page range is given there, so none is cited (the 1--14 of one listing is unconfirmed)}, thread = {B}}
 
 % ---------------------------------------------------------------- C. substrates where programs are the matter
 @article{dewdney1984,
   author = {Dewdney, A. K.}, title = {Computer recreations: in the game called {Core War} hostile programs engage in a battle of bits},
-  journal = {Scientific American}, volume = {250}, number = {5}, pages = {14--22}, year = {1984}, verified = {no}, thread = {C}}
+  journal = {Scientific American}, volume = {250}, number = {5}, pages = {14--22}, year = {1984}, doi = {10.1038/scientificamerican0584-14},
+  verified = {yes}, note = {Crossref record for the DOI gives volume 250(5), pp. 14--22, title "Computer Recreations"; the subtitle is the column's printed headline}, thread = {C}}
 @incollection{ray1991,
   author = {Ray, Thomas S.}, title = {An approach to the synthesis of life},
-  booktitle = {Artificial Life II}, editor = {Langton, C. G. and Taylor, C. and Farmer, J. D. and Rasmussen, S.}, publisher = {Addison-Wesley}, pages = {371--408}, year = {1991}, verified = {no}, thread = {C}}
+  booktitle = {Artificial Life II}, editor = {Langton, C. G. and Taylor, C. and Farmer, J. D. and Rasmussen, S.}, series = {Santa Fe Institute Studies in the Sciences of Complexity}, volume = {X},
+  publisher = {Addison-Wesley}, address = {Redwood City, CA}, pages = {371--408}, year = {1991},
+  verified = {partly}, note = {Title, editors, pages 371--408 confirmed on the author's own publication list (tomray.me/pubs); no DOI. Series volume is given as X or XI in different sources; book printed 1992}, thread = {C}}
 @inproceedings{adami1994,
-  author = {Adami, Christoph and Brown, C. Titus}, title = {Evolutionary learning in the {2D} artificial life system {Avida}},
-  booktitle = {Artificial Life IV}, publisher = {MIT Press}, pages = {377--381}, year = {1994}, verified = {no}, thread = {C}}
+  author = {Adami, Christoph and Brown, C. Titus}, title = {Evolutionary learning in the {2D} artificial life system ``{Avida}''},
+  booktitle = {Artificial Life IV}, editor = {Brooks, R. A. and Maes, P.}, publisher = {MIT Press}, pages = {377--381}, year = {1994}, eprint = {adap-org/9405003},
+  verified = {partly}, note = {arXiv record adap-org/9405003 (Adami and Brown, Caltech, to appear in Artificial Life IV) confirmed; pages 377--381 from secondary citations, not the MIT Press volume}, thread = {C}}
 @article{lenski2003,
   author = {Lenski, Richard E. and Ofria, Charles and Pennock, Robert T. and Adami, Christoph}, title = {The evolutionary origin of complex features},
-  journal = {Nature}, volume = {423}, pages = {139--144}, year = {2003}, verified = {no}, thread = {C}}
+  journal = {Nature}, volume = {423}, number = {6936}, pages = {139--144}, year = {2003}, doi = {10.1038/nature01568},
+  verified = {yes}, note = {Crossref record}, thread = {C}}
 @article{pargellis2001,
   author = {Pargellis, Andrew N.}, title = {Digital life behavior in the {Amoeba} world},
-  journal = {Artificial Life}, volume = {7}, number = {1}, pages = {63--75}, year = {2001}, verified = {partly},
-  note = {Title and Bell Labs listing confirmed; volume and pages from memory. Related: Greenbaum and Pargellis, Artificial Life 23(3) 318--342 (2017)}, thread = {C}}
-@inproceedings{koza1994,
+  journal = {Artificial Life}, volume = {7}, number = {1}, pages = {63--75}, year = {2001}, doi = {10.1162/106454601300328025},
+  verified = {yes}, note = {Crossref record. The 2017 follow-up is greenbaum2017 (Artificial Life 23(3) 318--342, verified)}, thread = {C}}
+@incollection{koza1994,
   author = {Koza, John R.}, title = {Spontaneous emergence of self-replicating and evolutionarily self-improving computer programs},
-  booktitle = {Artificial Life III}, editor = {Langton, C. G.}, publisher = {Addison-Wesley}, pages = {225--262}, year = {1994}, verified = {no}, thread = {C}}
+  booktitle = {Artificial Life III}, editor = {Langton, C. G.}, series = {Santa Fe Institute Studies in the Sciences of Complexity}, volume = {XVII},
+  publisher = {Addison-Wesley}, pages = {225--262}, year = {1994},
+  verified = {partly}, note = {Genetic Programming Bibliography record (gpbib Koza_1994_spsrCP) gives book, editor, series XVII, pages 225--262; no DOI exists}, thread = {C}}
 @article{fontana1994,
-  author = {Fontana, Walter and Buss, Leo W.}, title = {``The arrival of the fittest'': toward a theory of biological organization},
-  journal = {Bulletin of Mathematical Biology}, volume = {56}, pages = {1--64}, year = {1994}, verified = {no}, thread = {C}}
+  author = {Fontana, Walter and Buss, Leo W.}, title = {``{The} arrival of the fittest'': toward a theory of biological organization},
+  journal = {Bulletin of Mathematical Biology}, volume = {56}, number = {1}, pages = {1--64}, year = {1994}, doi = {10.1007/BF02458289},
+  verified = {yes}, note = {Crossref; a duplicate Elsevier DOI 10.1016/S0092-8240(05)80205-8 also exists}, thread = {C}}
 @article{dittrich2001,
   author = {Dittrich, Peter and Ziegler, Jens and Banzhaf, Wolfgang}, title = {Artificial chemistries---a review},
-  journal = {Artificial Life}, volume = {7}, number = {3}, pages = {225--275}, year = {2001}, verified = {yes}, thread = {C}}
+  journal = {Artificial Life}, volume = {7}, number = {3}, pages = {225--275}, year = {2001}, doi = {10.1162/106454601753238636},
+  verified = {yes}, note = {Crossref; DOI added}, thread = {C}}
 @article{hutton2002,
   author = {Hutton, Tim J.}, title = {Evolvable self-replicating molecules in an artificial chemistry},
-  journal = {Artificial Life}, volume = {8}, number = {4}, pages = {341--356}, year = {2002}, verified = {yes}, thread = {C}}
+  journal = {Artificial Life}, volume = {8}, number = {4}, pages = {341--356}, year = {2002}, doi = {10.1162/106454602321202417},
+  verified = {yes}, note = {Crossref; DOI added. This is the Squirm3 paper (template replication)}, thread = {C}}
 @inproceedings{ackley2011,
   author = {Ackley, David H. and Cannon, Daniel C.}, title = {Pursue robust indefinite scalability},
-  booktitle = {Proceedings of the 13th USENIX Workshop on Hot Topics in Operating Systems (HotOS XIII)}, address = {Napa, California}, publisher = {USENIX Association}, year = {2011}, verified = {yes}, thread = {C}}
+  booktitle = {Proceedings of the 13th USENIX Workshop on Hot Topics in Operating Systems (HotOS XIII)}, address = {Napa, California}, publisher = {USENIX Association}, year = {2011},
+  verified = {yes}, note = {USENIX page usenix.org/conference/hotosxiii/pursue-robust-indefinite-scalability; no page numbers (short paper)}, thread = {C}}
 @misc{agueraYarcas2024,
   author = {Ag{\"u}era y Arcas, Blaise and Alakuijala, Jyrki and Evans, James and Laurie, Ben and Mordvintsev, Alexander and Niklasson, Eyvind and Randazzo, Ettore and Versari, Luca},
   title = {Computational life: how well-formed, self-replicating programs emerge from simple interaction},
-  howpublished = {arXiv:2406.19108}, year = {2024}, verified = {partly},
-  note = {arXiv number and first author confirmed (eight authors, submitted June 2024, revised August 2024); the co-author list is from memory and must be checked against the arXiv record. A 2026 follow-up, arXiv:2607.01483, argues that mutation random walks find replicators as easily}, thread = {C}}
+  howpublished = {arXiv:2406.19108}, eprint = {2406.19108}, year = {2024},
+  verified = {yes}, note = {Eight-author list, order and title checked on the arXiv abstract page; v1 27 Jun 2024, v2 2 Aug 2024; no journal reference listed. Follow-ups: knierim2026, cicala2026, jha2026}, thread = {C}}
 
 % ---------------------------------------------------------------- D. continuous and learned automata, interestingness
 @article{chan2019,
@@ -113,72 +132,81 @@
   journal = {Complex Systems}, volume = {28}, number = {3}, pages = {251--286}, year = {2019}, doi = {10.25088/ComplexSystems.28.3.251}, eprint = {1812.05433}, verified = {yes}, thread = {D}}
 @inproceedings{chan2020,
   author = {Chan, Bert Wang-Chak}, title = {Lenia and expanded universe},
-  booktitle = {Proceedings of the ALIFE 2020 Conference}, publisher = {MIT Press}, year = {2020}, verified = {no},
-  note = {Not found by the first search; check the ALIFE 2020 proceedings and arXiv:2005.03742}, thread = {D}}
+  booktitle = {Proceedings of the 2020 Conference on Artificial Life (ALIFE 2020)}, publisher = {MIT Press}, pages = {221--229}, year = {2020},
+  doi = {10.1162/isal_a_00297}, eprint = {2005.03742}, verified = {yes}, note = {Crossref and arXiv record seen}, thread = {D}}
 @article{mordvintsev2020,
   author = {Mordvintsev, Alexander and Randazzo, Ettore and Niklasson, Eyvind and Levin, Michael}, title = {Growing neural cellular automata},
-  journal = {Distill}, year = {2020}, doi = {10.23915/distill.00023}, verified = {no}, thread = {D}}
+  journal = {Distill}, volume = {5}, number = {2}, year = {2020}, doi = {10.23915/distill.00023}, verified = {yes}, note = {Crossref record; published 11 Feb 2020}, thread = {D}}
 @inproceedings{reinke2020,
   author = {Reinke, Chris and Etcheverry, Mayalen and Oudeyer, Pierre-Yves}, title = {Intrinsically motivated discovery of diverse patterns in self-organizing systems},
   booktitle = {International Conference on Learning Representations (ICLR 2020)}, year = {2020}, eprint = {1908.06663}, verified = {yes}, thread = {D}}
-@article{plantec2023,
+@inproceedings{plantec2023,
   author = {Plantec, Erwan and Hamon, Gautier and Etcheverry, Mayalen and Oudeyer, Pierre-Yves and Moulin-Frier, Cl{\'e}ment and Chan, Bert Wang-Chak},
   title = {Flow-{Lenia}: towards open-ended evolution in cellular automata through mass conservation and parameter localization},
-  journal = {Artificial Life}, year = {2023}, eprint = {2212.07906}, verified = {partly},
-  note = {The plan listed Hamon first; the first author is Plantec. ALIFE 2023 best paper, later in the journal Artificial Life; volume and pages to confirm}, thread = {D}}
+  booktitle = {Proceedings of the 2023 Conference on Artificial Life (ALIFE 2023)}, publisher = {MIT Press}, year = {2023}, doi = {10.1162/isal_a_00651}, eprint = {2212.07906},
+  verified = {yes}, note = {Crossref: conference paper, not journal; no page numbers in record. The journal version is plantec2025}, thread = {D}}
 @article{lehman2011,
   author = {Lehman, Joel and Stanley, Kenneth O.}, title = {Abandoning objectives: evolution through the search for novelty alone},
-  journal = {Evolutionary Computation}, volume = {19}, number = {2}, pages = {189--223}, year = {2011}, verified = {no}, thread = {D}}
+  journal = {Evolutionary Computation}, volume = {19}, number = {2}, pages = {189--223}, year = {2011}, doi = {10.1162/EVCO_a_00025}, verified = {yes}, note = {Crossref}, thread = {D}}
 @misc{mouret2015,
   author = {Mouret, Jean-Baptiste and Clune, Jeff}, title = {Illuminating search spaces by mapping elites},
-  howpublished = {arXiv:1504.04909}, year = {2015}, verified = {no}, thread = {D}}
+  howpublished = {arXiv:1504.04909}, eprint = {1504.04909}, year = {2015}, verified = {yes}, note = {arXiv page: submitted 20 Apr 2015, comment ``Early draft'', no journal ref}, thread = {D}}
 @article{pugh2016,
   author = {Pugh, Justin K. and Soros, Lisa B. and Stanley, Kenneth O.}, title = {Quality diversity: a new frontier for evolutionary computation},
-  journal = {Frontiers in Robotics and AI}, volume = {3}, pages = {40}, year = {2016}, verified = {no}, thread = {D}}
-@misc{schmidhuber2009,
+  journal = {Frontiers in Robotics and AI}, volume = {3}, pages = {40}, year = {2016}, doi = {10.3389/frobt.2016.00040}, verified = {yes}, note = {Crossref; article 40}, thread = {D}}
+@incollection{schmidhuber2009,
   author = {Schmidhuber, J{\"u}rgen}, title = {Driven by compression progress: a simple principle explains essential aspects of subjective beauty, novelty, surprise, interestingness, attention, curiosity, creativity, art, science, music, jokes},
-  howpublished = {arXiv:0812.4360}, year = {2009}, verified = {partly},
-  note = {arXiv number confirmed (posted December 2008); also in Anticipatory Behavior in Adaptive Learning Systems, LNAI 5499, Springer 2009, to confirm. The 2010 IEEE TAMD overview ``Formal theory of creativity, fun, and intrinsic motivation (1990--2010)'' is the related follow-up}, thread = {D}}
+  booktitle = {Anticipatory Behavior in Adaptive Learning Systems}, series = {Lecture Notes in Computer Science}, publisher = {Springer}, pages = {48--76}, year = {2009},
+  doi = {10.1007/978-3-642-02565-5_4}, eprint = {0812.4360}, verified = {partly}, note = {Crossref: chapter DOI and pages; volume number (LNAI 5499) not shown in the record seen}, thread = {D}}
 @article{sayama2009,
   author = {Sayama, Hiroki}, title = {Swarm chemistry},
-  journal = {Artificial Life}, volume = {15}, number = {1}, pages = {105--114}, year = {2009}, verified = {yes}, thread = {D}}
-@article{stanley2017,
+  journal = {Artificial Life}, volume = {15}, number = {1}, pages = {105--114}, year = {2009}, doi = {10.1162/artl.2009.15.1.15107}, verified = {yes}, note = {Crossref}, thread = {D}}
+@misc{stanley2017,
   author = {Stanley, Kenneth O. and Lehman, Joel and Soros, Lisa}, title = {Open-endedness: the last grand challenge you've never heard of},
-  journal = {O'Reilly Radar}, year = {2017}, verified = {no}, thread = {D}}
+  howpublished = {O'Reilly Radar, 19 December 2017, \url{https://www.oreilly.com/radar/open-endedness-the-last-grand-challenge-youve-never-heard-of/}}, year = {2017},
+  verified = {yes}, note = {Publisher page seen; essay, not peer reviewed}, thread = {D}}
 
 % ---------------------------------------------------------------- E. compression, algorithmic information, life
 @article{ziv1977,
   author = {Ziv, Jacob and Lempel, Abraham}, title = {A universal algorithm for sequential data compression},
-  journal = {IEEE Transactions on Information Theory}, volume = {23}, number = {3}, pages = {337--343}, year = {1977}, verified = {no}, thread = {E}}
+  journal = {IEEE Transactions on Information Theory}, volume = {23}, number = {3}, pages = {337--343}, year = {1977}, doi = {10.1109/TIT.1977.1055714},
+  verified = {yes}, note = {Crossref record checked: authors, volume, issue, pages. Cite for the decoder (copy/literal), not for the LZ complexity measure, which is lempel1976}, thread = {E}}
 @techreport{rfc7932,
   author = {Alakuijala, Jyrki and Szabadka, Zolt{\'a}n}, title = {Brotli compressed data format},
-  institution = {IETF}, number = {RFC 7932}, year = {2016}, month = jul, verified = {partly}, note = {July 2016 confirmed via the Brotli paper's abstract}, thread = {E}}
+  institution = {IETF}, type = {Request for Comments}, number = {7932}, year = {2016}, month = jul, doi = {10.17487/RFC7932},
+  verified = {yes}, note = {Crossref record (DOI 10.17487/RFC7932) checked: authors, title, 2016}, thread = {E}}
 @article{alakuijala2019,
   author = {Alakuijala, Jyrki and Farruggia, Andrea and Ferragina, Paolo and Kliuchnikov, Eugene and Obryk, Robert and Szabadka, Zolt{\'a}n and Vandevenne, Lode},
   title = {Brotli: a general-purpose data compressor},
-  journal = {ACM Transactions on Information Systems}, volume = {37}, number = {1}, pages = {4:1--4:30}, year = {2019}, doi = {10.1145/3231935}, verified = {partly},
-  note = {Volume, issue, DOI and January 2019 date confirmed; the article number/pages and Vandevenne's place in the author list to check on the ACM record}, thread = {E}}
+  journal = {ACM Transactions on Information Systems}, volume = {37}, number = {1}, pages = {4:1--4:30}, year = {2019}, doi = {10.1145/3231935},
+  verified = {yes}, note = {Crossref: author order as given (Vandevenne last), vol 37 no 1, pages 1--30, online December 2018, issue January 2019; article number 4 is from the ACM citation format, not shown in Crossref}, thread = {E}}
 @article{kaspar1987,
   author = {Kaspar, F. and Schuster, H. G.}, title = {Easily calculable measure for the complexity of spatiotemporal patterns},
-  journal = {Physical Review A}, volume = {36}, number = {2}, pages = {842--848}, year = {1987}, verified = {partly}, note = {Volume, issue, first page 842 confirmed; end page from memory}, thread = {E}}
+  journal = {Physical Review A}, volume = {36}, number = {2}, pages = {842--848}, year = {1987}, doi = {10.1103/PhysRevA.36.842},
+  verified = {yes}, note = {Crossref: pages 842--848 confirmed. Implements the Lempel--Ziv 1976 production complexity}, thread = {E}}
 @article{zenil2015,
   author = {Zenil, Hector and Soler-Toscano, Fernando and Delahaye, Jean-Paul and Gauvrit, Nicolas},
   title = {Two-dimensional {Kolmogorov} complexity and an empirical validation of the coding theorem method by compressibility},
-  journal = {PeerJ Computer Science}, volume = {1}, pages = {e23}, year = {2015}, verified = {partly}, note = {Found as the two-dimensional CTM paper; the 2010 Zenil--Delahaye items of the plan were not found and are replaced by this}, thread = {E}}
+  journal = {PeerJ Computer Science}, volume = {1}, pages = {e23}, year = {2015}, doi = {10.7717/peerj-cs.23}, eprint = {1212.6745},
+  verified = {yes}, note = {Crossref and arXiv abstract checked. Argues FOR the coding theorem method (output frequency of small 2D Turing machines) as an estimator of K for small objects where compressors fail, and shows agreement with compression only where both apply. Do NOT cite for ``LZ is good enough''; cite for CTM / the decoder-side (algorithmic probability) estimate}, thread = {E}}
 @article{cilibrasi2005,
   author = {Cilibrasi, Rudi and Vit{\'a}nyi, Paul M. B.}, title = {Clustering by compression},
-  journal = {IEEE Transactions on Information Theory}, volume = {51}, number = {4}, pages = {1523--1545}, year = {2005}, verified = {no}, thread = {E}}
+  journal = {IEEE Transactions on Information Theory}, volume = {51}, number = {4}, pages = {1523--1545}, year = {2005}, doi = {10.1109/TIT.2005.844059},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
 @book{chaitin2012,
-  author = {Chaitin, Gregory}, title = {Proving Darwin: Making Biology Mathematical}, publisher = {Pantheon}, year = {2012}, verified = {no}, thread = {E}}
+  author = {Chaitin, Gregory}, title = {Proving {Darwin}: Making Biology Mathematical}, publisher = {Pantheon Books}, address = {New York}, year = {2012}, isbn = {9780375423147},
+  verified = {yes}, note = {OpenLibrary record: Pantheon 2012, ISBN 0375423141. Popular book (metabiology); weak support for a technical claim about LZ as a K proxy; drop from that sentence}, thread = {E}}
 @article{walker2013,
   author = {Walker, Sara Imari and Davies, Paul C. W.}, title = {The algorithmic origins of life},
-  journal = {Journal of the Royal Society Interface}, volume = {10}, pages = {20120869}, year = {2013}, verified = {no}, thread = {E}}
+  journal = {Journal of the Royal Society Interface}, volume = {10}, number = {79}, pages = {20120869}, year = {2013}, doi = {10.1098/rsif.2012.0869},
+  verified = {yes}, note = {Crossref: issue 79, article 20120869}, thread = {E}}
 @book{li2008,
-  author = {Li, Ming and Vit{\'a}nyi, Paul}, title = {An Introduction to Kolmogorov Complexity and Its Applications}, edition = {3}, publisher = {Springer}, year = {2008}, verified = {no}, thread = {E}}
+  author = {Li, Ming and Vit{\'a}nyi, Paul}, title = {An Introduction to {Kolmogorov} Complexity and Its Applications}, edition = {3}, publisher = {Springer}, address = {New York}, series = {Texts in Computer Science}, year = {2008}, doi = {10.1007/978-0-387-49820-1},
+  verified = {yes}, note = {Crossref record (Texts in Computer Science, 2008). A 4th edition (2019) exists; cite the edition actually used}, thread = {E}}
 @article{sharma2023,
-  author = {Sharma, Abhishek and Czégel, Dániel and Lachmann, Michael and Kempes, Christopher P. and Walker, Sara I. and Cronin, Leroy},
-  title = {Assembly theory explains and quantifies selection and evolution}, journal = {Nature}, volume = {622}, pages = {321--328}, year = {2023}, verified = {no},
-  note = {Mention only if an object-complexity measure is needed; the measure is contested}, thread = {E}}
+  author = {Sharma, Abhishek and Cz{\'e}gel, D{\'a}niel and Lachmann, Michael and Kempes, Christopher P. and Walker, Sara I. and Cronin, Leroy},
+  title = {Assembly theory explains and quantifies selection and evolution}, journal = {Nature}, volume = {622}, number = {7982}, pages = {321--328}, year = {2023}, doi = {10.1038/s41586-023-06600-9},
+  verified = {yes}, note = {Crossref record checked. Contested: see abrahao2024, uthamacumaran2024, ozelim2026 (assembly index reduces to LZ/dictionary compression)}, thread = {E}}
 
 % ---------------------------------------------------------------- F. genotype-to-phenotype maps that decode bit strings
 @inproceedings{ryan1998,
@@ -186,62 +214,833 @@
   booktitle = {Genetic Programming: First European Workshop (EuroGP'98)}, series = {LNCS}, volume = {1391}, pages = {83--96}, publisher = {Springer}, year = {1998}, doi = {10.1007/BFb0055930}, verified = {yes}, thread = {F}}
 @article{oneill2001,
   author = {O'Neill, Michael and Ryan, Conor}, title = {Grammatical evolution},
-  journal = {IEEE Transactions on Evolutionary Computation}, volume = {5}, number = {4}, pages = {349--358}, year = {2001}, verified = {partly}, note = {Existence confirmed via the GP bibliography; volume and pages from memory}, thread = {F}}
+  journal = {IEEE Transactions on Evolutionary Computation}, volume = {5}, number = {4}, pages = {349--358}, year = {2001}, doi = {10.1109/4235.942529},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
 @article{schuster1994,
   author = {Schuster, Peter and Fontana, Walter and Stadler, Peter F. and Hofacker, Ivo L.}, title = {From sequences to shapes and back: a case study in {RNA} secondary structures},
-  journal = {Proceedings of the Royal Society B}, volume = {255}, pages = {279--284}, year = {1994}, verified = {no}, thread = {F}}
+  journal = {Proceedings of the Royal Society B: Biological Sciences}, volume = {255}, number = {1344}, pages = {279--284}, year = {1994}, doi = {10.1098/rspb.1994.0040},
+  verified = {yes}, note = {Crossref record (title, volume, issue, pages, 22 March 1994) and PubMed 7517565 (author order)}, thread = {F}}
 @book{wagner2005,
-  author = {Wagner, Andreas}, title = {Robustness and Evolvability in Living Systems}, publisher = {Princeton University Press}, year = {2005}, verified = {no}, thread = {F}}
+  author = {Wagner, Andreas}, title = {Robustness and Evolvability in Living Systems}, publisher = {Princeton University Press}, address = {Princeton, NJ}, year = {2005},
+  series = {Princeton Studies in Complexity}, isbn = {0-691-12240-7},
+  verified = {yes}, note = {Crossref: e-book doi 10.1515/9781400849383 (De Gruyter digital edition, dated 2013); the 2005 hardback and ISBN from the BioEssays review doi 10.1002/bies.20460 (Crossref). Series name from memory, drop if unsure}, thread = {F}}
 @article{wagner2008,
   author = {Wagner, Andreas}, title = {Robustness and evolvability: a paradox resolved},
-  journal = {Proceedings of the Royal Society B}, volume = {275}, pages = {91--100}, year = {2008}, verified = {no}, thread = {F}}
+  journal = {Proceedings of the Royal Society B: Biological Sciences}, volume = {275}, number = {1630}, pages = {91--100}, year = {2008}, doi = {10.1098/rspb.2007.1137},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
 @article{stanley2003,
   author = {Stanley, Kenneth O. and Miikkulainen, Risto}, title = {A taxonomy for artificial embryogeny},
-  journal = {Artificial Life}, volume = {9}, number = {2}, pages = {93--130}, year = {2003}, verified = {no}, thread = {F}}
+  journal = {Artificial Life}, volume = {9}, number = {2}, pages = {93--130}, year = {2003}, doi = {10.1162/106454603322221487},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
 @article{gruau1994,
   author = {Gruau, Fr{\'e}d{\'e}ric}, title = {Automatic definition of modular neural networks},
-  journal = {Adaptive Behavior}, volume = {3}, number = {2}, pages = {151--183}, year = {1994}, verified = {no}, thread = {F}}
+  journal = {Adaptive Behavior}, volume = {3}, number = {2}, pages = {151--183}, year = {1994}, doi = {10.1177/105971239400300202},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
 
 % ---------------------------------------------------------------- G. recombination on lattices
 @inproceedings{syswerda1989,
   author = {Syswerda, Gilbert}, title = {Uniform crossover in genetic algorithms},
-  booktitle = {Proceedings of the Third International Conference on Genetic Algorithms}, publisher = {Morgan Kaufmann}, pages = {2--9}, year = {1989}, verified = {no}, thread = {G}}
+  booktitle = {Proceedings of the Third International Conference on Genetic Algorithms}, editor = {Schaffer, J. David}, publisher = {Morgan Kaufmann}, pages = {2--9}, year = {1989},
+  verified = {yes}, note = {Semantic Scholar record carrying DBLP key conf/icga/Syswerda89 with pages 2--9; editor Schaffer from a zbMATH-indexed reference. DBLP itself was bot-walled in this session}, thread = {G}}
 @inproceedings{spears1991,
   author = {Spears, William M. and De Jong, Kenneth A.}, title = {On the virtues of parameterized uniform crossover},
-  booktitle = {Proceedings of the Fourth International Conference on Genetic Algorithms}, editor = {Belew, R. K. and Booker, L. B.}, publisher = {Morgan Kaufmann}, pages = {230--236}, year = {1991}, verified = {partly},
-  note = {Title, venue and year confirmed; author order varies between sources and the pages are from memory}, thread = {G}}
+  booktitle = {Proceedings of the Fourth International Conference on Genetic Algorithms}, editor = {Belew, R. K. and Booker, L. B.}, publisher = {Morgan Kaufmann}, address = {San Mateo, CA}, pages = {230--236}, year = {1991},
+  verified = {partly}, note = {Author order Spears, De Jong confirmed by the NRL technical report version, doi 10.21236/ADA293985 (Crossref/DTIC, dated 1995). Pages 230--236 and editors only from citing reference lists (Springer chapter 10.1007/978-3-540-30217-9_13); proceedings TOC not seen}, thread = {G}}
 @inproceedings{whitley1993,
-  author = {Whitley, Darrell}, title = {Cellular genetic algorithms},
-  booktitle = {Proceedings of the Fifth International Conference on Genetic Algorithms}, publisher = {Morgan Kaufmann}, pages = {658}, year = {1993}, verified = {no}, thread = {G}}
+  author = {Whitley, L. Darrell}, title = {Cellular genetic algorithms},
+  booktitle = {Proceedings of the Fifth International Conference on Genetic Algorithms}, editor = {Forrest, Stephanie}, publisher = {Morgan Kaufmann}, address = {San Mateo, CA}, pages = {658}, year = {1993},
+  verified = {partly}, note = {ACM DL record (citation id 657598) reports a one-page item on p. 658 of ICGA-5, but the page returned 403 and only the search snippet was seen; volume (xii+665 p., ed. Forrest) from a library catalogue. A one-page abstract: cite with care, or cite Gordon, Mathias and Whitley, SAC 1994, 237--241, instead}, thread = {G}}
 @article{alba2002,
   author = {Alba, Enrique and Tomassini, Marco}, title = {Parallelism and evolutionary algorithms},
-  journal = {IEEE Transactions on Evolutionary Computation}, volume = {6}, number = {5}, pages = {443--462}, year = {2002}, verified = {no}, thread = {G}}
+  journal = {IEEE Transactions on Evolutionary Computation}, volume = {6}, number = {5}, pages = {443--462}, year = {2002}, doi = {10.1109/TEVC.2002.800880},
+  verified = {yes}, note = {Crossref record}, thread = {G}}
 @book{alba2008,
-  author = {Alba, Enrique and Dorronsoro, Bernab{\'e}}, title = {Cellular Genetic Algorithms}, publisher = {Springer}, year = {2008}, verified = {no}, thread = {G}}
+  author = {Alba, Enrique and Dorronsoro, Bernab{\'e}}, title = {Cellular Genetic Algorithms}, series = {Operations Research/Computer Science Interfaces Series}, volume = {42},
+  publisher = {Springer}, address = {New York}, year = {2008}, doi = {10.1007/978-0-387-77610-1},
+  verified = {yes}, note = {Crossref (DOI) and zbMATH Open (ORCS 42, xiii+245 p.)}, thread = {G}}
 
 % ---------------------------------------------------------------- H. colour and display
 @article{glasbey2007,
   author = {Glasbey, Chris and van der Heijden, Gerie and Toh, Vivian F. K. and Gray, Alison}, title = {Colour displays for categorical images},
   journal = {Color Research \& Application}, volume = {32}, number = {4}, pages = {304--309}, year = {2007}, doi = {10.1002/col.20327}, verified = {yes}, thread = {H}}
-@incollection{tukey1977,
-  author = {Tukey, John W.}, title = {Exploratory Data Analysis}, publisher = {Addison-Wesley}, year = {1977}, note = {The running median}, verified = {no}, thread = {H}}
+@book{tukey1977,
+  author = {Tukey, John W.}, title = {Exploratory Data Analysis}, publisher = {Addison-Wesley}, address = {Reading, MA}, year = {1977},
+  verified = {yes}, note = {zbMATH Open record (xvi+506 p., 1977). Was @incollection with no booktitle. Cited for running medians (smoothing chapters)}, thread = {H}}
 
 % ---------------------------------------------------------------- P. prior-art candidates found by the search of 2026-10-19 (none uses a decoder as a lattice rule)
 @mastersthesis{haukeli2012,
-  author = {Haukeli, Vegard}, title = {Lossless data compression using cellular automata},
-  school = {University of Oslo}, year = {2012}, verified = {partly}, note = {Compression by running a 2D CA backwards from the data; the nearest ``decompress by stepping'' idea found}, thread = {P}}
+  author = {Haukeli, Martin}, title = {Lossless data compression using cellular automata},
+  school = {University of Oslo}, year = {2012}, url = {http://hdl.handle.net/10852/34901},
+  verified = {partly}, note = {Author's forename is Martin, not Vegard: DUO handle 10852/34901 metadata (seen via search; the repository now redirects and did not render) and the non-patent citation ``Haukeli, M.'' in US 11934354 B2 (Google Patents), which calls the school Oslo University College; confirm the institution on the PDF}, thread = {P}}
 @misc{macura2006,
   author = {Macura, Wiktor}, title = {Data compression with cellular automata},
-  howpublished = {NKS 2006 Conference presentation}, year = {2006}, verified = {partly}, note = {Data as rule plus initial condition; no results reported}, thread = {P}}
-@inproceedings{albury2018,
-  author = {Albury, John}, title = {Improving file compression using elementary cellular automata},
-  booktitle = {FLAIRS}, year = {2018}, verified = {partly}, note = {A CA mask XOR-ed before a standard compressor; year to check}, thread = {P}}
-@misc{cisneros2019,
+  howpublished = {Presentation, NKS 2006 Wolfram Science Conference, Washington, DC}, year = {2006},
+  url = {https://www.wolframscience.com/conference/2006/presentations/macura.html},
+  verified = {yes}, note = {Abstract page read (University of Maryland). It does report a result: data encoded as XOR of elementary-CA outputs, compression ratio 94.80 percent on average over all 26-bit sequences. The conference location is from memory}, thread = {P}}
+@inproceedings{albury2019,
+  author = {Albury, John and Wales, Richard and Wu, Annie S.}, title = {Improving file compression using elementary cellular automata},
+  booktitle = {Proceedings of the Thirty-Second International Florida Artificial Intelligence Research Society Conference (FLAIRS-32)}, publisher = {AAAI Press}, pages = {104--107}, year = {2019},
+  verified = {yes}, note = {KEY CHANGE: was albury2018, single author, year to check. OpenAlex W2946950578 and the non-patent citation list of US 11934354 B2 both give three authors, FLAIRS-32, 2019, pp. 104--107. Publisher AAAI Press assumed (FLAIRS proceedings), publisher page not seen}, thread = {P}}
+@inproceedings{cisneros2019,
   author = {Cisneros, Hugo and Sivic, Josef and Mikolov, Tomas}, title = {Evolving structures in complex systems},
-  howpublished = {arXiv:1911.01086}, year = {2019}, verified = {partly}, note = {Compression-based and learned complexity measures for CA; interestingness scoring}, thread = {P}}
+  booktitle = {2019 IEEE Symposium Series on Computational Intelligence (SSCI)}, publisher = {IEEE}, pages = {230--237}, year = {2019}, doi = {10.1109/SSCI44817.2019.9002840}, eprint = {1911.01086},
+  verified = {yes}, note = {arXiv abstract page (v2 18 Mar 2020, journal-ref IEEE SSCI 2019) and Crossref record of the DOI. Was @misc}, thread = {P}}
 @techreport{liao2021,
   author = {Liao, Qitian}, title = {Automatic detection of interesting cellular automata},
   institution = {EECS Department, University of California, Berkeley}, number = {UCB/EECS-2021-150}, year = {2021}, verified = {yes}, thread = {P}}
 @article{sicilia2008,
   author = {Sicilia, Alberto and Arenzon, Jeferson J. and Bray, Alan J. and Cugliandolo, Leticia F.}, title = {Geometric properties of two-dimensional coarsening with weak disorder},
-  journal = {EPL}, year = {2008}, eprint = {0711.3848}, verified = {partly}, note = {Pinning at small scales changes the growth law but not the scaling functions: the reference for the quenched-hashing pinning of H1}, thread = {P}}
+  journal = {EPL (Europhysics Letters)}, volume = {82}, number = {1}, pages = {10001}, year = {2008}, doi = {10.1209/0295-5075/82/10001}, eprint = {0711.3848},
+  verified = {yes}, note = {Crossref record. Companion without disorder: Sicilia et al., Phys. Rev. E 76, 061116 (2007), doi 10.1103/PhysRevE.76.061116}, thread = {P}}
+
+% ---------------------------------------------------------------- F+/G+. genotype-phenotype maps, simplicity bias, cellular evolutionary algorithms (additions)
+% added 2026-10-21 from the related-work searches (paper/related/V.md)
+@article{fontana1998,
+  author = {Fontana, Walter and Schuster, Peter}, title = {Continuity in evolution: on the nature of transitions},
+  journal = {Science}, volume = {280}, number = {5368}, pages = {1451--1455}, year = {1998}, doi = {10.1126/science.280.5368.1451},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{huynen1996,
+  author = {Huynen, Martijn A. and Stadler, Peter F. and Fontana, Walter}, title = {Smoothness within ruggedness: the role of neutrality in adaptation},
+  journal = {Proceedings of the National Academy of Sciences of the USA}, volume = {93}, number = {1}, pages = {397--401}, year = {1996}, doi = {10.1073/pnas.93.1.397},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{schaper2014,
+  author = {Schaper, Steffen and Louis, Ard A.}, title = {The arrival of the frequent: how bias in genotype-phenotype maps can steer populations to local optima},
+  journal = {PLoS ONE}, volume = {9}, number = {2}, pages = {e86635}, year = {2014}, doi = {10.1371/journal.pone.0086635},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{dingle2015,
+  author = {Dingle, Kamaludin and Schaper, Steffen and Louis, Ard A.}, title = {The structure of the genotype--phenotype map strongly constrains the evolution of non-coding {RNA}},
+  journal = {Interface Focus}, volume = {5}, number = {6}, pages = {20150053}, year = {2015}, doi = {10.1098/rsfs.2015.0053},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{greenbury2016,
+  author = {Greenbury, Sam F. and Schaper, Steffen and Ahnert, Sebastian E. and Louis, Ard A.}, title = {Genetic correlations greatly increase mutational robustness and can both reduce and enhance evolvability},
+  journal = {PLoS Computational Biology}, volume = {12}, number = {3}, pages = {e1004773}, year = {2016}, doi = {10.1371/journal.pcbi.1004773},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{ahnert2017,
+  author = {Ahnert, Sebastian E.}, title = {Structural properties of genotype--phenotype maps},
+  journal = {Journal of the Royal Society Interface}, volume = {14}, number = {132}, pages = {20170275}, year = {2017}, doi = {10.1098/rsif.2017.0275},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{fortuna2017,
+  author = {Fortuna, Miguel A. and Zaman, Luis and Ofria, Charles and Wagner, Andreas}, title = {The genotype-phenotype map of an evolving digital organism},
+  journal = {PLoS Computational Biology}, volume = {13}, number = {2}, pages = {e1005414}, year = {2017}, doi = {10.1371/journal.pcbi.1005414},
+  verified = {yes}, note = {Crossref record. Avida's GP map censused: the bridge between thread C and thread F}, thread = {F}}
+@article{dingle2018,
+  author = {Dingle, Kamaludin and Camargo, Chico Q. and Louis, Ard A.}, title = {Input--output maps are strongly biased towards simple outputs},
+  journal = {Nature Communications}, volume = {9}, pages = {761}, year = {2018}, doi = {10.1038/s41467-018-03101-6},
+  verified = {yes}, note = {Crossref record (article number 761, issue 1)}, thread = {F}}
+@article{dingle2020,
+  author = {Dingle, Kamaludin and P{\'e}rez, Guillermo Valle and Louis, Ard A.}, title = {Generic predictions of output probability based on complexities of inputs and outputs},
+  journal = {Scientific Reports}, volume = {10}, pages = {4415}, year = {2020}, doi = {10.1038/s41598-020-61135-7},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{manrubia2021,
+  author = {Manrubia, Susanna and Cuesta, Jos{\'e} A. and Aguirre, Jacobo and Ahnert, Sebastian E. and Altenberg, Lee and Cano, Alejandro V. and Catal{\'a}n, Pablo and Diaz-Uriarte, Ramon and Elena, Santiago F. and Garc{\'\i}a-Mart{\'\i}n, Juan Antonio and Hogeweg, Paulien and Khatri, Bhavin S. and Krug, Joachim and Louis, Ard A. and Martin, Nora S. and Payne, Joshua L. and Tarnowski, Matthew J. and Wei{\ss}, Marcel},
+  title = {From genotypes to organisms: state-of-the-art and perspectives of a cornerstone in evolutionary dynamics},
+  journal = {Physics of Life Reviews}, volume = {38}, pages = {55--106}, year = {2021}, doi = {10.1016/j.plrev.2021.03.004},
+  verified = {yes}, note = {Crossref record (18 authors)}, thread = {F}}
+@article{johnston2022,
+  author = {Johnston, Iain G. and Dingle, Kamaludin and Greenbury, Sam F. and Camargo, Chico Q. and Doye, Jonathan P. K. and Ahnert, Sebastian E. and Louis, Ard A.},
+  title = {Symmetry and simplicity spontaneously emerge from the algorithmic nature of evolution},
+  journal = {Proceedings of the National Academy of Sciences of the USA}, volume = {119}, number = {11}, pages = {e2113883119}, year = {2022}, doi = {10.1073/pnas.2113883119},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{greenbury2022,
+  author = {Greenbury, Sam F. and Louis, Ard A. and Ahnert, Sebastian E.}, title = {The structure of genotype-phenotype maps makes fitness landscapes navigable},
+  journal = {Nature Ecology \& Evolution}, volume = {6}, number = {11}, pages = {1742--1752}, year = {2022}, doi = {10.1038/s41559-022-01867-z},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{mohanty2023,
+  author = {Mohanty, Vaibhav and Greenbury, Sam F. and Sarkany, Tasmin and Narayanan, Shyam and Dingle, Kamaludin and Ahnert, Sebastian E. and Louis, Ard A.},
+  title = {Maximum mutational robustness in genotype--phenotype maps follows a self-similar blancmange-like curve},
+  journal = {Journal of the Royal Society Interface}, volume = {20}, number = {204}, pages = {20230169}, year = {2023}, doi = {10.1098/rsif.2023.0169},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{martin2024,
+  author = {Martin, Nora S. and Camargo, Chico Q. and Louis, Ard A.}, title = {Bias in the arrival of variation can dominate over natural selection in {Richard Dawkins's} biomorphs},
+  journal = {PLoS Computational Biology}, volume = {20}, number = {3}, pages = {e1011893}, year = {2024}, doi = {10.1371/journal.pcbi.1011893},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{dingle2024,
+  author = {Dingle, Kamaludin and Alaskandarani, Mohammad and Hamzi, Boumediene and Louis, Ard A.}, title = {Exploring simplicity bias in {1D} dynamical systems},
+  journal = {Entropy}, volume = {26}, number = {5}, pages = {426}, year = {2024}, doi = {10.3390/e26050426},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@article{hamzi2024,
+  author = {Hamzi, Boumediene and Dingle, Kamaludin}, title = {Simplicity bias, algorithmic probability, and the random logistic map},
+  journal = {Physica D}, volume = {463}, pages = {134160}, year = {2024}, doi = {10.1016/j.physd.2024.134160},
+  verified = {yes}, note = {Crossref record}, thread = {F}}
+@incollection{sarma1996,
+  author = {Sarma, Jayshree and De Jong, Kenneth}, title = {An analysis of the effects of neighborhood size and shape on local selection algorithms},
+  booktitle = {Parallel Problem Solving from Nature --- PPSN IV}, series = {Lecture Notes in Computer Science}, volume = {1141}, publisher = {Springer}, pages = {236--244}, year = {1996}, doi = {10.1007/3-540-61723-X_988},
+  verified = {partly}, note = {Crossref record gives title, authors, pages, year, DOI; LNCS volume 1141 inferred from the DOI prefix, not shown in the record}, thread = {G}}
+@book{tomassini2005,
+  author = {Tomassini, Marco}, title = {Spatially Structured Evolutionary Algorithms: Artificial Evolution in Space and Time}, series = {Natural Computing Series},
+  publisher = {Springer}, address = {Berlin}, year = {2005}, doi = {10.1007/3-540-29938-6},
+  verified = {partly}, note = {DOI and series from Crossref; author, Berlin, 192 p. from zbMATH Open. The subtitle is from memory}, thread = {G}}
+@article{giacobini2005,
+  author = {Giacobini, Mario and Tomassini, Marco and Tettamanzi, Andrea G. B. and Alba, Enrique}, title = {Selection intensity in cellular evolutionary algorithms for regular lattices},
+  journal = {IEEE Transactions on Evolutionary Computation}, volume = {9}, number = {5}, pages = {489--505}, year = {2005}, doi = {10.1109/TEVC.2005.850298},
+  verified = {yes}, note = {Crossref record}, thread = {G}}
+@article{gong2015,
+  author = {Gong, Yue-Jiao and Chen, Wei-Neng and Zhan, Zhi-Hui and Zhang, Jun and Li, Yun and Zhang, Qingfu and Li, Jing-Jing}, title = {Distributed evolutionary algorithms and their models: a survey of the state-of-the-art},
+  journal = {Applied Soft Computing}, volume = {34}, pages = {286--300}, year = {2015}, doi = {10.1016/j.asoc.2015.04.061},
+  verified = {yes}, note = {Crossref record}, thread = {G}}
+@article{fernandes2020,
+  author = {Fernandes, Carlos M. and Fachada, Nuno and Laredo, Juan L. J. and Merelo, J. J. and Rosa, Agostinho C.}, title = {Population sizing of cellular evolutionary algorithms},
+  journal = {Swarm and Evolutionary Computation}, volume = {58}, pages = {100721}, year = {2020}, doi = {10.1016/j.swevo.2020.100721},
+  verified = {yes}, note = {Crossref record}, thread = {G}}
+
+% ---------------------------------------------------------------- K. classical dynamics of lattices and maps: self-reproduction, coupled map lattices, basins, cyclic and excitable media, freezing
+% added 2026-10-21 from the related-work searches (paper/related/K.md)
+@book{vonneumann1966,
+  author = {von Neumann, John}, editor = {Burks, Arthur W.}, title = {Theory of Self-Reproducing Automata},
+  publisher = {University of Illinois Press}, address = {Urbana}, year = {1966}, verified = {yes},
+  note = {Open Library record (Univ. of Illinois Press, 1966, 388 pp.); Math. Comp. 21(100):745 review, doi 10.2307/2005041. No DOI for the book itself}, thread = {K}}
+@article{langton1984,
+  author = {Langton, Christopher G.}, title = {Self-reproduction in cellular automata},
+  journal = {Physica D}, volume = {10}, number = {1--2}, pages = {135--144}, year = {1984}, doi = {10.1016/0167-2789(84)90256-2}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@incollection{moore1962,
+  author = {Moore, Edward F.}, title = {Machine models of self-reproduction},
+  booktitle = {Mathematical Problems in the Biological Sciences}, series = {Proceedings of Symposia in Applied Mathematics}, volume = {14},
+  publisher = {American Mathematical Society}, pages = {17--33}, year = {1962}, doi = {10.1090/psapm/014/9961}, verified = {yes},
+  note = {Crossref/AMS record (registered title reads "Machines models"); this paper states the Garden-of-Eden theorem}, thread = {K}}
+@article{myhill1963,
+  author = {Myhill, John}, title = {The converse of {Moore's} {Garden-of-Eden} theorem},
+  journal = {Proceedings of the American Mathematical Society}, volume = {14}, number = {4}, pages = {685--686}, year = {1963},
+  doi = {10.1090/S0002-9939-1963-0155764-9}, verified = {yes}, note = {Crossref record}, thread = {K}}
+@article{hedlund1969,
+  author = {Hedlund, Gustav A.}, title = {Endomorphisms and automorphisms of the shift dynamical system},
+  journal = {Mathematical Systems Theory}, volume = {3}, number = {4}, pages = {320--375}, year = {1969}, doi = {10.1007/BF01691062}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{kari2005,
+  author = {Kari, Jarkko}, title = {Theory of cellular automata: a survey},
+  journal = {Theoretical Computer Science}, volume = {334}, number = {1--3}, pages = {3--33}, year = {2005}, doi = {10.1016/j.tcs.2004.11.021}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{gardner1970,
+  author = {Gardner, Martin}, title = {Mathematical games: the fantastic combinations of {John Conway's} new solitaire game ``life''},
+  journal = {Scientific American}, volume = {223}, number = {4}, pages = {120--123}, year = {1970}, doi = {10.1038/scientificamerican1070-120}, verified = {yes},
+  note = {Crossref record (registered title is just "Mathematical Games"; subtitle from the column itself, not re-checked)}, thread = {K}}
+@book{berlekamp1982,
+  author = {Berlekamp, Elwyn R. and Conway, John H. and Guy, Richard K.}, title = {Winning Ways for Your Mathematical Plays},
+  volume = {2: Games in Particular}, publisher = {Academic Press}, address = {London}, year = {1982}, verified = {partly},
+  note = {Publisher, year and two-volume form confirmed (Wikipedia, Goodreads, Celebratio Mathematica); the chapter number/title of the Life universality chapter ("What is Life?", ch. 25) not confirmed in this session}, thread = {K}}
+@article{cook2004,
+  author = {Cook, Matthew}, title = {Universality in elementary cellular automata},
+  journal = {Complex Systems}, volume = {15}, number = {1}, pages = {1--40}, year = {2004}, doi = {10.25088/ComplexSystems.15.1.1}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{wolfram1983,
+  author = {Wolfram, Stephen}, title = {Statistical mechanics of cellular automata},
+  journal = {Reviews of Modern Physics}, volume = {55}, number = {3}, pages = {601--644}, year = {1983}, doi = {10.1103/RevModPhys.55.601}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{wolfram1984b,
+  author = {Wolfram, Stephen}, title = {Computation theory of cellular automata},
+  journal = {Communications in Mathematical Physics}, volume = {96}, number = {1}, pages = {15--57}, year = {1984}, doi = {10.1007/BF01217347}, verified = {yes},
+  note = {Crossref record; regular-language description of the shrinking set of reachable configurations}, thread = {K}}
+@article{kauffman1969,
+  author = {Kauffman, Stuart A.}, title = {Metabolic stability and epigenesis in randomly constructed genetic nets},
+  journal = {Journal of Theoretical Biology}, volume = {22}, number = {3}, pages = {437--467}, year = {1969}, doi = {10.1016/0022-5193(69)90015-0}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@book{kauffman1993,
+  author = {Kauffman, Stuart A.}, title = {The Origins of Order: Self-Organization and Selection in Evolution},
+  publisher = {Oxford University Press}, address = {New York}, year = {1993}, doi = {10.1093/oso/9780195079517.001.0001}, verified = {yes},
+  note = {Crossref/OUP record, ISBN 9780195079517}, thread = {K}}
+@inproceedings{rispoli2026,
+  author = {Rispoli, Gaetano}, title = {Replication of {Kauffman} (1969): metabolic stability and epigenesis in randomly constructed genetic nets},
+  booktitle = {ALIFE 2026: Proceedings of the 2026 Artificial Life Conference}, publisher = {MIT Press}, year = {2026}, doi = {10.1162/isal.a.960}, verified = {yes},
+  note = {Crossref record and abstract; no page/article number registered}, thread = {K}}
+@book{wuensche1992,
+  author = {Wuensche, Andrew and Lesser, Mike}, title = {The Global Dynamics of Cellular Automata: An Atlas of Basin of Attraction Fields of One-Dimensional Cellular Automata},
+  series = {Santa Fe Institute Studies in the Sciences of Complexity, Reference Volume I}, publisher = {Addison-Wesley}, address = {Reading, MA}, year = {1992}, verified = {partly},
+  note = {Authors, publisher, year, ISBN 0201557401 confirmed (Open Library; SIAM Review 35(4):669--670 review, doi 10.1137/1035161). Subtitle and series line from memory}, thread = {K}}
+@article{kaneko1984,
+  author = {Kaneko, Kunihiko}, title = {Period-doubling of kink-antikink patterns, quasiperiodicity in antiferro-like structures and spatial intermittency in coupled logistic lattice: towards a prelude of a ``field theory of chaos''},
+  journal = {Progress of Theoretical Physics}, volume = {72}, number = {3}, pages = {480--486}, year = {1984}, doi = {10.1143/PTP.72.480}, verified = {yes},
+  note = {Crossref record (title truncated there; subtitle from memory)}, thread = {K}}
+@article{kaneko1985,
+  author = {Kaneko, Kunihiko}, title = {Spatiotemporal intermittency in coupled map lattices},
+  journal = {Progress of Theoretical Physics}, volume = {74}, number = {5}, pages = {1033--1044}, year = {1985}, doi = {10.1143/PTP.74.1033}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{kaneko1989,
+  author = {Kaneko, Kunihiko}, title = {Pattern dynamics in spatiotemporal chaos: pattern selection, diffusion of defect and pattern competition intermittency},
+  journal = {Physica D}, volume = {34}, number = {1--2}, pages = {1--41}, year = {1989}, doi = {10.1016/0167-2789(89)90227-3}, verified = {yes},
+  note = {Crossref record (main title); subtitle from memory. Frozen random patterns and pattern selection are discussed here}, thread = {K}}
+@article{kaneko1992,
+  author = {Kaneko, Kunihiko}, title = {Overview of coupled map lattices},
+  journal = {Chaos}, volume = {2}, number = {3}, pages = {279--282}, year = {1992}, doi = {10.1063/1.165869}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@book{kaneko2001,
+  author = {Kaneko, Kunihiko and Tsuda, Ichiro}, title = {Complex Systems: Chaos and Beyond},
+  publisher = {Springer}, address = {Berlin}, year = {2001}, doi = {10.1007/978-3-642-56861-9}, verified = {yes},
+  note = {Crossref record; chapter 3 "CMLs: constructive approach to spatiotemporal chaos", pp. 57--106}, thread = {K}}
+@article{bunimovich1988,
+  author = {Bunimovich, Leonid A. and Sinai, Yakov G.}, title = {Spacetime chaos in coupled map lattices},
+  journal = {Nonlinearity}, volume = {1}, number = {4}, pages = {491--516}, year = {1988}, doi = {10.1088/0951-7715/1/4/001}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{chate1987,
+  author = {Chat{\'e}, Hugues and Manneville, Paul}, title = {Transition to turbulence via spatio-temporal intermittency},
+  journal = {Physical Review Letters}, volume = {58}, number = {2}, pages = {112--115}, year = {1987}, doi = {10.1103/PhysRevLett.58.112}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{greenberg1978,
+  author = {Greenberg, James M. and Hastings, S. P.}, title = {Spatial patterns for discrete models of diffusion in excitable media},
+  journal = {SIAM Journal on Applied Mathematics}, volume = {34}, number = {3}, pages = {515--523}, year = {1978}, doi = {10.1137/0134040}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@incollection{fisch1991,
+  author = {Fisch, Robert and Gravner, Janko and Griffeath, David}, title = {Cyclic cellular automata in two dimensions},
+  booktitle = {Spatial Stochastic Processes}, publisher = {Birkh{\"a}user}, address = {Boston}, pages = {171--185}, year = {1991}, doi = {10.1007/978-1-4612-0451-0_8}, verified = {yes},
+  note = {Crossref record; volume editors (Alexander, Watkins) not checked}, thread = {K}}
+@article{fisch1991b,
+  author = {Fisch, Robert and Gravner, Janko and Griffeath, David}, title = {Threshold-range scaling of excitable cellular automata},
+  journal = {Statistics and Computing}, volume = {1}, number = {1}, pages = {23--39}, year = {1991}, doi = {10.1007/BF01890834}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{frachebourg1996,
+  author = {Frachebourg, L. and Krapivsky, P. L. and Ben-Naim, E.}, title = {Spatial organization in cyclic {Lotka-Volterra} systems},
+  journal = {Physical Review E}, volume = {54}, number = {6}, pages = {6186--6200}, year = {1996}, doi = {10.1103/PhysRevE.54.6186}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{reichenbach2007,
+  author = {Reichenbach, Tobias and Mobilia, Mauro and Frey, Erwin}, title = {Mobility promotes and jeopardizes biodiversity in rock--paper--scissors games},
+  journal = {Nature}, volume = {448}, number = {7157}, pages = {1046--1049}, year = {2007}, doi = {10.1038/nature06095}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{szolnoki2014,
+  author = {Szolnoki, Attila and Mobilia, Mauro and Jiang, Luo-Luo and Szczesny, Bartosz and Rucklidge, Alastair M. and Perc, Matja{\v z}}, title = {Cyclic dominance in evolutionary games: a review},
+  journal = {Journal of the Royal Society Interface}, volume = {11}, number = {100}, pages = {20140735}, year = {2014}, doi = {10.1098/rsif.2014.0735}, verified = {yes},
+  note = {Crossref record, all six authors}, thread = {K}}
+@article{pearson1993,
+  author = {Pearson, John E.}, title = {Complex patterns in a simple system},
+  journal = {Science}, volume = {261}, number = {5118}, pages = {189--192}, year = {1993}, doi = {10.1126/science.261.5118.189}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{margolus1984,
+  author = {Margolus, Norman}, title = {Physics-like models of computation},
+  journal = {Physica D}, volume = {10}, number = {1--2}, pages = {81--95}, year = {1984}, doi = {10.1016/0167-2789(84)90252-5}, verified = {yes},
+  note = {Crossref record; introduces the 2x2 block (Margolus) neighbourhood and the billiard-ball CA}, thread = {K}}
+@book{toffoli1987,
+  author = {Toffoli, Tommaso and Margolus, Norman}, title = {Cellular Automata Machines: A New Environment for Modeling},
+  publisher = {MIT Press}, address = {Cambridge, MA}, year = {1987}, doi = {10.7551/mitpress/1763.001.0001}, verified = {yes},
+  note = {Crossref/MIT Press record; chapter "The Margolus neighborhood" pp. 123--142, doi 10.7551/mitpress/1763.003.0016}, thread = {K}}
+@article{spirin2001,
+  author = {Spirin, V. and Krapivsky, P. L. and Redner, S.}, title = {Freezing in {Ising} ferromagnets},
+  journal = {Physical Review E}, volume = {65}, number = {1}, pages = {016119}, year = {2001}, doi = {10.1103/PhysRevE.65.016119}, verified = {yes},
+  note = {Crossref record (online Dec 2001; volume 65 is dated 2002 in print)}, thread = {K}}
+@article{spirin2001a,
+  author = {Spirin, V. and Krapivsky, P. L. and Redner, S.}, title = {Fate of zero-temperature {Ising} ferromagnets},
+  journal = {Physical Review E}, volume = {63}, number = {3}, pages = {036118}, year = {2001}, doi = {10.1103/PhysRevE.63.036118}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{derrida1996,
+  author = {Derrida, B. and de Oliveira, P. M. C. and Stauffer, D.}, title = {Stable spins in the zero temperature spinodal decomposition of {2D} {Potts} models},
+  journal = {Physica A}, volume = {224}, number = {3--4}, pages = {604--612}, year = {1996}, doi = {10.1016/0378-4371(95)00345-2}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{olejarz2013,
+  author = {Olejarz, J. and Krapivsky, P. L. and Redner, S.}, title = {Zero-temperature coarsening in the {2d} {Potts} model},
+  journal = {Journal of Statistical Mechanics: Theory and Experiment}, volume = {2013}, pages = {P06018}, year = {2013}, doi = {10.1088/1742-5468/2013/06/P06018}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@article{denholm2021,
+  author = {Denholm, Jack}, title = {High-degeneracy {Potts} coarsening},
+  journal = {Physical Review E}, volume = {103}, number = {1}, pages = {012119}, year = {2021}, doi = {10.1103/PhysRevE.103.012119}, verified = {yes},
+  note = {Crossref record; content summary from memory}, thread = {K}}
+@article{holley1975,
+  author = {Holley, Richard A. and Liggett, Thomas M.}, title = {Ergodic theorems for weakly interacting infinite systems and the voter model},
+  journal = {The Annals of Probability}, volume = {3}, number = {4}, pages = {643--663}, year = {1975}, doi = {10.1214/aop/1176996306}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@book{liggett1985,
+  author = {Liggett, Thomas M.}, title = {Interacting Particle Systems}, series = {Grundlehren der mathematischen Wissenschaften}, volume = {276},
+  publisher = {Springer}, address = {New York}, year = {1985}, doi = {10.1007/978-1-4613-8542-4}, verified = {partly},
+  note = {Crossref record (title, author, series, DOI); Grundlehren volume number 276 from memory}, thread = {K}}
+@article{dornic2001,
+  author = {Dornic, Ivan and Chat{\'e}, Hugues and Chave, J{\'e}r{\^o}me and Hinrichsen, Haye}, title = {Critical coarsening without surface tension: the universality class of the voter model},
+  journal = {Physical Review Letters}, volume = {87}, number = {4}, pages = {045701}, year = {2001}, doi = {10.1103/PhysRevLett.87.045701}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+@book{krapivsky2010,
+  author = {Krapivsky, P. L. and Redner, S. and Ben-Naim, E.}, title = {A Kinetic View of Statistical Physics},
+  publisher = {Cambridge University Press}, address = {Cambridge}, year = {2010}, doi = {10.1017/CBO9780511780516}, verified = {yes},
+  note = {Crossref record}, thread = {K}}
+
+% ---------------------------------------------------------------- C+. computational artificial life and replication (additions)
+% added 2026-10-21 from the related-work searches (paper/related/C.md)
+@article{rasmussen1990,
+  author = {Rasmussen, Steen and Knudsen, Carsten and Feldberg, Rasmus and Hindsholm, Morten}, title = {The coreworld: emergence and evolution of cooperative structures in a computational chemistry},
+  journal = {Physica D: Nonlinear Phenomena}, volume = {42}, number = {1--3}, pages = {111--134}, year = {1990}, doi = {10.1016/0167-2789(90)90070-6},
+  verified = {yes}, note = {Crossref}, thread = {C}}
+@article{ofria2004,
+  author = {Ofria, Charles and Wilke, Claus O.}, title = {Avida: a software platform for research in computational evolutionary biology},
+  journal = {Artificial Life}, volume = {10}, number = {2}, pages = {191--229}, year = {2004}, doi = {10.1162/106454604773563612},
+  verified = {yes}, note = {Crossref}, thread = {C}}
+@article{wilke2001,
+  author = {Wilke, Claus O. and Wang, Jia Lan and Ofria, Charles and Lenski, Richard E. and Adami, Christoph}, title = {Evolution of digital organisms at high mutation rates leads to survival of the flattest},
+  journal = {Nature}, volume = {412}, number = {6844}, pages = {331--333}, year = {2001}, doi = {10.1038/35085569},
+  verified = {yes}, note = {Crossref (given name of second author from memory: Jia Lan)}, thread = {C}}
+@book{maynardsmith1995,
+  author = {Maynard Smith, John and Szathm{\'a}ry, E{\"o}rs}, title = {The Major Transitions in Evolution},
+  publisher = {W. H. Freeman/Spektrum}, address = {Oxford}, year = {1995},
+  verified = {partly}, note = {Crossref lists the Oxford University Press 1997 reissue, DOI 10.1093/oso/9780198502944.001.0001; the 1995 Freeman first edition is from a 1995 Evolution book review (doi 10.2307/2410462), not a library record}, thread = {C}}
+@article{price1970,
+  author = {Price, George R.}, title = {Selection and covariance},
+  journal = {Nature}, volume = {227}, number = {5257}, pages = {520--521}, year = {1970}, doi = {10.1038/227520a0},
+  verified = {yes}, note = {Crossref}, thread = {C}}
+@article{eigen1971,
+  author = {Eigen, Manfred}, title = {Selforganization of matter and the evolution of biological macromolecules},
+  journal = {Die Naturwissenschaften}, volume = {58}, number = {10}, pages = {465--523}, year = {1971}, doi = {10.1007/BF00623322},
+  verified = {yes}, note = {Crossref; origin of the error threshold}, thread = {C}}
+@book{eigen1979,
+  author = {Eigen, Manfred and Schuster, Peter}, title = {The Hypercycle: A Principle of Natural Self-Organization},
+  publisher = {Springer}, address = {Berlin, Heidelberg}, year = {1979}, doi = {10.1007/978-3-642-67247-7},
+  verified = {yes}, note = {Crossref (Springer, ISBN 9783540092933); the three Naturwissenschaften parts appeared 1977--1978, e.g. 65(1) 7--41, doi 10.1007/BF00420631}, thread = {C}}
+@article{fontana1994b,
+  author = {Fontana, Walter and Buss, Leo W.}, title = {What would be conserved if ``the tape were played twice''?},
+  journal = {Proceedings of the National Academy of Sciences}, volume = {91}, number = {2}, pages = {757--761}, year = {1994}, doi = {10.1073/pnas.91.2.757},
+  verified = {yes}, note = {Crossref}, thread = {C}}
+@article{greenbaum2017,
+  author = {Greenbaum, Benjamin and Pargellis, Andrew N.}, title = {Self-replicators emerge from a self-organizing prebiotic computer world},
+  journal = {Artificial Life}, volume = {23}, number = {3}, pages = {318--342}, year = {2017}, doi = {10.1162/artl_a_00234},
+  verified = {yes}, note = {Crossref; ALIFE 2016 conference version pp. 60--67}, thread = {C}}
+@article{taylor2016,
+  author = {Taylor, Tim and Bedau, Mark and Channon, Alastair and Ackley, David and Banzhaf, Wolfgang and Beslon, Guillaume and Dolson, Emily and Froese, Tom and Hickinbotham, Simon and Ikegami, Takashi and McMullin, Barry and Packard, Norman and Rasmussen, Steen and Virgo, Nathaniel and Agmon, Eran and Clark, Edward and McGregor, Simon and Ofria, Charles and Ropella, Glen and Spector, Lee and Stanley, Kenneth O. and Stanton, Adam and Timperley, Christopher and Vostinar, Anya and Wiser, Michael},
+  title = {Open-ended evolution: perspectives from the {OEE} workshop in {York}},
+  journal = {Artificial Life}, volume = {22}, number = {3}, pages = {408--423}, year = {2016}, doi = {10.1162/artl_a_00210},
+  verified = {yes}, note = {Crossref (25 authors)}, thread = {C}}
+@article{packard2019,
+  author = {Packard, Norman and Bedau, Mark A. and Channon, Alastair and Ikegami, Takashi and Rasmussen, Steen and Stanley, Kenneth O. and Taylor, Tim},
+  title = {An overview of open-ended evolution: editorial introduction to the {Open-Ended Evolution II} special issue},
+  journal = {Artificial Life}, volume = {25}, number = {2}, pages = {93--103}, year = {2019}, doi = {10.1162/artl_a_00291},
+  verified = {yes}, note = {Crossref}, thread = {C}}
+@article{sipper1998,
+  author = {Sipper, Moshe}, title = {Fifty years of research on self-replication: an overview},
+  journal = {Artificial Life}, volume = {4}, number = {3}, pages = {237--257}, year = {1998}, doi = {10.1162/106454698568576},
+  verified = {yes}, note = {Crossref}, thread = {C}}
+@book{freitas2004,
+  author = {Freitas, Robert A., Jr. and Merkle, Ralph C.}, title = {Kinematic Self-Replicating Machines},
+  publisher = {Landes Bioscience}, address = {Georgetown, TX}, year = {2004}, isbn = {1570596905},
+  verified = {yes}, note = {CiNii library record BA70573118 (xxi + 341 pp., LCCN 2004019393) and the authors' site molecularassembler.com/KSRM}, thread = {C}}
+@article{adams2009,
+  author = {Adams, Bryant and Lipson, Hod}, title = {A universal framework for analysis of self-replication phenomena},
+  journal = {Entropy}, volume = {11}, number = {2}, pages = {295--325}, year = {2009}, doi = {10.3390/e11020295},
+  verified = {yes}, note = {Crossref}, thread = {C}}
+@article{hordijk2004,
+  author = {Hordijk, Wim and Steel, Mike}, title = {Detecting autocatalytic, self-sustaining sets in chemical reaction systems},
+  journal = {Journal of Theoretical Biology}, volume = {227}, number = {4}, pages = {451--461}, year = {2004}, doi = {10.1016/j.jtbi.2003.11.020},
+  verified = {yes}, note = {Crossref}, thread = {C}}
+@article{nitash2017,
+  author = {C G, Nitash and LaBar, Thomas and Hintze, Arend and Adami, Christoph}, title = {Origin of life in a digital microcosm},
+  journal = {Philosophical Transactions of the Royal Society A}, volume = {375}, number = {2109}, pages = {20160350}, year = {2017}, doi = {10.1098/rsta.2016.0350},
+  verified = {yes}, note = {Crossref and Europe PMC abstract; article number 20160350. First author's family name is recorded as "C G"}, thread = {C}}
+@article{labar2016,
+  author = {LaBar, Thomas and Hintze, Arend and Adami, Christoph}, title = {Evolvability tradeoffs in emergent digital replicators},
+  journal = {Artificial Life}, volume = {22}, number = {4}, pages = {483--498}, year = {2016}, doi = {10.1162/artl_a_00214},
+  verified = {yes}, note = {Crossref and Europe PMC abstract}, thread = {C}}
+@incollection{adami2017,
+  author = {Adami, Christoph and LaBar, Thomas}, title = {From entropy to information: biased typewriters and the origin of life},
+  booktitle = {From Matter to Life: Information and Causality}, editor = {Walker, Sara Imari and Davies, Paul C. W. and Ellis, George F. R.}, publisher = {Cambridge University Press},
+  pages = {130--154}, year = {2017}, doi = {10.1017/9781316584200.007},
+  verified = {yes}, note = {Crossref (editors from memory). Cited by knierim2026 for replicator statistics}, thread = {C}}
+@misc{knierim2026,
+  author = {Knierim, Charlotte and Versari, Luca and Obryk, Robert and Ag{\"u}era y Arcas, Blaise and Saurous, Rif A.}, title = {{BFF}: simple explanations for complex phenomena},
+  howpublished = {arXiv:2607.01483}, eprint = {2607.01483}, year = {2026},
+  verified = {yes}, note = {arXiv API record and HTML v1 read (submitted 1 July 2026)}, thread = {C}}
+@misc{cicala2026,
+  author = {Cicala, Francesco and Niklasson, Eyvind and Randazzo, Ettore and Boukortt, Sami and Basti, Alessio and Etcheverry, Mayalen and Saurous, Rif A. and Laurie, Ben and Manyika, James and Ag{\"u}era y Arcas, Blaise and Richards, Blake},
+  title = {Coevolution of self-replication and function in a digital primordial soup},
+  howpublished = {arXiv:2607.09211}, eprint = {2607.09211}, year = {2026},
+  verified = {yes}, note = {arXiv API record (v1 10 July 2026, now v2); abstract read, body not}, thread = {C}}
+@misc{jha2026,
+  author = {Jha, Kunal and Cicala, Francesco and Ag{\"u}era y Arcas, Blaise and Richards, Blake Aaron and Jaques, Natasha and Kleiman-Weiner, Max and Niklasson, Eyvind},
+  title = {Tapes together strong: the co-evolution of computation and cooperation},
+  howpublished = {arXiv:2609.10817}, eprint = {2609.10817}, year = {2026},
+  verified = {yes}, note = {arXiv API record (9 Sep 2026); abstract read, body not}, thread = {C}}
+@misc{sarkar2020,
+  author = {Sarkar, Aritra}, title = {The computational inevitability of life: self-replication under resource-bounded nested algorithmic probability},
+  howpublished = {arXiv:2010.09646}, eprint = {2010.09646}, year = {2020},
+  verified = {yes}, note = {arXiv record; v1 12 Oct 2020, v2 25 Jan 2026 (title and abstract are the v2 ones, which argue quines are fixed points of nested algorithmic probability); not peer reviewed}, thread = {C}}
+@article{kumar2025,
+  author = {Kumar, Akarsh and Lu, Chris and Kirsch, Louis and Tang, Yujin and Stanley, Kenneth O. and Isola, Phillip and Ha, David}, title = {Automating the search for artificial life with foundation models},
+  journal = {Artificial Life}, volume = {31}, number = {3}, pages = {368--396}, year = {2025}, doi = {10.1162/artl.a.8},
+  verified = {yes}, note = {Crossref (ASAL; arXiv preprint 2024)}, thread = {C}}
+@misc{kumar2026,
+  author = {Kumar, Akarsh and Bahlous-Boldi, Ryan and Sharma, Prafull and Isola, Phillip and Risi, Sebastian and Tang, Yujin and Ha, David}, title = {Digital {Red Queen}: adversarial program evolution in {Core War} with {LLMs}},
+  howpublished = {arXiv:2601.03335}, eprint = {2601.03335}, year = {2026},
+  verified = {yes}, note = {arXiv API record (6 Jan 2026); Sakana AI project page pub.sakana.ai/drq}, thread = {C}}
+@article{plantec2025,
+  author = {Plantec, Erwan and Hamon, Gautier and Etcheverry, Mayalen and Chan, Bert Wang-Chak and Oudeyer, Pierre-Yves and Moulin-Frier, Cl{\'e}ment}, title = {Flow-{Lenia}: emergent evolutionary dynamics in mass conservative continuous cellular automata},
+  journal = {Artificial Life}, volume = {31}, number = {2}, pages = {228--248}, year = {2025}, doi = {10.1162/artl_a_00471},
+  verified = {yes}, note = {Crossref; journal version of plantec2023 (ALIFE 2023, doi 10.1162/isal_a_00651)}, thread = {C}}
+@inproceedings{sinapayen2023,
+  author = {Sinapayen, Lana}, title = {Self-replication, spontaneous mutations, and exponential genetic drift in neural cellular automata},
+  booktitle = {The 2023 Conference on Artificial Life (ALIFE 2023)}, publisher = {MIT Press}, year = {2023}, doi = {10.1162/isal_a_00591}, eprint = {2305.13043},
+  verified = {yes}, note = {Crossref and arXiv record; no page numbers}, thread = {C}}
+@inproceedings{randazzo2021,
+  author = {Randazzo, Ettore and Versari, Luca and Mordvintsev, Alexander}, title = {Recursively fertile self-replicating neural agents},
+  booktitle = {The 2021 Conference on Artificial Life (ALIFE 2021)}, publisher = {MIT Press}, year = {2021}, doi = {10.1162/isal_a_00367},
+  verified = {yes}, note = {Crossref; no page numbers}, thread = {C}}
+@article{sayama2025,
+  author = {Sayama, Hiroki and Nehaniv, Chrystopher L.}, title = {Self-reproduction and evolution in cellular automata: 25 years after evoloops},
+  journal = {Artificial Life}, volume = {31}, number = {1}, pages = {81--95}, year = {2025}, doi = {10.1162/artl_a_00451}, eprint = {2402.03961},
+  verified = {yes}, note = {Crossref (online 2024) and arXiv record}, thread = {C}}
+@misc{jain2026,
+  author = {Jain, Sanyam and Reimers, Felix Simon and Nichele, Stefano}, title = {Self-replicating neural cellular automata: quantifying emergent phenotypic and genotypic diversity in an open-ended substrate},
+  howpublished = {arXiv:2609.19902}, eprint = {2609.19902}, year = {2026},
+  verified = {yes}, note = {arXiv API record (17 Sep 2026); abstract only}, thread = {C}}
+@inproceedings{corno2004,
+  author = {Corno, Fulvio and Sanchez, Ernesto and Squillero, Giovanni}, title = {On the evolution of corewar warriors},
+  booktitle = {Proceedings of the 2004 Congress on Evolutionary Computation (CEC 2004)}, publisher = {IEEE}, pages = {133--138}, year = {2004}, doi = {10.1109/CEC.2004.1330848},
+  verified = {yes}, note = {Crossref}, thread = {C}}
+@article{corno2005,
+  author = {Corno, Fulvio and Sanchez, Ernesto and Squillero, Giovanni}, title = {Evolving assembly programs: how games help microprocessor validation},
+  journal = {IEEE Transactions on Evolutionary Computation}, volume = {9}, number = {6}, pages = {695--706}, year = {2005}, doi = {10.1109/TEVC.2005.856207},
+  verified = {yes}, note = {Crossref; abstract (iris.polito.it) states the evolved warriors were the first machine-written programs to become King of the Hill on all four main Tiny Hills}, thread = {C}}
+@inproceedings{sanchez2006,
+  author = {Sanchez, Ernesto and Schillaci, Massimiliano and Squillero, Giovanni}, title = {Evolving warriors for the nano core},
+  booktitle = {2006 IEEE Symposium on Computational Intelligence and Games}, publisher = {IEEE}, pages = {272--278}, year = {2006}, doi = {10.1109/CIG.2006.311712},
+  verified = {yes}, note = {Crossref}, thread = {C}}
+@incollection{nordin1994,
+  author = {Nordin, Peter}, title = {A compiling genetic programming system that directly manipulates the machine code},
+  booktitle = {Advances in Genetic Programming}, editor = {Kinnear, Kenneth E., Jr.}, publisher = {MIT Press}, year = {1994}, doi = {10.7551/mitpress/1108.003.0019},
+  verified = {partly}, note = {Crossref record of the chapter (digitised 2003, no page numbers shown); editor and 1994 date from memory}, thread = {C}}
+@inproceedings{schulte2013,
+  author = {Schulte, Eric and DiLorenzo, Jonathan and Weimer, Westley and Forrest, Stephanie}, title = {Automated repair of binary and assembly programs for cooperating embedded devices},
+  booktitle = {Proceedings of the 18th International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)}, publisher = {ACM}, pages = {317--328}, year = {2013}, doi = {10.1145/2451116.2451151},
+  verified = {yes}, note = {Crossref}, thread = {C}}
+@misc{ierymenko2005,
+  author = {Ierymenko, Adam}, title = {Nanopond: a teeny tiny artificial life virtual machine},
+  howpublished = {Software, version 1.9, GPL; original site offline, archived copy referenced by the Arch Linux AUR package}, year = {2005},
+  verified = {partly}, note = {Existence, author, 2005 copyright and version from the AUR package listing only; no publication exists}, thread = {C}}
+
+% ---------------------------------------------------------------- E+. information, complexity, entropy and computation (additions)
+% added 2026-10-21 from the related-work searches (paper/related/E.md)
+@article{lempel1976,
+  author = {Lempel, Abraham and Ziv, Jacob}, title = {On the complexity of finite sequences},
+  journal = {IEEE Transactions on Information Theory}, volume = {22}, number = {1}, pages = {75--81}, year = {1976}, doi = {10.1109/TIT.1976.1055501},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{ziv1978,
+  author = {Ziv, Jacob and Lempel, Abraham}, title = {Compression of individual sequences via variable-rate coding},
+  journal = {IEEE Transactions on Information Theory}, volume = {24}, number = {5}, pages = {530--536}, year = {1978}, doi = {10.1109/TIT.1978.1055934},
+  verified = {yes}, note = {Crossref record checked (LZ78)}, thread = {E}}
+@article{levin1974,
+  author = {Levin, Leonid A.}, title = {Laws of information conservation (nongrowth) and aspects of the foundation of probability theory},
+  journal = {Problems of Information Transmission}, volume = {10}, number = {3}, pages = {206--210}, year = {1974},
+  verified = {partly}, note = {Math-Net.Ru record ppi1039: Russian original Problemy Peredachi Informatsii 10(3):30--35; English translation pp. 206--210 (some lists give 206--211). The standard source for the coding theorem K(x) = -log m(x) + O(1) (with chaitin1975 and gacs, independently). No DOI}, thread = {E}}
+@article{zvonkin1970,
+  author = {Zvonkin, A. K. and Levin, L. A.}, title = {The complexity of finite objects and the development of the concepts of information and randomness by means of the theory of algorithms},
+  journal = {Russian Mathematical Surveys}, volume = {25}, number = {6}, pages = {83--124}, year = {1970}, doi = {10.1070/RM1970v025n06ABEH001269},
+  verified = {yes}, note = {Crossref record checked; a priori (universal semimeasure) probability introduced here}, thread = {E}}
+@article{kolmogorov1965,
+  author = {Kolmogorov, A. N.}, title = {Three approaches to the quantitative definition of information},
+  journal = {Problems of Information Transmission}, volume = {1}, number = {1}, pages = {1--7}, year = {1965},
+  verified = {partly}, note = {Math-Net.Ru ppi68: Russian original Problemy Peredachi Informatsii 1(1):3--11; pp. 1--7 is the usual English-translation pagination, not seen. English reprint: Int. J. Computer Math. 2:157--168 (1968), doi 10.1080/00207166808803030 (Crossref checked)}, thread = {E}}
+@article{solomonoff1964,
+  author = {Solomonoff, R. J.}, title = {A formal theory of inductive inference. {Part I}},
+  journal = {Information and Control}, volume = {7}, number = {1}, pages = {1--22}, year = {1964}, doi = {10.1016/S0019-9958(64)90223-2},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{chaitin1966,
+  author = {Chaitin, Gregory J.}, title = {On the length of programs for computing finite binary sequences},
+  journal = {Journal of the ACM}, volume = {13}, number = {4}, pages = {547--569}, year = {1966}, doi = {10.1145/321356.321363},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{chaitin1975,
+  author = {Chaitin, Gregory J.}, title = {A theory of program size formally identical to information theory},
+  journal = {Journal of the ACM}, volume = {22}, number = {3}, pages = {329--340}, year = {1975}, doi = {10.1145/321892.321894},
+  verified = {yes}, note = {Crossref record checked; prefix complexity and the coding theorem, independent of levin1974}, thread = {E}}
+@article{soler2014,
+  author = {Soler-Toscano, Fernando and Zenil, Hector and Delahaye, Jean-Paul and Gauvrit, Nicolas},
+  title = {Calculating {Kolmogorov} complexity from the output frequency distributions of small {Turing} machines},
+  journal = {PLoS ONE}, volume = {9}, number = {5}, pages = {e96223}, year = {2014}, doi = {10.1371/journal.pone.0096223},
+  verified = {yes}, note = {Crossref record checked. The canonical coding theorem method (CTM) paper}, thread = {E}}
+@article{zenil2018,
+  author = {Zenil, Hector and Hern{\'a}ndez-Orozco, Santiago and Kiani, Narsis A. and Soler-Toscano, Fernando and Rueda-Toicen, Antonio and Tegn{\'e}r, Jesper},
+  title = {A decomposition method for global evaluation of {Shannon} entropy and local estimations of algorithmic complexity},
+  journal = {Entropy}, volume = {20}, number = {8}, pages = {605}, year = {2018}, doi = {10.3390/e20080605}, eprint = {1609.00110},
+  verified = {yes}, note = {Crossref and arXiv abstract checked. BDM; states that popular lossless compressors capture statistical regularities and that BDM degrades to Shannon entropy when it loses accuracy}, thread = {E}}
+@article{zenil2019,
+  author = {Zenil, Hector and Badillo, Liliana and Hern{\'a}ndez-Orozco, Santiago and Hern{\'a}ndez-Quiroz, Francisco},
+  title = {Coding-theorem like behaviour and emergence of the universal distribution from resource-bounded algorithmic probability},
+  journal = {International Journal of Parallel, Emergent and Distributed Systems}, volume = {34}, number = {2}, pages = {161--180}, year = {2019}, doi = {10.1080/17445760.2018.1448932}, eprint = {1711.01711},
+  verified = {yes}, note = {Crossref (online 2018, vol 34 issue 2 2019) and arXiv abstract checked. Output distributions of sub-universal machines (Chomsky hierarchy) show coding-theorem-like simplicity bias. Closest formal frame for a decoder fed random bits}, thread = {E}}
+@article{zenil2020,
+  author = {Zenil, Hector}, title = {A review of methods for estimating algorithmic complexity: options, challenges, and new directions},
+  journal = {Entropy}, volume = {22}, number = {6}, pages = {612}, year = {2020}, doi = {10.3390/e22060612},
+  verified = {yes}, note = {Crossref record checked; title-level only for the claim that it critiques LZ/compression as K estimators (the stated theme of the author's series; abstract not read)}, thread = {E}}
+@article{zenil2010,
+  author = {Zenil, Hector}, title = {Compression-based investigation of the dynamical properties of cellular automata and other systems},
+  journal = {Complex Systems}, volume = {19}, number = {1}, pages = {1--28}, year = {2010}, doi = {10.25088/ComplexSystems.19.1.1},
+  verified = {yes}, note = {Crossref record checked (single author; abstract not in Crossref)}, thread = {E}}
+@article{abrahao2024,
+  author = {Abrah{\~a}o, Felipe S. and Hern{\'a}ndez-Orozco, Santiago and Kiani, Narsis A. and Tegn{\'e}r, Jesper and Zenil, Hector},
+  title = {Assembly theory is an approximation to algorithmic complexity based on {LZ} compression that does not explain selection or evolution},
+  journal = {PLOS Complex Systems}, volume = {1}, number = {1}, pages = {e0000014}, year = {2024}, doi = {10.1371/journal.pcsy.0000014},
+  verified = {yes}, note = {Crossref record and abstract checked}, thread = {E}}
+@article{uthamacumaran2024,
+  author = {Uthamacumaran, Abicumaran and Abrah{\~a}o, Felipe S. and Kiani, Narsis A. and Zenil, Hector},
+  title = {On the salient limitations of the methods of assembly theory and their classification of molecular biosignatures},
+  journal = {npj Systems Biology and Applications}, volume = {10}, pages = {82}, year = {2024}, doi = {10.1038/s41540-024-00403-y},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{ozelim2026,
+  author = {Ozelim, Luan and Uthamacumaran, Abicumaran and Abrah{\~a}o, Felipe S. and Hern{\'a}ndez-Orozco, Santiago and Kiani, Narsis A. and Tegn{\'e}r, Jesper and Hern{\'a}ndez-Quiroz, Francisco and Zenil, Hector},
+  title = {Assembly theory collapses to dictionary compression and is rendered redundant by common statistical algorithms},
+  journal = {npj Complexity}, year = {2026}, doi = {10.1038/s44260-026-00088-w},
+  verified = {partly}, note = {Crossref record and abstract checked (published 4 July 2026); volume and article number not yet in Crossref}, thread = {E}}
+@article{casali2013,
+  author = {Casali, Adenauer G. and Gosseries, Olivia and Rosanova, Mario and Boly, M{\'e}lanie and Sarasso, Simone and Casali, Karina R. and Casarotto, Silvia and Bruno, Marie-Aur{\'e}lie and Laureys, Steven and Tononi, Giulio and Massimini, Marcello},
+  title = {A theoretically based index of consciousness independent of sensory processing and behavior},
+  journal = {Science Translational Medicine}, volume = {5}, number = {198}, pages = {198ra105}, year = {2013}, doi = {10.1126/scitranslmed.3006294},
+  verified = {partly}, note = {Crossref: first 8 authors, vol 5 issue 198, 14 Aug 2013. Article number 198ra105 and the last three authors (Laureys, Tononi, Massimini) not shown in the truncated Crossref output}, thread = {E}}
+@article{schartner2015,
+  author = {Schartner, Michael and Seth, Anil and Noirhomme, Quentin and Boly, Melanie and Bruno, Marie-Aurelie and Laureys, Steven and Barrett, Adam},
+  title = {Complexity of multi-dimensional spontaneous {EEG} decreases during propofol induced general anaesthesia},
+  journal = {PLOS ONE}, volume = {10}, number = {8}, pages = {e0133532}, year = {2015}, doi = {10.1371/journal.pone.0133532},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{schartner2017,
+  author = {Schartner, Michael M. and Carhart-Harris, Robin L. and Barrett, Adam B. and Seth, Anil K. and Muthukumaraswamy, Suresh D.},
+  title = {Increased spontaneous {MEG} signal diversity for psychoactive doses of ketamine, {LSD} and psilocybin},
+  journal = {Scientific Reports}, volume = {7}, pages = {46421}, year = {2017}, doi = {10.1038/srep46421},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{aboy2006,
+  author = {Aboy, M. and Hornero, R. and Ab{\'a}solo, D. and {\'A}lvarez, D.},
+  title = {Interpretation of the {Lempel-Ziv} complexity measure in the context of biomedical signal analysis},
+  journal = {IEEE Transactions on Biomedical Engineering}, volume = {53}, number = {11}, pages = {2282--2288}, year = {2006}, doi = {10.1109/TBME.2006.883696},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{gusev1999,
+  author = {Gusev, Vladimir D. and Nemytikova, Lubov A. and Chuzhanova, Nadia A.}, title = {On the complexity measures of genetic sequences},
+  journal = {Bioinformatics}, volume = {15}, number = {12}, pages = {994--999}, year = {1999}, doi = {10.1093/bioinformatics/15.12.994},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{estevezrams2015,
+  author = {Estevez-Rams, E. and Lora-Serrano, R. and Nunes, C. A. J. and Arag{\'o}n-Fern{\'a}ndez, B.}, title = {{Lempel-Ziv} complexity analysis of one dimensional cellular automata},
+  journal = {Chaos}, volume = {25}, number = {12}, pages = {123106}, year = {2015}, doi = {10.1063/1.4936876},
+  verified = {yes}, note = {Crossref record and abstract checked}, thread = {E}}
+@article{estevezrams2019,
+  author = {Estevez-Rams, E. and Estevez-Moya, D. and Garcia-Medina, K. and Lora-Serrano, R.},
+  title = {Computational capabilities at the edge of chaos for one dimensional systems undergoing continuous transitions},
+  journal = {Chaos}, volume = {29}, number = {4}, pages = {043105}, year = {2019}, doi = {10.1063/1.5062364},
+  verified = {yes}, note = {Crossref record checked (title-level)}, thread = {E}}
+@article{landauer1961,
+  author = {Landauer, R.}, title = {Irreversibility and heat generation in the computing process},
+  journal = {IBM Journal of Research and Development}, volume = {5}, number = {3}, pages = {183--191}, year = {1961}, doi = {10.1147/rd.53.0183},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{bennett1973,
+  author = {Bennett, C. H.}, title = {Logical reversibility of computation},
+  journal = {IBM Journal of Research and Development}, volume = {17}, number = {6}, pages = {525--532}, year = {1973}, doi = {10.1147/rd.176.0525},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{bennett1982,
+  author = {Bennett, Charles H.}, title = {The thermodynamics of computation---a review},
+  journal = {International Journal of Theoretical Physics}, volume = {21}, number = {12}, pages = {905--940}, year = {1982}, doi = {10.1007/BF02084158},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@incollection{bennett1988,
+  author = {Bennett, Charles H.}, title = {Logical depth and physical complexity},
+  booktitle = {The Universal {Turing} Machine: A Half-Century Survey}, editor = {Herken, Rolf}, publisher = {Oxford University Press}, pages = {227--257}, year = {1988}, doi = {10.1093/oso/9780198537748.003.0008},
+  verified = {partly}, note = {Crossref has the chapter in the OUP (1990 paperback) edition, pp. 227--258; first edition 1988 and pp. 227--257 as usually cited, not seen}, thread = {E}}
+@article{fredkin1982,
+  author = {Fredkin, Edward and Toffoli, Tommaso}, title = {Conservative logic},
+  journal = {International Journal of Theoretical Physics}, volume = {21}, number = {3--4}, pages = {219--253}, year = {1982}, doi = {10.1007/BF01857727},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{zurek1989,
+  author = {Zurek, W. H.}, title = {Algorithmic randomness and physical entropy},
+  journal = {Physical Review A}, volume = {40}, number = {8}, pages = {4731--4751}, year = {1989}, doi = {10.1103/PhysRevA.40.4731},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{wolpert2019,
+  author = {Wolpert, David H.}, title = {The stochastic thermodynamics of computation},
+  journal = {Journal of Physics A: Mathematical and Theoretical}, volume = {52}, number = {19}, pages = {193001}, year = {2019}, doi = {10.1088/1751-8121/ab0850},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{lizier2008,
+  author = {Lizier, Joseph T. and Prokopenko, Mikhail and Zomaya, Albert Y.}, title = {Local information transfer as a spatiotemporal filter for complex systems},
+  journal = {Physical Review E}, volume = {77}, number = {2}, pages = {026110}, year = {2008}, doi = {10.1103/PhysRevE.77.026110},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{lizier2010,
+  author = {Lizier, Joseph T. and Prokopenko, Mikhail and Zomaya, Albert Y.}, title = {Information modification and particle collisions in distributed computation},
+  journal = {Chaos}, volume = {20}, number = {3}, pages = {037109}, year = {2010}, doi = {10.1063/1.3486801},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{lizier2012,
+  author = {Lizier, Joseph T. and Prokopenko, Mikhail and Zomaya, Albert Y.}, title = {Local measures of information storage in complex distributed computation},
+  journal = {Information Sciences}, volume = {208}, pages = {39--54}, year = {2012}, doi = {10.1016/j.ins.2012.04.016},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{crutchfield1989,
+  author = {Crutchfield, James P. and Young, Karl}, title = {Inferring statistical complexity},
+  journal = {Physical Review Letters}, volume = {63}, number = {2}, pages = {105--108}, year = {1989}, doi = {10.1103/PhysRevLett.63.105},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@article{grassberger1986,
+  author = {Grassberger, Peter}, title = {Toward a quantitative theory of self-generated complexity},
+  journal = {International Journal of Theoretical Physics}, volume = {25}, number = {9}, pages = {907--938}, year = {1986}, doi = {10.1007/BF00668821},
+  verified = {yes}, note = {Crossref record checked; introduces effective measure complexity}, thread = {E}}
+@article{gellmann1996,
+  author = {Gell-Mann, Murray and Lloyd, Seth}, title = {Information measures, effective complexity, and total information},
+  journal = {Complexity}, volume = {2}, number = {1}, pages = {44--52}, year = {1996}, doi = {10.1002/(SICI)1099-0526(199609/10)2:1<44::AID-CPLX10>3.0.CO;2-X},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+@inproceedings{renyi1961,
+  author = {R{\'e}nyi, Alfr{\'e}d}, title = {On measures of entropy and information},
+  booktitle = {Proceedings of the Fourth Berkeley Symposium on Mathematical Statistics and Probability}, volume = {1}, pages = {547--561}, publisher = {University of California Press}, year = {1961},
+  verified = {partly}, note = {Pages and volume agree across Project Euclid index, nLab and EuDML via web search; publisher record not opened. Source of collision (order 2) and min-entropy (order infinity)}, thread = {E}}
+@inproceedings{flajolet1990,
+  author = {Flajolet, Philippe and Odlyzko, Andrew M.}, title = {Random mapping statistics},
+  booktitle = {Advances in Cryptology --- EUROCRYPT '89}, series = {Lecture Notes in Computer Science}, volume = {434}, pages = {329--354}, publisher = {Springer}, year = {1990}, doi = {10.1007/3-540-46885-4_34},
+  verified = {partly}, note = {Crossref: authors, title, LNCS, pages 329--354, DOI. Volume 434 and year 1990 not shown in Crossref output. Image of a random map has expected size (1-1/e)N; iterated images, cycle and tail lengths: the null for the hash:93 random-map comparison}, thread = {E}}
+@incollection{bedau1992,
+  author = {Bedau, Mark A. and Packard, Norman H.}, title = {Measurement of evolutionary activity, teleology, and life},
+  booktitle = {Artificial Life II}, editor = {Langton, C. G. and Taylor, C. and Farmer, J. D. and Rasmussen, S.}, series = {Santa Fe Institute Studies in the Sciences of Complexity}, volume = {X}, publisher = {Addison-Wesley}, pages = {431--461}, year = {1992},
+  verified = {partly}, note = {Authors' PDF (people.reed.edu/~mab) and a second bibliography via web search; no DOI}, thread = {E}}
+@article{adams2017,
+  author = {Adams, Alyssa and Zenil, Hector and Davies, Paul C. W. and Walker, Sara Imari},
+  title = {Formal definitions of unbounded evolution and innovation reveal universal mechanisms for open-ended evolution in dynamical systems},
+  journal = {Scientific Reports}, volume = {7}, pages = {997}, year = {2017}, doi = {10.1038/s41598-017-00810-8},
+  verified = {yes}, note = {Crossref record and abstract checked}, thread = {E}}
+@article{hernandezorozco2018,
+  author = {Hern{\'a}ndez-Orozco, Santiago and Hern{\'a}ndez-Quiroz, Francisco and Zenil, Hector}, title = {Undecidability and irreducibility conditions for open-ended evolution and emergence},
+  journal = {Artificial Life}, volume = {24}, number = {1}, pages = {56--70}, year = {2018}, doi = {10.1162/artl_a_00254},
+  verified = {yes}, note = {Crossref record checked}, thread = {E}}
+
+% ---------------------------------------------------------------- P+. prior art: codec iteration, decompression quines, spatial parameter maps, follow-ups to Computational Life
+% added 2026-10-21 from the related-work searches (paper/related/P.md)
+@book{sipper1997,
+  author = {Sipper, Moshe}, title = {Evolution of Parallel Cellular Machines: The Cellular Programming Approach},
+  series = {Lecture Notes in Computer Science}, volume = {1194}, publisher = {Springer}, year = {1997}, doi = {10.1007/3-540-62613-1},
+  verified = {yes}, note = {OpenAlex DOI record (title, author, year); LNCS volume number from the DOI prefix and memory}, thread = {P}}
+@misc{cox2010,
+  author = {Cox, Russ}, title = {Zip Files All The Way Down}, howpublished = {research!rsc (blog), \url{https://research.swtch.com/zip}},
+  year = {2010}, verified = {yes}, note = {Blog post of 18 March 2010, fetched; decompression quine for gzip/zip via LZ77 literal/repeat opcodes}, thread = {P}}
+@inproceedings{canet2017,
+  author = {Canet, Margaux and Kumar, Amrit and Lauradoux, C{\'e}dric and Rakotomanga, Mary-Andr{\'e}a and Safavi-Naini, Reihaneh},
+  title = {Decompression Quines and Anti-Viruses}, booktitle = {Proceedings of the Seventh ACM Conference on Data and Application Security and Privacy (CODASPY)},
+  pages = {23--34}, year = {2017}, doi = {10.1145/3029806.3029818}, verified = {yes}, note = {OpenAlex DOI record: title, authors, pages, abstract}, thread = {P}}
+@article{vanmello2024,
+  author = {Van Mello, Ruben and Audenaert, Pieter}, title = {A Generator for Recursive Zip Files},
+  journal = {Applied Sciences}, volume = {14}, number = {21}, pages = {9797}, year = {2024}, doi = {10.3390/app14219797},
+  verified = {yes}, note = {OpenAlex DOI record; article number 9797}, thread = {P}}
+@incollection{conway1987,
+  author = {Conway, John H.}, title = {The Weird and Wonderful Chemistry of Audioactive Decay},
+  booktitle = {Open Problems in Communication and Computation}, editor = {Cover, Thomas M. and Gopinath, B.},
+  publisher = {Springer}, pages = {173--188}, year = {1987}, doi = {10.1007/978-1-4612-4808-8_53},
+  verified = {yes}, note = {OpenAlex DOI record: title, pages, year; editors from memory}, thread = {P}}
+@inproceedings{williams2011,
+  author = {Williams, Lance R.}, title = {Artificial cells as reified quines}, booktitle = {Artificial Life XII},
+  publisher = {MIT Press}, year = {2011}, doi = {10.7551/978-0-262-29714-1-ch130},
+  verified = {partly}, note = {OpenAlex DOI record (title, author, year); pages not checked; proceedings year may be 2010}, thread = {P}}
+@inproceedings{falcao2025,
+  author = {Falcao, Andreza M. C. and Santos, Iury A. X. and Cordeiro, Filipe R.},
+  title = {Unraveling Neural Cellular Automata for Lightweight Image Compression},
+  booktitle = {Anais Estendidos da XXXVIII Conference on Graphics, Patterns and Images (SIBGRAPI)},
+  pages = {55--60}, year = {2025}, doi = {10.5753/sibgrapi.est.2025.38272}, verified = {yes}, note = {SBC publisher page}, thread = {P}}
+@techreport{lathrop1996,
+  author = {Lathrop, James I.}, title = {Compression Depth and the Behavior of Cellular Automata},
+  institution = {Iowa State University}, year = {1996},
+  verified = {partly}, note = {OpenAlex record (Iowa State repository); report number and venue (possibly Complex Systems) not checked}, thread = {P}}
+@misc{kumar2024,
+  author = {Kumar, Akarsh and Lu, Chris and Kirsch, Louis and Tang, Yujin and Stanley, Kenneth O. and Isola, Phillip and Ha, David},
+  title = {Automating the Search for Artificial Life with Foundation Models}, year = {2024}, eprint = {2412.17799}, archivePrefix = {arXiv},
+  verified = {yes}, note = {arXiv API record; a journal version may exist, not checked}, thread = {P}}
+@inproceedings{myers2026,
+  author = {Myers, Tyler D. and Song, Se Jin and Bartko, Andrew and others},
+  title = {Prediction and Entropy of Evolving Sequences: A Transformer-Based Estimator of Functional Information},
+  booktitle = {Proceedings of the Artificial Life Conference (ALIFE 2026)}, publisher = {MIT Press}, year = {2026}, doi = {10.1162/isal.a.974},
+  verified = {partly}, note = {OpenAlex DOI record and abstract; full author list and pages missing}, thread = {P}}
+@article{stepney2025,
+  author = {Stepney, Susan}, title = {Towards origins of virtual artificial life: an overview},
+  journal = {Philosophical Transactions of the Royal Society B}, volume = {380}, number = {1936}, pages = {20240298}, year = {2025},
+  doi = {10.1098/rstb.2024.0298}, verified = {yes}, note = {OpenAlex DOI record and abstract}, thread = {P}}
+@misc{cotler2025,
+  author = {Cotler, Jordan and Hongler, Cl{\'e}ment and Hudcov{\'a}, Barbora}, title = {Self-replication and Computational Universality},
+  year = {2025}, eprint = {2510.08342}, archivePrefix = {arXiv}, verified = {yes}, note = {arXiv abstract page}, thread = {P}}
+@article{kauffman2025,
+  author = {Kauffman, Stuart A. and Roli, Andrea}, title = {Is the emergence of life and of agency expected?},
+  journal = {Philosophical Transactions of the Royal Society B}, volume = {380}, number = {1936}, pages = {20240283}, year = {2025},
+  doi = {10.1098/rstb.2024.0283}, verified = {yes}, note = {OpenAlex DOI record}, thread = {P}}
+@misc{norton2026,
+  author = {Norton, Charles C.}, title = {Universal Construction and Exact Self-Reproduction in Ternary {McCulloch-Pitts} Networks},
+  year = {2026}, eprint = {2610.12251}, archivePrefix = {arXiv}, verified = {yes}, note = {arXiv API record}, thread = {P}}
+@misc{sims2013,
+  author = {Sims, Karl}, title = {Reaction-Diffusion Tutorial}, howpublished = {\url{https://karlsims.com/rd.html}},
+  verified = {partly}, note = {Seen only via search snippet ("Style Map: the feed and kill rates can vary across the grid"); date unknown, year field omitted, key year is a placeholder to re-check}, thread = {P}}
+
+% ---------------------------------------------------------------- D+. discovery methods, continuous and neural automata (additions)
+% added 2026-10-21 from the related-work searches (paper/related/D.md)
+@inproceedings{chan2023,
+  author = {Chan, Bert Wang-Chak}, title = {Towards large-scale simulations of open-ended evolution in continuous cellular automata},
+  booktitle = {Proceedings of the Companion Conference on Genetic and Evolutionary Computation (GECCO '23 Companion)}, publisher = {ACM}, pages = {127--130}, year = {2023},
+  doi = {10.1145/3583133.3590670}, eprint = {2304.05639}, verified = {yes}, note = {Crossref and arXiv}, thread = {D}}
+@misc{mordvintsev2022particle,
+  author = {Mordvintsev, Alexander and Niklasson, Eyvind and Randazzo, Ettore}, title = {Particle {Lenia} and the energy-based formulation},
+  howpublished = {Google Research, \url{https://google-research.github.io/self-organising-systems/particle-lenia/}}, year = {2022},
+  verified = {yes}, note = {Web article dated 23 Dec 2022; title, authors, date seen; not peer reviewed}, thread = {D}}
+@misc{hudcova2026,
+  author = {Hudcov{\'a}, Barbora and Du{\v{s}}ek, Franti{\v{s}}ek and Tuccio, Marco and Hongler, Cl{\'e}ment}, title = {Visualizing the structure of {Lenia} parameter space},
+  howpublished = {arXiv:2601.01932}, eprint = {2601.01932}, year = {2026}, verified = {yes}, note = {arXiv abstract page; preprint, no venue}, thread = {D}}
+@inproceedings{etcheverry2020,
+  author = {Etcheverry, Mayalen and Moulin-Frier, Cl{\'e}ment and Oudeyer, Pierre-Yves}, title = {Hierarchically organized latent modules for exploratory search in morphogenetic systems},
+  booktitle = {Advances in Neural Information Processing Systems 33 (NeurIPS 2020)}, year = {2020}, eprint = {2007.01195},
+  verified = {yes}, note = {NeurIPS proceedings page and arXiv; page numbers not taken}, thread = {D}}
+@article{hamon2025,
+  author = {Hamon, Gautier and Etcheverry, Mayalen and Chan, Bert Wang-Chak and Moulin-Frier, Cl{\'e}ment and Oudeyer, Pierre-Yves},
+  title = {Discovering sensorimotor agency in cellular automata using diversity search},
+  journal = {Science Advances}, volume = {11}, number = {44}, pages = {eadp0834}, year = {2025}, doi = {10.1126/sciadv.adp0834}, eprint = {2402.10236},
+  verified = {yes}, note = {Crossref and arXiv; preprint 2024, journal 2025}, thread = {D}}
+@inproceedings{faldor2024,
+  author = {Faldor, Maxence and Cully, Antoine}, title = {Toward artificial open-ended evolution within {Lenia} using quality-diversity},
+  booktitle = {Proceedings of the 2024 Conference on Artificial Life (ALIFE 2024)}, publisher = {MIT Press}, year = {2024}, doi = {10.1162/isal_a_00827}, eprint = {2406.04235},
+  verified = {yes}, note = {Crossref and arXiv (Leniabreeder); no pages in record}, thread = {D}}
+@article{grillotti2022,
+  author = {Grillotti, Luca and Cully, Antoine}, title = {Unsupervised behavior discovery with quality-diversity optimization},
+  journal = {IEEE Transactions on Evolutionary Computation}, volume = {26}, number = {6}, pages = {1539--1552}, year = {2022}, doi = {10.1109/TEVC.2022.3159855},
+  verified = {yes}, note = {Crossref (AURORA)}, thread = {D}}
+@article{sims1991,
+  author = {Sims, Karl}, title = {Artificial evolution for computer graphics},
+  journal = {ACM SIGGRAPH Computer Graphics}, volume = {25}, number = {4}, pages = {319--328}, year = {1991}, doi = {10.1145/127719.122752},
+  verified = {yes}, note = {Crossref (SIGGRAPH '91)}, thread = {D}}
+@article{secretan2011,
+  author = {Secretan, Jimmy and Beato, Nicholas and D'Ambrosio, David B. and Rodriguez, Adelein and Campbell, Adam and Folsom-Kovarik, Jeremiah T. and Stanley, Kenneth O.},
+  title = {Picbreeder: a case study in collaborative evolutionary exploration of design space},
+  journal = {Evolutionary Computation}, volume = {19}, number = {3}, pages = {373--403}, year = {2011}, doi = {10.1162/EVCO_a_00030},
+  verified = {yes}, note = {Crossref; first names of co-authors from memory, surnames verified}, thread = {D}}
+@article{packard1985,
+  author = {Packard, Norman H. and Wolfram, Stephen}, title = {Two-dimensional cellular automata},
+  journal = {Journal of Statistical Physics}, volume = {38}, number = {5--6}, pages = {901--946}, year = {1985}, doi = {10.1007/BF01010423},
+  verified = {yes}, note = {Crossref}, thread = {D}}
+@incollection{eppstein2002,
+  author = {Eppstein, David}, title = {Searching for spaceships},
+  booktitle = {More Games of No Chance}, series = {MSRI Publications}, volume = {42}, pages = {433--453}, year = {2002}, eprint = {cs/0004003},
+  verified = {yes}, note = {arXiv journal-ref gives MSRI Publications 42, pp. 433--453; publisher (Cambridge UP) not checked}, thread = {D}}
+@incollection{eppstein2010,
+  author = {Eppstein, David}, title = {Growth and decay in {Life}-like cellular automata},
+  booktitle = {Game of Life Cellular Automata}, editor = {Adamatzky, Andrew}, publisher = {Springer}, pages = {71--97}, year = {2010}, doi = {10.1007/978-1-84996-217-9_6},
+  verified = {yes}, note = {Crossref; editor from memory}, thread = {D}}
+@inproceedings{sapin2004,
+  author = {Sapin, Emmanuel and Bailleux, Olivier and Chabrier, Jean-Jacques and Collet, Pierre}, title = {A new universal cellular automaton discovered by evolutionary algorithms},
+  booktitle = {Genetic and Evolutionary Computation -- GECCO 2004}, series = {Lecture Notes in Computer Science}, volume = {3102}, pages = {175--187}, publisher = {Springer}, year = {2004},
+  doi = {10.1007/978-3-540-24854-5_16}, verified = {yes}, note = {Crossref (pages, DOI); LNCS volume 3102 from the York GECCO-2004 proceedings mirror}, thread = {D}}
+@article{sapin2007,
+  author = {Sapin, Emmanuel and Bailleux, Olivier and Chabrier, Jean-Jacques}, title = {Research of complexity in cellular automata through evolutionary algorithms},
+  journal = {Complex Systems}, volume = {17}, number = {3}, pages = {231--}, year = {2007}, doi = {10.25088/ComplexSystems.17.3.231},
+  verified = {partly}, note = {Journal abstract page seen; end page not shown}, thread = {D}}
+@inproceedings{cisneros2020,
+  author = {Cisneros, Hugo and Sivic, Josef and Mikolov, Tomas}, title = {Visualizing computation in large-scale cellular automata},
+  booktitle = {Proceedings of the 2020 Conference on Artificial Life (ALIFE 2020)}, publisher = {MIT Press}, pages = {239--247}, year = {2020}, doi = {10.1162/isal_a_00277}, eprint = {2104.01008},
+  verified = {yes}, note = {arXiv journal-ref and DOI}, thread = {D}}
+@article{randazzo2020,
+  author = {Randazzo, Ettore and Mordvintsev, Alexander and Niklasson, Eyvind and Levin, Michael and Greydanus, Sam}, title = {Self-classifying {MNIST} digits},
+  journal = {Distill}, volume = {5}, number = {8}, year = {2020}, doi = {10.23915/distill.00027.002}, verified = {yes}, note = {Crossref}, thread = {D}}
+@article{niklasson2021,
+  author = {Niklasson, Eyvind and Mordvintsev, Alexander and Randazzo, Ettore and Levin, Michael}, title = {Self-organising textures},
+  journal = {Distill}, volume = {6}, number = {2}, year = {2021}, doi = {10.23915/distill.00027.003}, verified = {yes}, note = {Crossref}, thread = {D}}
+@inproceedings{palm2022,
+  author = {Palm, Rasmus Berg and Gonz{\'a}lez-Duque, Miguel and Sudhakaran, Shyam and Risi, Sebastian}, title = {Variational neural cellular automata},
+  booktitle = {International Conference on Learning Representations (ICLR 2022)}, year = {2022}, eprint = {2201.12360},
+  verified = {partly}, note = {arXiv seen; ICLR 2022 venue from search listings (iclr.cc poster, mlanthology), not opened}, thread = {D}}
+@inproceedings{mordvintsev2022iso,
+  author = {Mordvintsev, Alexander and Randazzo, Ettore and Fouts, Craig}, title = {Growing isotropic neural cellular automata},
+  booktitle = {Proceedings of the 2022 Conference on Artificial Life (ALIFE 2022)}, publisher = {MIT Press}, year = {2022}, doi = {10.1162/isal_a_00552}, eprint = {2205.01681},
+  verified = {yes}, note = {Crossref and arXiv; no pages in record}, thread = {D}}
+@inproceedings{randazzo2023,
+  author = {Randazzo, Ettore and Mordvintsev, Alexander and Fouts, Craig}, title = {Growing steerable neural cellular automata},
+  booktitle = {Proceedings of the 2023 Conference on Artificial Life (ALIFE 2023)}, publisher = {MIT Press}, year = {2023}, doi = {10.1162/isal_a_00564},
+  verified = {yes}, note = {Crossref (title, authors, DOI)}, thread = {D}}
+@misc{munafo2024,
+  author = {Munafo, Robert P.}, title = {Reaction-diffusion by the {Gray}--{Scott} model: {Pearson}'s parametrization; {PDE4} user instructions},
+  howpublished = {\url{https://mrob.com/pub/comp/xmorphia/} and \url{https://mrob.com/pub/comp/xmorphia/PDE4-user-instructions.txt}}, year = {2024},
+  verified = {yes}, note = {Web pages seen (1996--2024, index last updated 2022-06-20). PDE4 runs one simulation with F and k varying linearly across the grid, with a uniform-parameter option. The published map image is a mosaic of separate runs; PDE4 is the one-simulation gradient}, thread = {D}}
+@article{dziarmaga1999,
+  author = {Dziarmaga, Jacek and Laguna, Pablo and Zurek, Wojciech H.}, title = {Symmetry breaking with a slant: topological defects after an inhomogeneous quench},
+  journal = {Physical Review Letters}, volume = {82}, number = {24}, pages = {4749--4752}, year = {1999}, doi = {10.1103/PhysRevLett.82.4749}, verified = {yes}, note = {Crossref}, thread = {D}}
+@article{zurek2008,
+  author = {Zurek, Wojciech H. and Dorner, Uwe}, title = {Phase transition in space: how far does a symmetry bend before it breaks?},
+  journal = {Philosophical Transactions of the Royal Society A}, volume = {366}, number = {1877}, pages = {2953--2972}, year = {2008}, doi = {10.1098/rsta.2008.0069}, verified = {yes}, note = {Crossref}, thread = {D}}
+@article{keener1987,
+  author = {Keener, James P.}, title = {Propagation and its failure in coupled systems of discrete excitable cells},
+  journal = {SIAM Journal on Applied Mathematics}, volume = {47}, number = {3}, pages = {556--572}, year = {1987}, doi = {10.1137/0147038}, verified = {yes}, note = {Crossref}, thread = {D}}
+@article{erneux1993,
+  author = {Erneux, Thomas and Nicolis, Gr{\'e}goire}, title = {Propagating waves in discrete bistable reaction-diffusion systems},
+  journal = {Physica D}, volume = {67}, number = {1--3}, pages = {237--244}, year = {1993}, doi = {10.1016/0167-2789(93)90208-I}, verified = {yes}, note = {Crossref}, thread = {D}}
+@article{lober2012,
+  author = {L{\"o}ber, Jakob and B{\"a}r, Markus and Engel, Harald}, title = {Front propagation in one-dimensional spatially periodic bistable media},
+  journal = {Physical Review E}, volume = {86}, number = {6}, pages = {066210}, year = {2012}, doi = {10.1103/PhysRevE.86.066210}, eprint = {1203.4710}, verified = {yes}, note = {Crossref; article 066210}, thread = {D}}
+@inproceedings{medernach2013,
+  author = {Medernach, David and Kowaliw, Taras and Ryan, Conor and Doursat, Ren{\'e}}, title = {Long-term evolutionary dynamics in heterogeneous cellular automata},
+  booktitle = {Proceedings of the 15th Annual Conference on Genetic and Evolutionary Computation (GECCO '13)}, publisher = {ACM}, pages = {231--238}, year = {2013}, doi = {10.1145/2463372.2463395},
+  verified = {yes}, note = {Crossref; abstract via UL Pure / GP bibliography snippets. Follow-up: ALIFE 2016 pp. 216--223, DOI 10.7551/978-0-262-33936-0-ch041}, thread = {D}}
+@misc{shrestha2024,
+  author = {Shrestha, Aarati and Reimers, Felix and Jain, Sanyam and Baldini, Paolo and Braccini, Michele and Roli, Andrea and Nichele, Stefano},
+  title = {Emergent dynamics in heterogeneous life-like cellular automata}, howpublished = {arXiv:2406.13383}, eprint = {2406.13383}, year = {2024},
+  verified = {yes}, note = {arXiv abstract page; no venue listed}, thread = {D}}

@@ -22,9 +22,12 @@ while (Date.now() - t0 < Number(secs) * 1000) {
 }
 if (shot) {   // let it run on, then clip the main canvas
   await sleep(Number(extra) * 1000);
-  const turn = (await send('Runtime.evaluate', { expression: `document.getElementById('turn').textContent` })).result.value;
-  const data = (await send('Runtime.evaluate', { expression: `document.getElementById('view-canvas').toDataURL('image/png')` })).result.value;   // the canvas itself, whatever the compositor shows
-  (await import('node:fs')).writeFileSync(shot, Buffer.from(data.split(',')[1], 'base64')); console.log(`canvas ${shot} at turn ${turn}`);
+  for (const [k, path] of shot.split(',').entries()) {   // several paths: one canvas each, a second apart
+    if (k) await sleep(1000);
+    const turn = (await send('Runtime.evaluate', { expression: `document.getElementById('turn').textContent` })).result.value;
+    const data = (await send('Runtime.evaluate', { expression: `document.getElementById('view-canvas').toDataURL('image/png')` })).result.value;   // the canvas itself, whatever the compositor shows
+    (await import('node:fs')).writeFileSync(path, Buffer.from(data.split(',')[1], 'base64')); console.log(`canvas ${path} at turn ${turn}`);
+  }
 }
 console.log(`${url.split('#')[1] || url}: ${last} after ${((Date.now() - t0) / 1000).toFixed(0)} s; console: ${logs.length ? logs.slice(0, 6).join(' | ') : 'clean'}`);
 ws.close(); chrome.kill();

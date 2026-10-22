@@ -66,16 +66,18 @@ for (const [W, H, K, passes, changer, nbr = 0, pair = 0, sync = 0] of [[64, 48, 
 for (const [W, H, K, kind, rounds, mode = 1] of [[32, 24, 3, 6, 40], [32, 32, 4, 7, 24], [24, 16, 2, 15, 20], [32, 24, 5, 19, 12], [32, 24, 4, 6, 24, 2], [32, 24, 3, 8, 24, 5], [32, 24, 4, 12, 24, 3], [32, 24, 3, 7, 24, 4], [32, 24, 3, 0, 24, 1], [32, 24, 4, 0, 24, 5]]) {
   const N = W * H, S = 16 * W, D = 2;
   const full = await mk(); full.io.setChanger(kind); full.io.setPair(mode, 0);
-  const fm8 = new Uint8Array(full.ex.memory.buffer), GRID = L.GRID, ST = GRID + 16 * N + 1024;
+  const GRID = L.GRID, ST = GRID + 16 * N + 1024, SNAP = ST + 512 * N;
+  { const need = SNAP + 16 * N, have = full.ex.memory.buffer.byteLength; if (need > have) full.ex.memory.grow(Math.ceil((need - have) / 65536)); }
+  const fm8 = new Uint8Array(full.ex.memory.buffer);
   full.ex.randomize(4 * N, GRID, 1234 + K);
   const ref = fm8.slice(GRID, GRID + 16 * N);
   const bands = [];
   for (const b of Band.split(H, K, D)) {
     const inst = await mk(); inst.io.setChanger(kind); inst.io.setPair(mode, 0);
-    const m8 = new Uint8Array(inst.ex.memory.buffer), G = GRID, LINKS = G + (b.rows + 2 * D) * S + 1024;
-    const need = LINKS + 512 * b.rows * W; if (need > m8.length) inst.ex.memory.grow(Math.ceil((need - m8.length) / 65536));
+    const m8 = new Uint8Array(inst.ex.memory.buffer), G = GRID, LINKS = G + (b.rows + 2 * D) * S + 1024, G2 = LINKS + 512 * b.rows * W;
+    const need = G2 + (b.rows + 2 * D) * S; if (need > m8.length) inst.ex.memory.grow(Math.ceil((need - m8.length) / 65536));
     new Uint8Array(inst.ex.memory.buffer).set(ref.subarray(b.y0 * S, (b.y0 + b.rows) * S), G + D * S);
-    const st = { wasm: inst.ex, W, H, y0: b.y0, rows: b.rows, D, GRID: G, PRM: L.PRM };
+    const st = { wasm: inst.ex, W, H, y0: b.y0, rows: b.rows, D, GRID: G, GRID2: G2, PRM: L.PRM };
     inst.ex.links_reset(LINKS, 4 * b.rows * W, kind);
     bands.push({ st, lb: Band.linkBand(st, LINKS), LINKS, ex: inst.ex });
   }
@@ -86,7 +88,8 @@ for (const [W, H, K, kind, rounds, mode = 1] of [[32, 24, 3, 6, 40], [32, 32, 4,
     for (let k = 0; k < bands.length; k++) { const back = bands[k].lb.middle(k > 0 ? bands[k - 1].lb.bottomRow() : null); if (k > 0) bands[k - 1].lb.setBottom(back); }
     for (const b of bands) b.lb.late(ph.late);
   };
-  for (let r = 0; r < rounds; r++) { for (const ph of Band.linkPhases(r).all) fw += full.ex.links(W, H, GRID, L.PRM, ph, ST); round(r); }
+  const fullRound = r => { fm8.copyWithin(SNAP, GRID, GRID + 16 * N); full.ex.links_snapshot(SNAP - GRID); let n = 0; for (const ph of Band.linkPhases(r).all) n += full.ex.links(W, H, GRID, L.PRM, ph, ST); return n; };   // synchronous: the round reads its snapshot
+  for (let r = 0; r < rounds; r++) { fw += fullRound(r); round(r); }
   const same = () => { const a = new Uint8Array(16 * N); for (const b of bands) a.set(new Uint8Array(b.ex.memory.buffer).subarray(b.st.GRID + D * S, b.st.GRID + (D + b.st.rows) * S), b.st.y0 * S); for (let i = 0; i < 16 * N; i++) if (a[i] !== fm8[GRID + i]) return false; return true; };
   const bw = bands.reduce((c, b) => c + b.lb.changed, 0);
   check(`links on ${bands.length} bands, ${W}x${H}, kind ${kind}, joining ${mode}: grid bit-identical to the whole-grid run after ${rounds} rounds (${fw} pixel writes)`, same() && fw === bw && fw > 0);
@@ -103,7 +106,7 @@ for (const [W, H, K, kind, rounds, mode = 1] of [[32, 24, 3, 6, 40], [32, 32, 4,
   check(`links on ${bands.length} bands: the machines of the edge pairs carry the same registers as in the whole-grid run`, states);
   // a reset then the same number of rounds again lands on the same grid both ways
   full.ex.links_reset(ST, 4 * N, kind); for (const b of bands) b.ex.links_reset(b.LINKS, 4 * b.st.rows * W, kind);
-  for (let r = 0; r < rounds; r++) { for (const ph of Band.linkPhases(r).all) full.ex.links(W, H, GRID, L.PRM, ph, ST); round(r); }
+  for (let r = 0; r < rounds; r++) { fullRound(r); round(r); }
   check(`links on ${bands.length} bands: still identical after a reset and ${rounds} more rounds`, same());
 }
 // The swap order: fixed, UD0 LR0 UD1 LR1, the same for every turn.

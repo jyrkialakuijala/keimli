@@ -45,3 +45,52 @@ article's lattice runs must be repeated under the rotating order
 (`PLAN_AMENDMENTS.md`, section 5). The pair modes keep one anisotropy no
 order can remove: the pairs are horizontal; turning the pairing by 90° on
 alternate turns would need the join in `decode.wat` to pair (i, i + W).
+
+
+## The link rounds (2026-10-20, later)
+
+The author saw energy moving towards the bottom right under the VAX-11/780
+link machines and found the 68000 much more isotropic. Writes, byte copies
+and the activity map are balanced to within 1 % under both, but the
+contents themselves drift: cross-correlating the cell-sum maps five turns
+apart (256², 20 pairs, reset every 4 turns, 16 rounds a turn) and taking
+the sub-pixel shift as (right − left) / 2 over the one-pixel drop:
+
+| link round order | VAX right, down (px per 5 turns) | 68000 right, down | PDP-11 right, down |
+|---|---|---|---|
+| machines reading the live pixels, forward on even rounds, reversed on odd (before) | 0.19, 0.18 | −0.24, −0.20 | 1.17, 0.76 |
+| live pixels, the swap phases' rotating order | 0.04, 0.00 | −0.02, −0.05 | |
+| live pixels, machine order alternating by round | 0.04, 0.03 | 0.05, −0.03 | |
+| live pixels, both | −0.05, −0.05 | −0.01, −0.05 | |
+| synchronous rounds, rotating order (now) | 0.08, 0.12 (seeds: −0.01 to 0.14, within the estimator's noise) | −0.03, −0.03 | 0.00, 0.00 |
+
+So the two machines drift by the same amount in opposite directions. The
+memory layout is not the cause: a pair carries two links, and the B→A
+machine has the top-left pixel at the higher addresses exactly as the A→B
+machine has the bottom-right one, so a habit of copying towards higher
+addresses (the VAX's post-increment) or lower ones (the 68000's
+pre-decrement) moves content right in one machine and left in the other.
+What breaks the symmetry is the order of execution: in every phase of
+every round the A→B machine ran first and the B→A machine second, on the
+state the first had just written, so the two opposite copies do not
+cancel, and the sign of the residue depends on the machine's copy
+direction. That is why alternating the machine order by round removes the
+drift on its own (third row), as the rotating phase order does.
+
+The author's remedy, adopted the same day, removes the cause rather than
+balancing it: a round is synchronous. The grid is copied before the
+round, every machine reads its pixels from the copy and writes only the
+bytes it changes to the live pixels, so no machine sees another's writes
+within a round and the order matters only where two machines write the
+same byte (`links_snapshot` in the module, `Band.linkBand` snapshots in
+`early()`, the band protocol passes snapshot rows down and applies the
+returned rows as differences). The PDP-11's drift of over a pixel goes to
+zero and the 68000's to 0.03; the VAX's estimate scatters between −0.01
+and 0.14 over seeds, and the same start turned by 180 degrees does not
+give the opposite sign, so what remains there is the estimator's noise on
+that machine's streaky patterns, not a measured drift. The band test
+checks the synchronous rounds bit for bit across bands. The rotating order takes it below 0.05 pixel for both,
+and needs no change in the module: `Band.linkPhases` now rotates, with UD1
+still the phase the band protocol runs in the middle. Alternating the
+order of a pair's two machines does as well but needs a module flag; it
+was tried and not kept.

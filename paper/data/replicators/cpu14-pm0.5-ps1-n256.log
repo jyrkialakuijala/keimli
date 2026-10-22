@@ -1,0 +1,20 @@
+cpu14-pm0.5-ps1-n256-t2000: decoder alone after 200 turns, 96.9 % of cells on a cycle, 63197 species: 1-cycle 0.11 %
+seed 1: 352641 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 14, 50 % at -, 90 % at -
+seed 2: 364362 species seen, 99.9 % of cells on a cycle at the end, leader (2-cycle) 0.0 %, first seen at turn 42, 50 % at -, 90 % at -
+seed 3: 354203 species seen, 99.9 % of cells on a cycle at the end, leader (2-cycle) 0.0 %, first seen at turn 25, 50 % at -, 90 % at -
+seed 4: 357956 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 59, 50 % at -, 90 % at -
+seed 5: 360879 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 43, 50 % at -, 90 % at -
+seed 6: 357463 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 32, 50 % at -, 90 % at -
+seed 7: 357515 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 0.1 %, first seen at turn 95, 50 % at -, 90 % at -
+seed 8: 375057 species seen, 99.9 % of cells on a cycle at the end, leader (2-cycle) 0.0 %, first seen at turn 30, 50 % at -, 90 % at -
+seed 9: 358183 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 59, 50 % at -, 90 % at -
+seed 10: 355840 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 17, 50 % at -, 90 % at -
+file:///home/jyrki/life/paper/experiments/replicators.mjs:73
+fs.writeFileSync(`${outDir}/${tag}.json`, JSON.stringify({ tag, dict: changer === 36 ? dictId : 'cpu' + changer, changer, steps, salt, n, turns, seeds, pm, ps, page, pair, mixSync, basins: [...basins.entries()].map(([id, b]) => ({ id: id.toString(16), ...b })), rows }, null, 1));
+                                               ^
+
+RangeError: Invalid string length
+    at JSON.stringify (<anonymous>)
+    at file:///home/jyrki/life/paper/experiments/replicators.mjs:73:48
+
+Node.js v22.22.1

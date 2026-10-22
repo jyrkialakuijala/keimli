@@ -308,7 +308,7 @@
   </div>
   <div class="section" role="group" aria-labelledby="sec-algo">
     <span class="sec" id="sec-algo">Rewriting <span class="sub">a decoder or CPU rewrites every cell · the local changer</span></span>
-    <p class="sec-help">Every pixel's 16 bytes are replaced by what the changer makes of them. A Decoder reads them as a coded stream and writes what it decodes back: the LZ decompressor copying from the dictionary, Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse, Rice residuals, WebP's boolean decoder, PNG filters, a JPEG block or the codebooks. A Transform applies a fixed rule such as invert, reverse, sort or a DCT. A CPU runs the bytes as its whole memory for the chosen number of instructions and writes the memory back. With Cells set to pairs, two neighbouring cells are joined into one 32-byte cell for the changer and split back afterwards ("rewrite to A cell" and "rewrite to B cell" choose which of the two take the result, A being the leading cell this turn; both off, no changer runs). The "Self and its 4-neighbour vote" entries join every cell with a cell made from its four neighbours instead of with a neighbour: in each bit plane three or four neighbours set give 1, none or one give 0, two leave the cell's own bit, and a neighbour beyond the edge of the grid counts as the cell itself; the vote is taken from the state before any cell is rewritten and only the cell itself is written back, so the step is synchronous and isotropic, as in the game of life; with a CPU or the LZ decompressor, pairs instead carry persistent link machines, one per direction, each running one instruction per phase. The dictionary, the skipped bits, the cursor read range and offset and the longest copy shape the decoders that use them; the inspector below the lattice shows what the selected cell decodes to. With "Random start on change of dictionary" ticked (the default), choosing another dictionary starts again from random bits; unticked, the running lattice keeps its cells and the new dictionary takes over from them.</p>
+    <p class="sec-help">Every pixel's 16 bytes are replaced by what the changer makes of them. A Decoder reads them as a coded stream and writes what it decodes back: the LZ decompressor copying from the dictionary, Deflate, LZ4, Snappy, a Brotli-like coder, a prefix code, Morse, Rice residuals, WebP's boolean decoder, PNG filters, a JPEG block or the codebooks. A Transform applies a fixed rule such as invert, reverse, sort, a DCT, an elementary rule on the cell's bits as a ring (four with an exactly known loss of information: none, none, one bit and two bits a turn), or Conway's look-and-say in a base from 2 to 16 (the cell read as one number in that base, each run of equal digits rewritten as its length and the digit). A CPU runs the bytes as its whole memory for the chosen number of instructions and writes the memory back. With Cells set to pairs, two neighbouring cells are joined into one 32-byte cell for the changer and split back afterwards ("rewrite to A cell" and "rewrite to B cell" choose which of the two take the result, A being the leading cell this turn; both off, no changer runs). The "Self and its 4-neighbour vote" entries join every cell with a cell made from its four neighbours instead of with a neighbour: in each bit plane three or four neighbours set give 1, none or one give 0, two leave the cell's own bit, and a neighbour beyond the edge of the grid counts as the cell itself; the vote is taken from the state before any cell is rewritten and only the cell itself is written back, so the step is synchronous and isotropic, as in the game of life; with a CPU or the LZ decompressor, pairs instead carry persistent link machines, one per direction, each running one instruction per phase. The dictionary, the skipped bits, the cursor read range and offset and the longest copy shape the decoders that use them; the inspector below the lattice shows what the selected cell decodes to. With "Random start on change of dictionary" ticked (the default), choosing another dictionary starts again from random bits; unticked, the running lattice keeps its cells and the new dictionary takes over from them.</p>
     <div class="group">
       <label for="pair">Cells</label>
       <select id="pair" title="each cell on its own, or neighbouring pairs joined for the changer (concatenated, or interleaved by bit, nibble or byte), the roles alternating by turn">
@@ -349,6 +349,31 @@
         <option value="18">Inverse DCT</option>
         <option value="41">Sort bytes (ascending)</option>
         <option value="42">Primes first, then the rest (each ascending)</option>
+        <optgroup label="Elementary rule on the cell's bits as a ring (Wolfram's numbering)">
+          <option value="426">Rule 170: every bit takes its right neighbour's value, a rotation (loses nothing)</option>
+          <option value="406">Rule 150: every bit XOR its two neighbours (loses nothing)</option>
+          <option value="316">Rule 60: every bit XOR the bit before it (loses exactly 1 bit a turn)</option>
+          <option value="346">Rule 90: the XOR of the two neighbours (loses exactly 2 bits a turn)</option>
+          <option value="440">Rule 184, traffic: a 1 moves right into a 0 (keeps the count of 1s; jams cancel, losing information slowly)</option>
+          <option value="313">Rule 57: NOT self after a 1, else NOT (self XOR right) (loses information fast, measured, not known exactly)</option>
+        </optgroup>
+        <optgroup label="Look-and-say: each run of equal digits becomes its length and the digit">
+          <option value="50">Look-and-say, base 2 (binary)</option>
+          <option value="51">Look-and-say, base 3 (ternary)</option>
+          <option value="52">Look-and-say, base 4 (quaternary)</option>
+          <option value="53">Look-and-say, base 5</option>
+          <option value="54">Look-and-say, base 6</option>
+          <option value="55">Look-and-say, base 7</option>
+          <option value="56">Look-and-say, base 8 (octal)</option>
+          <option value="57">Look-and-say, base 9</option>
+          <option value="58">Look-and-say, base 10 (decimal, Conway's own)</option>
+          <option value="59">Look-and-say, base 11</option>
+          <option value="60">Look-and-say, base 12</option>
+          <option value="61">Look-and-say, base 13</option>
+          <option value="62">Look-and-say, base 14</option>
+          <option value="63">Look-and-say, base 15</option>
+          <option value="64">Look-and-say, base 16 (hexadecimal)</option>
+        </optgroup>
       </select>
     </div>
     <div class="group" id="decGroup" hidden>
@@ -738,7 +763,7 @@ function workerMain() {
     if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
   }
   const selectDict = id => { const d = DICTS.find(x => x.id === id) || DICTS[0]; $('dictKind').value = kindOf(d); fillDictList(kindOf(d), d.id); };   // the kind follows the dictionary
-  const DEFAULT_DICT = DICTS.some(d => d.id === 'ca-gray20c') ? 'ca-gray20c' : DICTS.some(d => d.id === 'ca-swarm-f') ? 'ca-swarm-f' : DICTS[0].id;   // the fresh-page default: the designed twenty Gray 8-cycles
+  const DEFAULT_DICT = DICTS.some(d => d.id === 'ca-swarm-f') ? 'ca-swarm-f' : DICTS[0].id;   // the fresh-page default: Swarm search F, front and islands
   selectDict(DEFAULT_DICT);
   const dictEntry = () => DICTS.find(d => d.id === $('dict').value) || DICTS[0];
   const dictText = () => dictEntry().text;
@@ -803,7 +828,16 @@ function workerMain() {
   // local changer: 'none' keeps the LZ decompressor for the views but skips the rewrite phase
   // The local changer is chosen in two steps: a mode (none / transform / decoder / CPU) and, for the last three,
   // the processor in its own box. changerId() is the wasm processor number (0 LZ, 1..21 as listed in the boxes).
-  const CPU_IDS = [2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 43, 44, 47], XF_IDS = [3, 4, 5, 16, 17, 18, 41, 42], DEC_IDS = [0, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46];
+  const CPU_IDS = [2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 43, 44, 47], XF_IDS = [3, 4, 5, 16, 17, 18, 41, 42, 313, 316, 346, 406, 426, 440, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64], DEC_IDS = [0, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46];
+  // look-and-say (kinds 50..64, base = kind - 48): the digits of a cell of w bytes, and the inspector's reading of one cell
+  const lasDigits = (b, w) => { let n = 0, p = 1n; while (p < (1n << BigInt(8 * w))) { p *= BigInt(b); n++; } return n; };
+  const lasNote = (ch, bytes) => { if (!(ch >= 50 && ch <= 64)) return undefined; const b = ch - 48, n = lasDigits(b, bytes.length);
+    let N = 0n; for (const v of bytes) N = (N << 8n) | BigInt(v);
+    return `the cell in base ${b}, ${n} digits: ${N.toString(b).padStart(n, '0')}; each run becomes its length and the digit`; };
+  // elementary rules (kinds 256..511, rule = kind - 256) on the cell's bit ring; the page offers the four whose loss is exact
+  const ECA_LOSS = { 170: 0, 150: 0, 60: 1, 90: 2 };
+  const ecaNote = (ch, w) => { if (!(ch >= 256 && ch <= 511)) return undefined; const rule = ch - 256, n = 8 * w, l = ECA_LOSS[rule];
+    return `rule ${rule} on a ring of ${n} bits` + (l === undefined ? '' : l ? `: the reachable cells shrink by ${l} bit${l > 1 ? 's' : ''} a turn, to the all-zero cell after ${n / l} turns` : ': a bijection, nothing is lost'); };
   const changerId = () => { const m = $('changer').value; return m === 'cpu' ? Number($('cpu').value) : m === 'xf' ? Number($('xf').value) : m === 'dec' ? Number($('dec').value) : 0; };
   const voteMode = () => Number($('pair').value) >= 8;   // the B cell is the pixel's 4-neighbour vote, not a pixel
   const writeMask = () => (Number($('pair').value) && !voteMode() ? ($('writeA').checked ? 1 : 0) | ($('writeB').checked ? 2 : 0) : ($('writeA').checked ? 1 : 0));   // which cells take the changer's result
@@ -872,10 +906,10 @@ function workerMain() {
         for (let i = 0; i < t.passes; i++) { smoothed += wasm.smooth(W, H, GRID, GRID2, LAYOUT.THRY, t.salts[k++], t.nbr); m8.copyWithin(GRID, GRID2, GRID2 + 16 * N); }
         io.setPair(t.pair ? t.pair.mode : 0, t.pair ? t.pair.flip : 0, W, 0, H, GRID2);
         new Int32Array(wasm.memory.buffer, PRM + 116, 1)[0] = t.pair && t.pair.write !== undefined ? t.pair.write | 0 : 3;   // which cells of a pair take the result (the band pipeline sets the same)
-        if (t.pair && (t.pair.mode & 8) && t.changer && !t.links) m8.copyWithin(GRID2, GRID, GRID + 16 * N);   // the vote partner reads the state before any pixel is rewritten
         let rewritten = 0, infl = null;
         if (t.influence && t.pair && t.pair.mode && t.changer && !t.links) { wasm.influence(N, GRID, PRM, GRID2, BigInt(t.influence)); infl = Array.from(new Int32Array(wasm.memory.buffer, GRID2, 5)); }
-        if (t.links) { ensureLinks(t.links.kind); if (t.links.reset) wasm.links_reset(LINKS, 4 * N, t.links.kind); for (let r = 0; r < t.links.rounds; r++) for (const ph of Band.linkPhases(r).all) rewritten += wasm.links(W, H, GRID, PRM, ph, LINKS); }   // rounds of one instruction per link, phase by phase, alternating direction
+        if (t.pair && (t.pair.mode & 8) && t.changer && !t.links) m8.copyWithin(GRID2, GRID, GRID + 16 * N);   // the vote partner reads the state before any pixel is rewritten (after the influence, which uses GRID2 as scratch)
+        if (t.links) { ensureLinks(t.links.kind); if (t.links.reset) wasm.links_reset(LINKS, 4 * N, t.links.kind); for (let r = 0; r < t.links.rounds; r++) { m8.copyWithin(GRID2, GRID, GRID + 16 * N); wasm.links_snapshot(GRID2 - GRID); for (const ph of Band.linkPhases(r).all) rewritten += wasm.links(W, H, GRID, PRM, ph, LINKS); } }   // each round reads the snapshot taken before it   // rounds of one instruction per link, phase by phase, alternating direction
         else if (t.changer) rewritten = wasm.change(N, GRID, PRM);
         const mutated = t.mut && t.mut.lam ? wasm.mutate(N, GRID, 0, t.mut.lam, t.mut.salt) : 0;
         return { moved, smoothed, rewritten, mutated, infl, bits: wasm.bits(N, GRID), hist: histLocal() };
@@ -1097,7 +1131,7 @@ function workerMain() {
                                     17: 'DCT: the 16 bytes are taken as signed samples (byte - 128) and replaced by their 16-point DCT-II coefficients at half the orthonormal scale, offset by 128 and clamped to 0..255. Byte 0 becomes the mean, the rest the frequencies in rising order. On a pair the transform has 32 points over the joint cell (the inspector shows the single-cell transform).',
                                     18: 'inverse DCT: the 16 bytes are taken as DCT coefficients (byte - 128, doubled) and replaced by the 16 samples they describe, offset by 128 and clamped to 0..255. DCT followed by inverse DCT returns the pixel to within rounding unless coefficients clipped.',
                                     41: 'sort: the 16 bytes are rewritten in ascending order (on a pair, the 32 bytes of the joint cell). A fixed point after one turn; swapping and mutation keep disturbing it, so the cell is a histogram of what it receives.',
-                                    42: 'primes first: the bytes whose value is a prime number (2, 3, 5, 7, 11, ... 251) come first in ascending order, then the other values in ascending order. The 54 primes below 256 are a fifth of the byte values.' }[changerId()];
+                                    42: 'primes first: the bytes whose value is a prime number (2, 3, 5, 7, 11, ... 251) come first in ascending order, then the other values in ascending order. The 54 primes below 256 are a fifth of the byte values.' }[changerId()] ?? (changerId() >= 256 ? `elementary rule ${changerId() - 256} (Wolfram's numbering) on the cell's bits as a closed ring in reading order, the first byte's top bit first and bit 127 next to bit 0 (on a pair one ring of 256 bits): each bit's new value is bit 4 × left + 2 × self + right of the rule number. The first four are known entropy manipulators: on a ring of 128 or 256 bits rule 170 (a rotation) and rule 150 are bijections and lose nothing; rule 60 (x XOR its left neighbour) loses exactly one bit a turn and rule 90 (left XOR right) exactly two, so that from any start every cell is all zero after 128 or 64 turns (256 or 128 on a pair) unless the mixing and the mutation put bits back. Rule 90 is nilpotent because the ring's length is a power of two (Martin, Odlyzko and Wolfram 1984); Rule 184, the traffic rule, keeps the number of 1s in the ring; its jams meet and cancel, so it loses information slowly and in a known way. Rule 57 loses information fast (measured from random cells, not known exactly). Wolfram 1983 showed that such many-to-one rules organise a lattice by losing information.` : `look-and-say in base ${changerId() - 48}: the cell's 128 bits (256 on a pair) are one number, the first byte most significant, written as the digits of base ${changerId() - 48} that hold any 128-bit value (${lasDigits(changerId() - 48, 16)} digits; ${lasDigits(changerId() - 48, 32)} on a pair). Each run of equal digits is replaced by its length, written in the same base, followed by the digit, as in Conway's sequence 1, 11, 21, 1211, 111221 (his audioactive decay). The description is cut at the cell's number of digits and padded with zeros when it is shorter; ${[2, 4, 16].includes(changerId() - 48) ? 'the digits fill the bits exactly' : 'a description worth more than the cell can hold wraps round modulo 2^128'}. Conway's only fixed point is 22; on the fixed-width cell the cut discards information, and almost every random cell falls onto a 3-cycle within about a dozen turns.`);
       return;
     }
     if (changerId() !== 0) {
@@ -1230,7 +1264,7 @@ function workerMain() {
     if (sel < 0) return;
     const pairIns = linkMode() && changerActive() && !linksActive() ? { mode: Number($('pair').value), flip: turn & 1 } : null;   // decoders and transforms on pairs: inspect the joint cell
     const r = await engine.inspect(sel, pairIns), textLen = built.bytes.length, hb = HB, coff = Number($('coff').value), nbits = r.bits.length * 8;
-    const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18) || ch === 41 || ch === 42, dec = (ch >= 31 && ch <= 40) || ch === 45 || ch === 46, z80 = (ch >= 6 && ch <= 15) || (ch >= 19 && ch <= 30) || ch === 43 || ch === 44 || ch === 47 || (ch === 0 && linksActive());
+    const ch = changerId(), bf = ch === 1 || ch === 2, simple = (ch >= 3 && ch <= 5) || (ch >= 16 && ch <= 18) || ch === 41 || ch === 42 || (ch >= 50 && ch <= 64) || (ch >= 256 && ch <= 511), dec = (ch >= 31 && ch <= 40) || ch === 45 || ch === 46, z80 = (ch >= 6 && ch <= 15) || (ch >= 19 && ch <= 30) || ch === 43 || ch === 44 || ch === 47 || (ch === 0 && linksActive());
     $('selPos').textContent = `x ${sel % W}, y ${Math.floor(sel / W)}` + (r.pair ? (r.pair.mode & 8 ? ` · joined with its 4-connected neighbour vote` : ` · paired with x ${(sel % W) + (r.pair.left ? 1 : -1)}`) + `: the ${nbits}-bit joint cell below is ${({ 1: 'the two concatenated', 2: 'bit-interleaved', 4: '2-bit-interleaved', 3: 'nibble-interleaved', 5: 'byte-interleaved' })[r.pair.mode & 7] || 'joined'}, this pixel in the ${r.pair.left !== !!r.pair.flip ? 'first' : 'second'} role this turn` : '');
     $('selHex').textContent = Array.from(r.bits, b => b.toString(16).padStart(2, '0')).join(' ');
     if (z80) {
@@ -1335,7 +1369,7 @@ function workerMain() {
     if (simple) {
       const frag = document.createDocumentFragment();
       r.out.forEach((b, i) => { const s = document.createElement('span'); s.className = r.flags[i] ? 'c' : ''; s.textContent = b.toString(16).padStart(2, '0') + ' '; frag.appendChild(s); });
-      $('selWindow').textContent = { 3: 'do nothing: output = input', 4: 'invert: every bit flipped', 5: 'reverse: the 16 bytes in reverse order', 16: 'extremes: the largest byte −23, its next +11, its previous +13; the smallest byte +23, its next −11, its previous −13; mod 256, index wrapping', 17: 'DCT coefficients of the 16 samples (byte 0 = mean), 128 = zero', 18: 'samples reconstructed from the 16 DCT coefficients, 128 = zero', 41: 'the bytes sorted in ascending order', 42: 'the prime values first, then the rest, each in ascending order' }[ch];
+      $('selWindow').textContent = { 3: 'do nothing: output = input', 4: 'invert: every bit flipped', 5: 'reverse: the 16 bytes in reverse order', 16: 'extremes: the largest byte −23, its next +11, its previous +13; the smallest byte +23, its next −11, its previous −13; mod 256, index wrapping', 17: 'DCT coefficients of the 16 samples (byte 0 = mean), 128 = zero', 18: 'samples reconstructed from the 16 DCT coefficients, 128 = zero', 41: 'the bytes sorted in ascending order', 42: 'the prime values first, then the rest, each in ascending order' }[ch] ?? lasNote(ch, r.bits) ?? ecaNote(ch, r.bits.length);
       $('selText').replaceChildren(frag);
       $('selNote').textContent = `${r.copied} of ${r.out.length} bytes differ from the input (highlighted)`;
       return;
@@ -1556,7 +1590,7 @@ function workerMain() {
   };
   // every control's id, saved key and default; the share line and the presets are built on the same list
   const CONTROL_DEFAULTS = [['size', 'size', '512x512'], ['pattern', 'pattern', 'random'], ['view', 'view', '4'], ['avg', 'avg', '2'], ['tw', 'ts', '1'], ['sp', 'sp', '0'], ['cph', 'cph', '0.12'],
-            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['salt', 'salt', '0'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-gray20c'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']];
+            ['thrL', 'thrL', 0], ['thrR', 'thrR', 1], ['gpow', 'gpow', '0.2'], ['salt', 'salt', '0'], ['mut', 'mut', '0'], ['smoothT', 'smoothT', 0], ['smoothB', 'smoothB', 1], ['iters', 'iters', 3], ['nbr', 'nbr', '1'], ['scale', 'scale', 'fit'], ['maxlen', 'maxlen', 3], ['speed', 'speed', 5], ['threads', 'threads', 1], ['dict', 'dict', 'ca-swarm-f'], ['changer', 'changer', 'dec'], ['cpu', 'cpu', '6'], ['xf', 'xf', '4'], ['dec', 'dec', '36'], ['steps', 'steps', '256'], ['rounds', 'rounds', '2'], ['lreset', 'lreset', '1'], ['coff', 'coff', '0'], ['skip', 'skip', '6'], ['pair', 'pair', '0']];
   const SHARE_KEYS = [...CONTROL_DEFAULTS.map(([, key]) => key).filter(k => k !== 'threads'), 'lnever', 'swapOn', 'medOn', 'writeA', 'writeB', 'dictRandom', 'pixelReset', 'twin', 'order', 'mixRule', 'cread'];   // threads stay with the machine
   const controlState = () => ({
     size: $('size').value, pattern: $('pattern').value, view: $('view').value, avg: $('avg').value, ts: $('tw').value, sp: $('sp').value, cph: $('cph').value, thrL: $('thrL').value, thrR: $('thrR').value, gpow: $('gpow').value, salt: $('salt').value, mut: $('mut').value,
@@ -1595,28 +1629,45 @@ function workerMain() {
   }
   const PUBLIC_URL = location.protocol === 'https:' && !/claude\.ai$/.test(location.hostname) ? location.origin + location.pathname : 'https://jyrkialakuijala.github.io/keimli/';
   const defaultSettings = () => { const o = { lnever: true, swapOn: true, medOn: true, writeA: true, writeB: true, dictRandom: true, pixelReset: true, twin: true, order: 'rotate', mixRule: 'swap', cread: null }; for (const [, key, dflt] of CONTROL_DEFAULTS) o[key] = String(dflt); return o; };   // cread null: the dictionary's own window range, else 4096
-  const PRESETS = [
-    ['Twenty Gray 8-cycles (the default)', {}],
-    ['Twelve Gray 8-cycles', { dict: 'ca-gray12c', cread: 60000 }],
-    ['Life-like: synchronous isotropic mixing and one 4-neighbour vote a turn, under the usual gradients', { mixRule: 'sync', nbr: '0', iters: '1' }],
-    ['Pairs concatenated: four designed species', { dict: 'ca-paircat4', cread: 60000, pair: '1' }],
-    ['Pairs bit-interleaved: four designed species', { dict: 'ca-pairbit4', cread: 60000, pair: '2' }],
-    ['Pairs 2-bit-interleaved: two designed species', { dict: 'ca-pairbit22', cread: 60000, pair: '4' }],
-    ['Pairs nibble-interleaved: two designed species', { dict: 'ca-pairnib2', cread: 60000, pair: '3' }],
-    ['Pairs byte-interleaved: ten designed species', { dict: 'ca-pairbyte10', cread: 60000, pair: '5' }],
-    ['Brotli front and islands (Swarm search F)', { dict: 'ca-swarm-f', cread: 4096 }],
-    ['Dissolving cloud (Brotli search 1)', { dict: 'ca-brotli-1' }],
-    ['Foam (Brotli search 2)', { dict: 'ca-brotli-2' }],
-    ['Landmass and sea (Brotli search 12)', { dict: 'ca-brotli-12' }],
-    ['Codebook cycles meeting their neighbours: the 4-neighbour vote, nibble-joined, domains coarsening, no mixing', { changer: 'dec', dec: '45', dict: 'ca-codebook-5', size: '512x512', pair: '11', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false, scale: 'one' }],
-    ['Bit codebook on the 4-neighbour vote: two phases coarsening, no mixing', { changer: 'dec', dec: '46', dict: 'ca-codebook-8', size: '512x512', pair: '9', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false, scale: 'one' }],
-    ['Bit codebook, many short cycles', { changer: 'dec', dec: '46', dict: 'ca-codebook-8', size: '512x512', pair: '1', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false, scale: 'one' }],
-    ['Motorola 68000 link machines, no mixing or settling', { changer: 'cpu', cpu: '21', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: 'one', swapOn: false, medOn: false }],
-    ['DEC PDP-11 link machines, no mixing or settling', { changer: 'cpu', cpu: '20', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: 'one', swapOn: false, medOn: false }],
-    ['VAX-11/780 link machines, no mixing or settling', { changer: 'cpu', cpu: '23', pair: '1', rounds: '16', lnever: false, lreset: '4', size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', scale: 'one', swapOn: false, medOn: false }],
-    ['The Declaration through the LZ decompressor', { changer: 'dec', dec: '0', dict: 'declaration', skip: '6', cread: 5, coff: '50', maxlen: '3', pair: '0' }],
+  // the presets, by what rewrites the cells: Decompressive (a decoder: the default kind, the Brotli-like decoder unless the
+  // preset names another), Computational (a CPU) and Arithmetic (a transform); the menu shows them in these groups
+  const PRESET_GROUPS = [
+    ['Decompressive: a decoder rewrites the cells', [
+      ['Brotli front and islands (Swarm search F, the default)', {}],
+      ['Twenty Gray 8-cycles', { dict: 'ca-gray20c', cread: 60000 }],
+      ['Twelve Gray 8-cycles', { dict: 'ca-gray12c', cread: 60000 }],
+      ['Life-like: synchronous isotropic mixing, one 4-neighbour vote a turn, the cell rewritten with its 4-neighbour vote interleaved 1 bit at a time, under the usual gradients', { mixRule: 'sync', nbr: '0', iters: '1', pair: '10' }],
+      ['Life-like with the dictionary designed for it: the cell and its vote interleaved 1 bit at a time, one Gray 8-cycle', { mixRule: 'sync', nbr: '0', iters: '1', pair: '10', dict: 'ca-vote1', cread: 60000 }],
+      ['Pairs concatenated: four designed species', { dict: 'ca-paircat4', cread: 60000, pair: '1' }],
+      ['Pairs bit-interleaved: four designed species', { dict: 'ca-pairbit4', cread: 60000, pair: '2' }],
+      ['Pairs 2-bit-interleaved: two designed species', { dict: 'ca-pairbit22', cread: 60000, pair: '4' }],
+      ['Pairs nibble-interleaved: two designed species', { dict: 'ca-pairnib2', cread: 60000, pair: '3' }],
+      ['Self and its 4-neighbour vote, byte-interleaved: two designed species competing', { dict: 'ca-votebyte2', cread: 60000, pair: '13' }],
+      ['Dissolving cloud (Brotli search 1)', { dict: 'ca-brotli-1' }],
+      ['Foam (Brotli search 2)', { dict: 'ca-brotli-2' }],
+      ['Landmass and sea (Brotli search 12)', { dict: 'ca-brotli-12' }],
+      ['Codebook cycles meeting their neighbours: the 4-neighbour vote, nibble-joined, domains coarsening, no mixing', { changer: 'dec', dec: '45', dict: 'ca-codebook-5', size: '512x512', pair: '11', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false }],
+      ['Bit codebook on the 4-neighbour vote: two phases coarsening, no mixing', { changer: 'dec', dec: '46', dict: 'ca-codebook-8', size: '512x512', pair: '9', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false }],
+      ['Bit codebook, many short cycles', { changer: 'dec', dec: '46', dict: 'ca-codebook-8', size: '512x512', pair: '1', skip: '0', cread: 256, coff: '0', swapOn: false, medOn: false }],
+      ['The Declaration through the LZ decompressor', { changer: 'dec', dec: '0', dict: 'declaration', skip: '6', cread: 5, coff: '50', maxlen: '3', pair: '0' }],
+    ]],
+    ['Computational: CPUs rewrite the cells', [
+      ['Motorola 68000 link machines, no mixing or settling', { changer: 'cpu', cpu: '21', pair: '1', rounds: '16', lnever: true, size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', swapOn: false, medOn: false }],
+      ['DEC PDP-11 link machines, no mixing or settling', { changer: 'cpu', cpu: '20', pair: '1', rounds: '16', lnever: true, size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', swapOn: false, medOn: false }],
+      ['VAX-11/780 link machines, no mixing or settling', { changer: 'cpu', cpu: '23', pair: '1', rounds: '16', lnever: true, size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', swapOn: false, medOn: false }],
+    ]],
+    ['Arithmetic: a transform rewrites the cells', [
+      ['Extremes ±23: the largest byte gives, the smallest takes, a slow deterministic drift', { changer: 'xf', xf: '16' }],
+      ['Sort bytes: every cell sorted ascending each turn, under the usual gradients', { changer: 'xf', xf: '41' }],
+      ['Rule 184 (traffic) on every cell\'s bit ring: the count of 1s kept, jams cancelling; winding domain walls', { changer: 'xf', xf: '440' }],
+      ['Rule 57 on every cell\'s bit ring: fast loss of information; a labyrinth under the settling', { changer: 'xf', xf: '313' }],
+      ['Look-and-say, decimal: Conway\'s audioactive decay on every cell; his 3-cycle with islands', { changer: 'xf', xf: '58' }],
+      ['Look-and-say, binary: run lengths written in binary, a finer mottle', { changer: 'xf', xf: '50' }],
+      ['DCT and inverse in alternation: pairs concatenated, the 32-point transform each turn', { changer: 'xf', xf: '17', pair: '1' }],
+    ]],
   ];
-  for (const [name, over] of PRESETS) { const opt = document.createElement('option'); opt.value = encodeSettings({ ...defaultSettings(), ...over }); opt.textContent = name; $('preset').appendChild(opt); }
+  const PRESETS = PRESET_GROUPS.flatMap(([, list]) => list);
+  for (const [group, list] of PRESET_GROUPS) { const og = document.createElement('optgroup'); og.label = group; for (const [name, over] of list) { const opt = document.createElement('option'); opt.value = encodeSettings({ ...defaultSettings(), ...over }); opt.textContent = name; og.appendChild(opt); } $('preset').appendChild(og); }
   async function applySettings(str) {
     const o = decodeSettings(str);
     if (!o) { $('shareNote').textContent = 'not a settings line (it starts with keimli1)'; return; }

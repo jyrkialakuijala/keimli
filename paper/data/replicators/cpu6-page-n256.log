@@ -1,0 +1,20 @@
+cpu6-page-n256-t2000: decoder alone after 200 turns, 99.6 % of cells on a cycle, 60911 species: 1-cycle 0.70 %, 1-cycle 0.49 %, 1-cycle 0.49 %, 1-cycle 0.44 %, 1-cycle 0.44 %, 1-cycle 0.30 %, 1-cycle 0.30 %, 1-cycle 0.27 %, 1-cycle 0.27 %, 1-cycle 0.13 %, 1-cycle 0.11 %, 1-cycle 0.10 %
+seed 1: 373677 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 1.1 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 2: 373641 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 0.9 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 3: 359396 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 1.0 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 4: 390121 species seen, 99.4 % of cells on a cycle at the end, leader (1-cycle) 1.0 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 5: 361442 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 1.0 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 6: 371447 species seen, 99.8 % of cells on a cycle at the end, leader (1-cycle) 1.0 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 7: 391293 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.9 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 8: 356286 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 1.1 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 9: 355253 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 1.2 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 10: 381270 species seen, 99.8 % of cells on a cycle at the end, leader (1-cycle) 1.0 %, first seen at turn 1, 50 % at -, 90 % at -
+file:///home/jyrki/life/paper/experiments/replicators.mjs:73
+fs.writeFileSync(`${outDir}/${tag}.json`, JSON.stringify({ tag, dict: changer === 36 ? dictId : 'cpu' + changer, changer, steps, salt, n, turns, seeds, pm, ps, page, pair, mixSync, basins: [...basins.entries()].map(([id, b]) => ({ id: id.toString(16), ...b })), rows }, null, 1));
+                                               ^
+
+RangeError: Invalid string length
+    at JSON.stringify (<anonymous>)
+    at file:///home/jyrki/life/paper/experiments/replicators.mjs:73:48
+
+Node.js v22.22.1

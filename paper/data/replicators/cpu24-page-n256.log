@@ -1,0 +1,20 @@
+cpu24-page-n256-t2000: decoder alone after 200 turns, 100.0 % of cells on a cycle, 65130 species: 
+seed 1: 1062560 species seen, 94.9 % of cells on a cycle at the end, leader (1-cycle) 0.1 %, first seen at turn 58, 50 % at -, 90 % at -
+seed 2: 1147540 species seen, 93.8 % of cells on a cycle at the end, leader (1-cycle) 0.1 %, first seen at turn 101, 50 % at -, 90 % at -
+seed 3: 1071061 species seen, 94.5 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 102, 50 % at -, 90 % at -
+seed 4: 1133764 species seen, 96.1 % of cells on a cycle at the end, leader (1-cycle) 0.1 %, first seen at turn 39, 50 % at -, 90 % at -
+seed 5: 1131249 species seen, 94.9 % of cells on a cycle at the end, leader (1-cycle) 0.1 %, first seen at turn 53, 50 % at -, 90 % at -
+seed 6: 1160089 species seen, 93.2 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 52, 50 % at -, 90 % at -
+seed 7: 1148983 species seen, 96.3 % of cells on a cycle at the end, leader (1-cycle) 0.1 %, first seen at turn 34, 50 % at -, 90 % at -
+seed 8: 1229678 species seen, 94.8 % of cells on a cycle at the end, leader (1-cycle) 0.1 %, first seen at turn 11, 50 % at -, 90 % at -
+seed 9: 1032282 species seen, 94.8 % of cells on a cycle at the end, leader (1-cycle) 0.1 %, first seen at turn 70, 50 % at -, 90 % at -
+seed 10: 1088583 species seen, 95.7 % of cells on a cycle at the end, leader (1-cycle) 0.1 %, first seen at turn 71, 50 % at -, 90 % at -
+file:///home/jyrki/life/paper/experiments/replicators.mjs:73
+fs.writeFileSync(`${outDir}/${tag}.json`, JSON.stringify({ tag, dict: changer === 36 ? dictId : 'cpu' + changer, changer, steps, salt, n, turns, seeds, pm, ps, page, pair, mixSync, basins: [...basins.entries()].map(([id, b]) => ({ id: id.toString(16), ...b })), rows }, null, 1));
+                                               ^
+
+RangeError: Invalid string length
+    at JSON.stringify (<anonymous>)
+    at file:///home/jyrki/life/paper/experiments/replicators.mjs:73:48
+
+Node.js v22.22.1

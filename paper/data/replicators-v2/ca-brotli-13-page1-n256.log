@@ -1,0 +1,21 @@
+ca-brotli-13-page-n256-t2000: decoder alone after 200 turns, 100.0 % of cells on a cycle, 6 species: 9-cycle 92.92 %, 18-cycle 4.14 %, 1-cycle 2.82 %, 1-cycle 0.12 %
+seed 1: 5713 species seen, 73.7 % of cells on a cycle at the end, leader (1-cycle) 64.9 %, first seen at turn 5, 50 % at 526, 90 % at -
+seed 2: 5750 species seen, 73.5 % of cells on a cycle at the end, leader (1-cycle) 61.9 %, first seen at turn 6, 50 % at 576, 90 % at -
+seed 3: 4633 species seen, 73.6 % of cells on a cycle at the end, leader (1-cycle) 67.5 %, first seen at turn 5, 50 % at 534, 90 % at -
+seed 4: 6048 species seen, 73.3 % of cells on a cycle at the end, leader (1-cycle) 64.9 %, first seen at turn 5, 50 % at 496, 90 % at -
+seed 5: 5982 species seen, 73.6 % of cells on a cycle at the end, leader (1-cycle) 62.9 %, first seen at turn 7, 50 % at 505, 90 % at -
+seed 6: 6323 species seen, 73.2 % of cells on a cycle at the end, leader (1-cycle) 62.3 %, first seen at turn 5, 50 % at 522, 90 % at -
+seed 7: 5611 species seen, 73.6 % of cells on a cycle at the end, leader (1-cycle) 63.7 %, first seen at turn 5, 50 % at 646, 90 % at -
+seed 8: 5773 species seen, 73.2 % of cells on a cycle at the end, leader (1-cycle) 60.0 %, first seen at turn 5, 50 % at 514, 90 % at -
+seed 9: 6163 species seen, 73.7 % of cells on a cycle at the end, leader (1-cycle) 63.0 %, first seen at turn 5, 50 % at 463, 90 % at -
+seed 10: 5991 species seen, 73.5 % of cells on a cycle at the end, leader (1-cycle) 61.0 %, first seen at turn 6, 50 % at 552, 90 % at -
+seed 11: 5963 species seen, 73.4 % of cells on a cycle at the end, leader (1-cycle) 63.4 %, first seen at turn 7, 50 % at 507, 90 % at -
+seed 12: 4979 species seen, 73.6 % of cells on a cycle at the end, leader (1-cycle) 67.0 %, first seen at turn 5, 50 % at 442, 90 % at -
+seed 13: 6209 species seen, 73.5 % of cells on a cycle at the end, leader (1-cycle) 63.1 %, first seen at turn 5, 50 % at 437, 90 % at -
+seed 14: 6590 species seen, 73.5 % of cells on a cycle at the end, leader (1-cycle) 60.7 %, first seen at turn 5, 50 % at 487, 90 % at -
+seed 15: 5246 species seen, 73.6 % of cells on a cycle at the end, leader (1-cycle) 63.9 %, first seen at turn 4, 50 % at 479, 90 % at -
+seed 16: 4993 species seen, 73.7 % of cells on a cycle at the end, leader (1-cycle) 66.2 %, first seen at turn 6, 50 % at 548, 90 % at -
+seed 17: 5914 species seen, 73.4 % of cells on a cycle at the end, leader (1-cycle) 62.6 %, first seen at turn 8, 50 % at 472, 90 % at -
+seed 18: 6563 species seen, 73.5 % of cells on a cycle at the end, leader (1-cycle) 59.7 %, first seen at turn 6, 50 % at 586, 90 % at -
+seed 19: 5238 species seen, 73.4 % of cells on a cycle at the end, leader (1-cycle) 65.9 %, first seen at turn 4, 50 % at 425, 90 % at -
+seed 20: 5325 species seen, 73.6 % of cells on a cycle at the end, leader (1-cycle) 66.3 %, first seen at turn 5, 50 % at 450, 90 % at -

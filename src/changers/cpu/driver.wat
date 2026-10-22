@@ -74,19 +74,32 @@
   ;; 2 bit-interleaved, a on the even bits; 3 nibble-interleaved, a on the low nibbles; 5 byte-interleaved), registers restored from
   ;; and saved to the 128-byte state at st; the joint cell is split back and a pixel counts as written when a byte
   ;; of it changed.
+  ;; links_snapshot(d): the machines read their two pixels from the copy d bytes away (the snapshot of the round, taken by
+  ;; the host before the round's first phase) and write only the bytes they change to the live pixels, so every machine
+  ;; of a round sees the state before the round and the order of the phases and of a pair's two machines matters only
+  ;; where two machines write the same byte. d = 0 reads the live pixels (every machine sees the writes before it).
+  (global $lsnap (mut i32) (i32.const 0))
+  (func (export "links_snapshot") (param $d i32) (global.set $lsnap (local.get $d)))
+  ;; link_run(a, b, st, out, kind, mode) -> pixels changed (0..2): one instruction of the machine whose state is at st, on
+  ;; the joint cell of the pixels at a (first role) and b, read from the snapshot; the result is split to out + 32 and
+  ;; out + 48, and the bytes that differ from the snapshot are stored to the live pixels
   (func $link_run (param $a i32) (param $b i32) (param $st i32) (param $out i32) (param $kind i32) (param $mode i32) (result i32)
-    (local $a0 i64) (local $a1 i64) (local $b0 i64) (local $b1 i64) (local $changed i32)
-    (local.set $a0 (i64.load (local.get $a))) (local.set $a1 (i64.load offset=8 (local.get $a)))
-    (local.set $b0 (i64.load (local.get $b))) (local.set $b1 (i64.load offset=8 (local.get $b)))
-    (call $join (local.get $a) (local.get $b) (local.get $out) (local.get $mode) (i32.const 0))
+    (local $d i32) (local $k i32) (local $ca i32) (local $cb i32) (local $v i32)
+    (local.set $d (global.get $lsnap))
+    (call $join (i32.add (local.get $a) (local.get $d)) (i32.add (local.get $b) (local.get $d)) (local.get $out) (local.get $mode) (i32.const 0))
     (memory.copy (i32.const 256) (local.get $st) (i32.const 128))   ;; registers in
     (call $step (local.get $kind))
     (memory.copy (local.get $st) (i32.const 256) (i32.const 128))   ;; registers out
-    (call $split (local.get $out) (local.get $a) (local.get $b) (local.get $mode) (i32.const 0))
-    (local.set $changed (i32.add
-      (i32.or (i64.ne (local.get $a0) (i64.load (local.get $a))) (i64.ne (local.get $a1) (i64.load offset=8 (local.get $a))))
-      (i32.or (i64.ne (local.get $b0) (i64.load (local.get $b))) (i64.ne (local.get $b1) (i64.load offset=8 (local.get $b))))))
-    (local.get $changed))
+    (call $split (local.get $out) (i32.add (local.get $out) (i32.const 32)) (i32.add (local.get $out) (i32.const 48)) (local.get $mode) (i32.const 0))
+    (block $e (loop $l (br_if $e (i32.ge_u (local.get $k) (i32.const 16)))
+      (local.set $v (i32.load8_u offset=32 (i32.add (local.get $out) (local.get $k))))
+      (if (i32.ne (local.get $v) (i32.load8_u (i32.add (i32.add (local.get $a) (local.get $d)) (local.get $k))))
+        (then (i32.store8 (i32.add (local.get $a) (local.get $k)) (local.get $v)) (local.set $ca (i32.const 1))))
+      (local.set $v (i32.load8_u offset=48 (i32.add (local.get $out) (local.get $k))))
+      (if (i32.ne (local.get $v) (i32.load8_u (i32.add (i32.add (local.get $b) (local.get $d)) (local.get $k))))
+        (then (i32.store8 (i32.add (local.get $b) (local.get $k)) (local.get $v)) (local.set $cb (i32.const 1))))
+      (local.set $k (i32.add (local.get $k) (i32.const 1))) (br $l)))
+    (i32.add (local.get $ca) (local.get $cb)))
 
   ;; links_zone(w, grid, gy0, prm, phase, hst, r0h, vst, r0v, a, b) -> pixel writes. The pairs of one phase (0 left-right
   ;; from even x, 1 up-down from even y, 2 left-right from odd x, 3 up-down from odd y, the swap phases' numbering)
@@ -94,7 +107,7 @@
   ;; up-down pair's first row is global), and an up-down pair also needs its second row inside [a, b). Every pair
   ;; carries two directed links, each with a CPU (kind prm.changer) of its own: the forward link sees the first pixel
   ;; (left or top) at addresses 0..15 and the second at 16..31, the backward link the other way round. Each runs one
-  ;; instruction, forward first, and the backward machine sees what the forward one wrote. The states (128 bytes a
+  ;; instruction, both on the round's snapshot when the host has set one (links_snapshot), writing its changed bytes. The states (128 bytes a
   ;; machine, forward then backward) of the left-right pair (x, r) are at hst + 256 ((r - r0h) w + x), those of the
   ;; up-down pair (x, r)-(x, r+1) at vst + 256 ((r - r0v) w + x). The two pixels are joined into the machine's memory
   ;; by prm.pairMode (0 counts as 1, concatenated), the forward machine's own pixel in the first role.

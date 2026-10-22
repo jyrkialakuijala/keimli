@@ -1,0 +1,20 @@
+cpu13-pm0.5-ps1-n256-t2000: decoder alone after 200 turns, 86.8 % of cells on a cycle, 56502 species: 1-cycle 0.18 %, 1-cycle 0.10 %
+seed 1: 403240 species seen, 99.1 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 31, 50 % at -, 90 % at -
+seed 2: 399299 species seen, 99.4 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 135, 50 % at -, 90 % at -
+seed 3: 422900 species seen, 99.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 17, 50 % at -, 90 % at -
+seed 4: 416507 species seen, 99.3 % of cells on a cycle at the end, leader (4-cycle) 0.0 %, first seen at turn 44, 50 % at -, 90 % at -
+seed 5: 403904 species seen, 99.4 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 58, 50 % at -, 90 % at -
+seed 6: 408344 species seen, 99.4 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 51, 50 % at -, 90 % at -
+seed 7: 402109 species seen, 99.4 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 30, 50 % at -, 90 % at -
+seed 8: 414945 species seen, 99.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 35, 50 % at -, 90 % at -
+seed 9: 392561 species seen, 99.6 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 15, 50 % at -, 90 % at -
+seed 10: 422443 species seen, 98.4 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 47, 50 % at -, 90 % at -
+file:///home/jyrki/life/paper/experiments/replicators.mjs:73
+fs.writeFileSync(`${outDir}/${tag}.json`, JSON.stringify({ tag, dict: changer === 36 ? dictId : 'cpu' + changer, changer, steps, salt, n, turns, seeds, pm, ps, page, pair, mixSync, basins: [...basins.entries()].map(([id, b]) => ({ id: id.toString(16), ...b })), rows }, null, 1));
+                                               ^
+
+RangeError: Invalid string length
+    at JSON.stringify (<anonymous>)
+    at file:///home/jyrki/life/paper/experiments/replicators.mjs:73:48
+
+Node.js v22.22.1

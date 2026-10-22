@@ -1,0 +1,32 @@
+cpu22-page-n256-t2000: decoder alone after 200 turns, 100.0 % of cells on a cycle, 65526 species: 
+seed 1: 2212388 species seen, 87.9 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 1829, 50 % at -, 90 % at -
+seed 2: 2296169 species seen, 86.4 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 1794, 50 % at -, 90 % at -
+seed 3: 2288878 species seen, 85.9 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 1755, 50 % at -, 90 % at -
+seed 4: 2279795 species seen, 85.3 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 1572, 50 % at -, 90 % at -
+seed 5: 2384755 species seen, 86.9 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 1961, 50 % at -, 90 % at -
+seed 6: 2330477 species seen, 86.3 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 1869, 50 % at -, 90 % at -
+seed 7: 2301773 species seen, 85.7 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 1387, 50 % at -, 90 % at -
+seed 8: 2263569 species seen, 86.8 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 1355, 50 % at -, 90 % at -
+
+<--- Last few GCs --->
+
+[303608:0x5e5120ad0000]  9312064 ms: Scavenge (interleaved) 4065.5 (4135.6) -> 4065.2 (4136.4) MB, pooled: 0 MB, 11.86 / 0.00 ms  (average mu = 0.397, current mu = 0.062) allocation failure; 
+[303608:0x5e5120ad0000]  9312162 ms: Scavenge (interleaved) 4071.4 (4141.6) -> 4071.2 (4146.6) MB, pooled: 0 MB, 85.08 / 0.00 ms  (average mu = 0.397, current mu = 0.062) allocation failure; 
+
+
+<--- JS stacktrace --->
+
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 0x7682b5f46804 node::OOMErrorHandler(char const*, v8::OOMDetails const&) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 2: 0x7682b666f754 v8::Utils::ReportOOMFailure(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 3: 0x7682b666fa4a v8::internal::V8::FatalProcessOutOfMemory(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 4: 0x7682b68b8a9b  [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 5: 0x7682b68d154d v8::internal::Heap::CollectGarbage(v8::internal::AllocationSpace, v8::internal::GarbageCollectionReason, v8::GCCallbackFlags) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 6: 0x7682b68a81ab v8::internal::HeapAllocator::AllocateRawWithLightRetrySlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 7: 0x7682b68a8878 v8::internal::HeapAllocator::AllocateRawWithRetryOrFailSlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 8: 0x7682b6883fe9 v8::internal::Factory::NewFillerObject(int, v8::internal::AllocationAlignment, v8::internal::AllocationType, v8::internal::AllocationOrigin) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 9: 0x7682b6d21ebd v8::internal::Runtime_AllocateInYoungGeneration(int, unsigned long*, v8::internal::Isolate*) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+10: 0x7682564ec476 
+Aborted (core dumped)

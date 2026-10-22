@@ -1,0 +1,30 @@
+cpu15-page-n256-t2000: decoder alone after 200 turns, 91.6 % of cells on a cycle, 60014 species: 
+seed 1: 2817740 species seen, 76.3 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 630, 50 % at -, 90 % at -
+seed 2: 2598467 species seen, 78.8 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 94, 50 % at -, 90 % at -
+seed 3: 2611084 species seen, 80.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 1026, 50 % at -, 90 % at -
+seed 4: 2677265 species seen, 78.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 888, 50 % at -, 90 % at -
+seed 5: 2736716 species seen, 78.7 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 321, 50 % at -, 90 % at -
+seed 6: 2866025 species seen, 77.3 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 205, 50 % at -, 90 % at -
+
+<--- Last few GCs --->
+
+[290657:0x61ad46d72000]  6958828 ms: Scavenge (interleaved) 4072.7 (4141.9) -> 4072.4 (4142.7) MB, pooled: 0 MB, 15.85 / 0.00 ms  (average mu = 0.400, current mu = 0.061) allocation failure; 
+[290657:0x61ad46d72000]  6960063 ms: Mark-Compact 4073.9 (4143.9) -> 4073.8 (4149.2) MB, pooled: 0 MB, 1145.12 / 0.00 ms  (average mu = 0.328, current mu = 0.115) allocation failure; GC in old space requested
+
+
+<--- JS stacktrace --->
+
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 0x715767d46804 node::OOMErrorHandler(char const*, v8::OOMDetails const&) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 2: 0x71576846f754 v8::Utils::ReportOOMFailure(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 3: 0x71576846fa4a v8::internal::V8::FatalProcessOutOfMemory(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 4: 0x7157686b8a9b  [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 5: 0x7157686d154d v8::internal::Heap::CollectGarbage(v8::internal::AllocationSpace, v8::internal::GarbageCollectionReason, v8::GCCallbackFlags) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 6: 0x7157686a7bf2 v8::internal::HeapAllocator::AllocateRawWithLightRetrySlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 7: 0x7157686a8878 v8::internal::HeapAllocator::AllocateRawWithRetryOrFailSlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 8: 0x715768683fe9 v8::internal::Factory::NewFillerObject(int, v8::internal::AllocationAlignment, v8::internal::AllocationType, v8::internal::AllocationOrigin) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+ 9: 0x715768b22082 v8::internal::Runtime_AllocateInOldGeneration(int, unsigned long*, v8::internal::Isolate*) [/usr/lib/x86_64-linux-gnu/libnode.so.127]
+10: 0x7157082ec476 
+Aborted (core dumped)

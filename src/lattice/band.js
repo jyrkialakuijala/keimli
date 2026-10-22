@@ -120,24 +120,35 @@ const Band = (() => {
   // direction makes the two-round light cone symmetric. states: 2 rows W pairs x 256 bytes, the left-right
   // pairs first, then the up-down pairs from local row D - 1.
   function linkStateBytes(st) { return 512 * st.rows * st.W; }
-  // the phase order of link round r: the swap order forward on even rounds, reversed on odd ones (UD1 stays the
-  // middle phase, the only one that crosses band edges); as early/late lists and as the flat order
-  const linkPhases = r => r & 1 ? { early: [2], late: [0, 1], all: [2, 3, 0, 1] } : { early: [1, 0], late: [2], all: [1, 0, 3, 2] };
+  // the phase order of link round r: the swap phases' rotating scheme, the pattern turned by 90 degrees each round
+  // (UD0 LR0 UD1 LR1, LR0 UD0 LR1 UD1, UD1 LR1 UD0 LR0, LR1 UD1 LR0 UD0). With the machines reading the live pixels,
+  // forward on even rounds and reversed on odd ones left the contents drifting about 0.2 pixel per five turns,
+  // down-right under the VAX and up-left under the 68000 (results/swap-order.md). UD1 is the only phase that crosses
+  // band edges: the phases before it are the early list, those after it the late list, the band protocol runs it between
+  // Since the rounds became synchronous (every machine reads the round's snapshot, see linkBand) the order matters only
+  // where two machines write the same byte; the rotation is kept for that.
+  const linkPhases = r => { const all = SCHEMES.rotate[r & 3], i = all.indexOf(3); return { early: all.slice(0, i), late: all.slice(i + 1), all }; };
+  // A round is synchronous: early() first copies the band's buffer to st.GRID2 and points the machines at that snapshot
+  // (links_snapshot), so every machine of the round reads the state before the round and writes its changed bytes to
+  // the live pixels. The row sent down (bottomRow) is the snapshot's, the row received from above goes into both the
+  // live and the snapshot halo, and the row handed back carries the lower band's writes, which the upper band applies
+  // as the bytes differing from its snapshot (setBottom), after its early phases and before its late ones, as the
+  // whole-grid order has them.
   function linkBand(st, states) {
-    const { wasm, W, rows, D, GRID, PRM } = st, S = 16 * W, gy0 = st.y0 - D, top = st.y0 > 0;
+    const { wasm, W, rows, D, GRID, GRID2, PRM } = st, S = 16 * W, gy0 = st.y0 - D, top = st.y0 > 0, L = (rows + 2 * D) * S;
     const hst = states, vst = states + 256 * rows * W;
     const m8 = () => new Uint8Array(wasm.memory.buffer);
     const run = (ph, a, b) => wasm.links_zone(W, GRID, gy0, PRM, ph, hst, D, vst, D - 1, a, b);
     let changed = 0;
     return {
-      early(phases = [1, 0]) { for (const ph of phases) changed += run(ph, D, D + rows); },
-      bottomRow() { return m8().slice(GRID + (D + rows - 1) * S, GRID + (D + rows) * S); },
+      early(phases = [1, 0]) { m8().copyWithin(GRID2, GRID, GRID + L); wasm.links_snapshot(GRID2 - GRID); for (const ph of phases) changed += run(ph, D, D + rows); },
+      bottomRow() { return m8().slice(GRID2 + (D + rows - 1) * S, GRID2 + (D + rows) * S); },
       middle(above) {
-        if (top) m8().set(above, GRID + (D - 1) * S);
+        if (top) { m8().set(above, GRID + (D - 1) * S); m8().set(above, GRID2 + (D - 1) * S); }
         changed += run(3, top ? D - 1 : D, D + rows);
         return top ? m8().slice(GRID + (D - 1) * S, GRID + D * S) : null;
       },
-      setBottom(row) { m8().set(row, GRID + (D + rows - 1) * S); },
+      setBottom(row) { const m = m8(), live = GRID + (D + rows - 1) * S, snap = GRID2 + (D + rows - 1) * S; for (let i = 0; i < S; i++) if (row[i] !== m[snap + i]) m[live + i] = row[i]; },
       late(phases = [2]) { for (const ph of phases) changed += run(ph, D, D + rows); },
       get changed() { return changed; },
     };

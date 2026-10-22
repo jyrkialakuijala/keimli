@@ -1,0 +1,8 @@
+ca-brotli-12: 4 attractor types from 16384 random cells; chosen: #0 period 3 basin 99.72 %, #1 period 1 basin 0.26 %, #2 period 1 basin 0.02 %
+  pair #0 in #1 done
+  pair #0 in #2 done
+  pair #1 in #0 done
+  pair #1 in #2 done
+  pair #2 in #0 done
+  pair #2 in #1 done
+written /home/jyrki/life/paper/data/droplets/droplets-ca-brotli-12-n128-t400.md

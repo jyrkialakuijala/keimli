@@ -12,6 +12,7 @@
 //   rewrite=hash:K | hashdict:K | cycle3 | cycle3f : instead of the decoder, the null-model map that keeps the first K bits of the cell and replaces
 //   the other 128 - K by a fixed hash of those K bits (a random many-to-one map with image size 2^K)
 import fs from 'node:fs';
+import { provenance } from './provenance.mjs';
 import { makeSim } from '../../tools/ca-harness.mjs';
 import { loadDict, variantOf, asText } from './dict-variants.mjs';
 const dir = new URL('../..', import.meta.url).pathname.replace(/\/$/, '');
@@ -78,7 +79,7 @@ if (opt.rewrite && /^cycle3f?$/.test(opt.rewrite)) {
   };
 }
 
-const altOrder = opt.altorder === undefined || opt.altorder === '0' ? false : opt.altorder === '1' ? 'alternate' : opt.altorder;   // altorder=1|alternate|palindrome|cycle4|random: the swap-order scheme (Band.SCHEMES); unset: the fixed order of the runs before 2026-10-20
+const altOrder = opt.altorder === undefined ? 'rotate' : opt.altorder === '0' || opt.altorder === 'fixed' ? false : opt.altorder === '1' ? 'alternate' : opt.altorder;   // default since 2026-10-21: the page's rotating order; altorder=fixed for the earlier runs   // altorder=1|alternate|palindrome|cycle4|random: the swap-order scheme (Band.SCHEMES); unset: the fixed order of the runs before 2026-10-20
 const nbr = Number(opt.nbr ?? 1), passes = Number(opt.passes ?? 3), cread = Number(opt.cread ?? 4096);   // nbr=0: the 4-connected cross (5 votes); passes: median passes a turn
 const mixSync = Number(opt.mixsync ?? 0) === 1;   // mixsync=1: the synchronous isotropic mixing instead of the swap phases
 const sim = await makeSim({ W: n, H: n, passes, nbr, changer: 36, pairMode: 0, maxlen: 3, skip: 6, cread, coff: 0, saltMode: salt, swap: [pm, pm], smooth: [ps, ps], mixOn, settleOn, rewriteOn, rewrite, altOrder, mixSync });
@@ -101,6 +102,15 @@ function corr(g, axis) {
   }
   return out;
 }
+// the connected correlation: C(r) of each bit plane's spins (+1/-1) less the square of the plane's mean spin over the
+// region, averaged over the 8 planes of a byte group; the raw C(r) above never subtracts the bias, which makes biased
+// planes look correlated at every distance (the panel's correction of 2026-10-21)
+function planeMean2(g) {
+  const ones = new Float64Array(128); let nb = 0;
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const a = 16 * (y * W + x); nb++; for (let k = 0; k < 16; k++) { let v = g[a + k]; while (v) { const j = 31 - Math.clz32(v & -v); ones[8 * k + j]++; v &= v - 1; } } }
+  const m2 = new Float64Array(16); for (let j = 0; j < 128; j++) { const m = 2 * ones[j] / nb - 1; m2[j >> 3] += m * m / 8; } return m2;
+}
+const connected = (c, m2) => c.map(row => row.map((v, k) => v - m2[k]));
 // per bit plane C(1) along an axis (128 values)
 function corrPlanes(g, axis, r = 1) {
   const acc = new Float64Array(128); let cnt = 0;
@@ -133,15 +143,15 @@ for (let t = 1; t <= turns; t++) {
   const r = sim.step(); acc.moved += r.moved; acc.smoothed += r.smoothed; acc.rewritten += r.rewritten; acc.k++;
   if (sampleTurns.has(t)) {
     const g = sim.grid();
-    const row = { t, moved: acc.moved / (acc.k * 128 * N), smoothed: acc.smoothed / (acc.k * 128 * N), rewritten: acc.rewritten / (acc.k * N), ...bulkStats(g, prev), cx: corr(g, 0), cy: corr(g, 1) };
+    const row = { t, moved: acc.moved / (acc.k * 128 * N), smoothed: acc.smoothed / (acc.k * 128 * N), rewritten: acc.rewritten / (acc.k * N), ...bulkStats(g, prev), cx: corr(g, 0), cy: corr(g, 1) }; { const m2 = planeMean2(g); row.ccx = connected(row.cx, m2); row.ccy = connected(row.cy, m2); }
     if (planeTurns.has(t)) { row.px1 = corrPlanes(g, 0); row.py1 = corrPlanes(g, 1); }
     rows.push(row); acc = { moved: 0, smoothed: 0, rewritten: 0, k: 0 };
   }
   if (sampleTurns.has(t + 1)) prev = sim.grid().slice(); else prev = null;   // the previous frame, kept only when the next turn is sampled
 }
-const res = { cond, pm, ps, rate: 2 * pm * (1 - pm), salt, seed, n, turns, dict: dictLabel, dictId, variant, rewrite: rewriteName, altOrder, margin, rs: RS, params: sim.params, seconds: (Date.now() - t0) / 1000, rows };
+const res = { provenance: provenance(import.meta.url, opt), cond, pm, ps, rate: 2 * pm * (1 - pm), salt, seed, n, turns, dict: dictLabel, dictId, variant, rewrite: rewriteName, altOrder, margin, rs: RS, params: sim.params, seconds: (Date.now() - t0) / 1000, rows };
 fs.mkdirSync(outDir, { recursive: true });
 const name = `${cond}-${rewriteName}-pm${pm}-ps${ps}-salt${salt}-n${n}-t${turns}-${dictLabel}-seed${seed}${altOrder ? '-' + (altOrder === 'alternate' ? 'alt' : altOrder) : ''}${nbr !== 1 || passes !== 3 ? `-nbr${nbr}-p${passes}` : ''}${mixSync ? '-sync' : ''}.json`;
 fs.writeFileSync(`${outDir}/${name}`, JSON.stringify(res));
 const last = rows[rows.length - 1];
-console.log(`${name}: ${res.seconds.toFixed(0)} s | final d1 ${last.d1?.toFixed(4)} moved ${last.moved.toFixed(4)} smoothed ${last.smoothed.toFixed(4)} rewritten ${last.rewritten.toFixed(3)} ent ${last.ent.toFixed(2)} distinct ${last.distinct.toFixed(3)} planeMag ${last.planeMag.toFixed(3)} | Cx(1) ${(last.cx[0].reduce((a, b) => a + b) / 16).toFixed(3)} Cx(8) ${(last.cx[5].reduce((a, b) => a + b) / 16).toFixed(3)} Cx(32) ${(last.cx[9].reduce((a, b) => a + b) / 16).toFixed(3)} Cy(1) ${(last.cy[0].reduce((a, b) => a + b) / 16).toFixed(3)}`);
+console.log(`${name}: ${res.seconds.toFixed(0)} s | final d1 ${last.d1?.toFixed(4)} moved ${last.moved.toFixed(4)} smoothed ${last.smoothed.toFixed(4)} rewritten ${last.rewritten.toFixed(3)} ent ${last.ent.toFixed(2)} distinct ${last.distinct.toFixed(3)} planeMag ${last.planeMag.toFixed(3)} | Cx(1) ${(last.cx[0].reduce((a, b) => a + b) / 16).toFixed(3)} Cx(8) ${(last.cx[5].reduce((a, b) => a + b) / 16).toFixed(3)} Cx(32) ${(last.cx[9].reduce((a, b) => a + b) / 16).toFixed(3)} Cy(1) ${(last.cy[0].reduce((a, b) => a + b) / 16).toFixed(3)} | connected Cx(1) ${(last.ccx[0].reduce((a, b) => a + b) / 16).toFixed(3)} Cx(8) ${(last.ccx[5].reduce((a, b) => a + b) / 16).toFixed(3)} Cx(32) ${(last.ccx[9].reduce((a, b) => a + b) / 16).toFixed(3)}`);

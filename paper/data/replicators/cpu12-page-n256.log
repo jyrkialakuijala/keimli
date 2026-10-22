@@ -1,0 +1,11 @@
+cpu12-page-n256-t2000: decoder alone after 200 turns, 99.6 % of cells on a cycle, 59902 species: 1-cycle 1.18 %, 1-cycle 0.48 %, 1-cycle 0.46 %, 1-cycle 0.44 %, 1-cycle 0.44 %, 1-cycle 0.33 %, 1-cycle 0.31 %, 1-cycle 0.29 %, 1-cycle 0.21 %, 1-cycle 0.14 %, 1-cycle 0.13 %, 1-cycle 0.12 %, 1-cycle 0.11 %, 1-cycle 0.11 %, 1-cycle 0.10 %
+seed 1: 230970 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 2.3 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 2: 230059 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 2.4 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 3: 228957 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 2.2 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 4: 234874 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 2.2 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 5: 227825 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 2.1 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 6: 230129 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 2.3 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 7: 252028 species seen, 99.6 % of cells on a cycle at the end, leader (1-cycle) 2.2 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 8: 223369 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 2.3 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 9: 229273 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 2.3 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 10: 245593 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 2.3 %, first seen at turn 1, 50 % at -, 90 % at -

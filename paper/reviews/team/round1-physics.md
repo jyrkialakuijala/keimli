@@ -1,0 +1,34 @@
+# Round 1 — statistical physics and experimental design
+
+## 1. The project in my words
+A 2D bounded lattice of 128 Ising-like bit planes, coupled only by (a) hashed uniform crossover between neighbours (conserves each plane's bit count, like Kawasaki exchange), (b) a hashed majority vote per plane (not conserved, like zero-temperature Glauber), and (c) a per-cell nonlinear map, a decoder, that couples all planes and has a few short attractors. Every random decision is a hash of the local context with salt 0, so the whole thing is a deterministic CA; "annealed" runs re-salt each turn. The physics results so far: the bitwise pair freezes under quenched hashing and coarsens under annealed hashing; the decoder turns cells into 3-cycle oscillators whose phase field orders or stays granular.
+
+## 2. Strengths
+- A real pre-registration with decision rules (`PLAN_AMENDMENTS.md` §3), an honest post-hoc log (§4–5), and a hypothesis (H1) actually retracted under it. Rare and valuable.
+- The attractor census (`ablation-main.md` §1) is exact, cheap, and correctly turns the problem into phase dynamics of coupled oscillators.
+- The cycle nulls (`cycle3`, `cycle3f`; `ablation-scan.md` §2) are well chosen and pull apart relaxation time from state geometry.
+- MS− pinned length is size-independent to 1 % across 128/256/512 (`ablation-structure.md` §2): a clean intrinsic length.
+
+## 3. Concerns, ranked
+1. **The order parameter is not a connected correlation.** `ablation.mjs:91–103` computes C(r) = 1 − 2⟨d_H⟩/8 per byte group, with no subtraction of ⟨s⟩². Plane magnetisations are large (|m| 0.53–0.89, `ablation-main.md` §3 table), so C(∞) ≈ ⟨m²⟩ and "C crosses ½" mixes long-range order with imbalance. The phase-dependence of ξ (40 vs 64 by turn mod 3) is a symptom: the three cycle states have unequal pairwise distances (45, 29, 64 bits). Every ξ, the t^⅓, the "transition" and the pinned lengths need re-reading with G(r) = ⟨s_x s_{x+r}⟩ − ⟨s⟩², or better, a phase-field correlation once cells are mapped to cycle phase.
+2. **"Hash pinning by quenched disorder" is a misnomer, and the actual quenched-disorder control was never run.** Salt 0 makes the rule a deterministic function of the configuration: there is no external disorder; frozen states are absorbing/blocked configurations of a T = 0 deterministic CA (Vichniac; Spirin–Krapivsky–Redner). The control that *is* quenched disorder, salt by position (`saltMode 2`, `lattice.wat:33–44`), has zero runs in `paper/data/ablation/` (`ls | grep salt2` → 0). Also, "annealed" adds one scalar per turn to every hash (`lattice.wat:47–50`, `ca-harness.mjs:36`): within a turn all identical contexts still decide identically across space; it is temporal re-randomisation, not i.i.d. noise. Needed: salt by position, salt by both (true i.i.d.), and several fixed nonzero salts as disorder replicas (seeds only vary the initial state, not the "disorder").
+3. **t^⅓ is one decade, one size, one estimator, and internally inconsistent.** ξ 9.4→19.9 over t = 100→1000 gives 0.326; but d1 ~ t^−0.6 is reported in the same runs, whereas interface-limited activity should go as 1/L ~ t^−⅓. The Kawasaki explanation is dubious when the non-conserved median acts every turn; mixed A+B dynamics should cross over to t^½, and swap rate ½ may act as a near-critical temperature (slow effective exponent). Need S(k,t) collapse at three sizes, 10⁴ turns, L ≤ system/4 (asked in `retired-professor.md`, undone).
+4. **The granular→ordered "sharp transition" is two points apart with censoring.** ξ jumps 1.1 → 64 (cap) between median 0.3 and 0.5; means over values capped at 64 are censored statistics. No finite-size scaling, no Binder cumulant, no hysteresis test (start ordered vs random) to say continuous vs first order.
+5. **"The frame is the sweep" (`INTRODUCTION.md:98–99`) is contradicted by the project's own data.** Under the frame Brotli 12's winner is a fixed point with basin 0.26 %; under uniform settling it is the 3-cycle (`replicators.md` table). If the transition is first-order, the ordered phase invades and the frame shows the Maxwell/front-pinning line, not the uniform-system boundary (gradient percolation). The claim needs a test: local observables in frame strips vs uniform runs at the same (p_swap, p_median), and the gradient length vs ξ.
+6. **Replicator takeover is mis-read as a front.** A front gives t ∝ L, i.e. ×2 from 128 to 256; observed ×1.5 (716→1093), t ∝ L^0.6. And "50 % at turn" when the final share is 53 % measures the tail of saturation, not a front. The "inverse square root of basin" fit uses four dictionaries (confounded with everything else).
+7. **Statistics.** 10th–90th percentiles over 10 seeds (≈ min/max), 5 seeds in the scan, 1 seed for all of `design-gray3.md` §3, 3–6 in `swap-order.md`. "Outside the seed band" is not a test; give bootstrap CIs on means and say n. The rotate scheme was adopted because it "gave the most ordered lattice" — fine for a default, but it was chosen on the outcome measure, and all pre-registered data are under the fixed order now declared anisotropic (ξy/ξx 1.19). Pre-registered at 256², now "512 everywhere": say which runs are confirmatory.
+8. **Clock-model analogy unproven.** A q = 8 clock model needs Z_8 symmetry: interaction a monotone function of cyclic phase difference. "Two bits between consecutive states" does not imply Hamming distance increases with cyclic distance. Need the 8×8 distance matrix and, if 2D clock-like, vortex counting; "Potts-like" and "clock" are not the same claim (`design-gray3.md:84–85`).
+
+## 4. Questions for other panelists
+- Compression/decoder: is the decoder's action on a cell in a known state invariant under any bit-plane permutation, so a cleaner phase variable exists?
+- ALife: do Core War/Tierra "late replicators" literature report takeover vs first appearance separately, so the comparison in `RESULTS_REPLICATORS.md` is apt?
+- Software: can the harness add a periodic mode cheaply and a connected-correlation/S(k) output?
+
+## 5. Methodology round: what I will examine
+- Recompute connected correlations and phase-field correlations from saved snapshots, if any (else from a <1-minute 128² run) and compare with the reported ξ.
+- The Hamming distance matrix of the Gray-cycle states (clock vs Potts).
+- d1 vs ξ exponent consistency in `paper/data/ablation/` series; local slopes.
+- The replicator series: shares vs L, and front positions under the frame.
+- A design for the decisive experiments: salt-position/both/fixed-salt replicas; FSS at 128/256/512/1024 periodic; hysteresis across median 0.3–0.5; frame-vs-uniform strip comparison. With power estimates for seed counts.
+
+What would change my mind: a scaling collapse with exponent ⅓ ± 0.03 over two decades at three sizes; pinned ξ finite under salt-by-position and absent under salt-by-both; frame strips matching uniform runs within CIs.

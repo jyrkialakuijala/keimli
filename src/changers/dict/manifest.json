@@ -573,7 +573,7 @@
   "script": "Latin",
   "year": "2026",
   "source": "",
-  "note": "The second swarm, generation 679: the whitespace lineage after an add-constant transform turned its spaces into parentheses, 14.3 modes, 6.4 regimes, 33 % of bits changing a turn. A maroon field crossed by thin blue contour lines under a granular sky; the page's default dictionary until 2026-10-19 (then Designed: 20 Gray 8-cycles). Not a text."
+  "note": "The second swarm, generation 679: the whitespace lineage after an add-constant transform turned its spaces into parentheses, 14.3 modes, 6.4 regimes, 33 % of bits changing a turn. A maroon field crossed by thin blue contour lines under a granular sky; the page's default dictionary until 2026-10-19 and again from 2026-10-22 (in between Designed: 20 Gray 8-cycles). Not a text."
  },
  {
   "id": "ca-swarm-g",
@@ -1114,6 +1114,34 @@
   "note": "Built for the 2-bit-interleaved pair mode (added 2026-10-20: the joint cell takes two bits from each cell in turn): the two cells of a pair differ, and the 32-byte dictionary word at each state's pointer holds the next state in its role-swapped form, so the pair walks an 8-cycle whichever cell leads. 2 species on constant filler regions (\"P\" \"_\") whose all-X cell starts with a literal, which the word's first byte is made to equal. Set Cells to pairs 2-bit-interleaved and the window range to 60000 (settings line pair=4 cread=60000). On the lattice the swap phase mixes the two cells of a pair, so at swap p near ½ these do not settle on their cycles. See paper/results/design-gray3.md section 11c. Not a text.",
   "cread": 60000,
   "pair": 4
+ },
+ {
+  "id": "ca-vote1",
+  "file": "ca-vote1.txt",
+  "title": "Designed for a cell with its 4-neighbour vote, bit-interleaved: 1 Gray 8-cycle (window 60000)",
+  "titleLatin": "Designed for a cell with its 4-neighbour vote, bit-interleaved: 1 Gray 8-cycle (61,440 bytes; needs Cells = self and its 4-neighbour vote interleaved 1 bit at a time, and Dictionary window range 60000)",
+  "author": "paper/experiments/design-vote.mjs V=60000",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Built for the Cells entry that joins a cell with its 4-neighbour vote one bit at a time. In a synchronised domain the vote equals the cell, so the decoder sees the cell with every bit doubled; each state's 32-byte word is the next state doubled, so the cell gets it in either role. The words use the bytes 0x00, 03, 0C, 0F and '0', '3', '<', '?' (doubled nibbles 0 to 7); the rest is a constant filler with landing pads. Copies 10 + 13 + 9 at distance 49; Gray pairs at header bits 4,5 6,7 10,11.",
+  "cread": 60000,
+  "pair": 10
+ },
+ {
+  "id": "ca-votebyte2",
+  "file": "ca-votebyte2.txt",
+  "title": "Designed for a cell with its 4-neighbour vote, byte-interleaved: 2 Gray 8-cycles (window 60000)",
+  "titleLatin": "Designed for a cell with its 4-neighbour vote, byte-interleaved: 2 Gray 8-cycles (61,440 bytes; needs Cells = self and its 4-neighbour vote interleaved 8 bits, and Dictionary window range 60000)",
+  "author": "paper/experiments/design-vote.mjs mode=5 species=10 max=1",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Built for the Cells entry that joins a cell with its 4-neighbour vote byte by byte. In a synchronised domain the vote equals the cell, so the decoder sees every byte of the cell twice; each state's 32-byte word is the next state doubled, so the cell gets it in either role. Two species on constant filler regions with landing pads; of 5,000 random cells 99.8 % reach a cycle, 93 % within 8 turns, the two basins nearly equal.",
+  "cread": 60000,
+  "pair": 13
  },
  {
   "id": "ca-pairnib1",

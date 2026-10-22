@@ -247,3 +247,26 @@ own bit), taken from a snapshot before any cell is rewritten, joined by any of
 the five pair modes (values 8 + m), only the cell itself written back. Checked
 against a JavaScript reference in every mode and both roles. The halo depth of
 a band grew by two rows for the vote's reads (`depthFor`).
+
+## 2026-10-21: the motivation
+
+The author set the article's motivation (`MOTIVATION.md`): computational
+life (Core War, Tierra, Avida) gives the richer phenomena but is a general
+computation and hard to analyse; arithmetic life (Life, cellular automata)
+is tractable but poorer; the decompressive automaton sits between, keeps
+the "running a program" part that a decoder is, in linear time per cell
+instead of the exponential cost of deciding a program, and is
+information-centric, as the practice of measuring real-life complexity by
+Lempel-Ziv rather than Kolmogorov complexity already is. The purpose: to
+separate the phenomena of computational life that come from computation
+proper from those that come from running any program that pumps entropy
+out of its cell into its surroundings. The introduction and the discussion
+should be rewritten around this; the CPU changers are the comparison arm.
+
+The opening is drafted in `INTRODUCTION_MOTIVATION.md` (2026-10-21): the two lines of artificial life and the gap, the decompressor as the rule, the managed and position-varied entropy budget, what the model is for, the claims stated so that they can fail, and the sentences to be careful with. Every claim is marked shown or to show against the results notes.
+
+A first pencil draft of the introduction is `INTRODUCTION.md` (2026-10-21), built from `INTRODUCTION_MOTIVATION.md`; section numbers refer to the outline in `RESEARCH_PLAN.md` section 6 and will move with it.
+
+A short methods draft is `METHODS.md` (2026-10-21): the page and its module are the primary artifact, the text names what each stage does and where the exact definitions live.
+
+A results subsection is drafted in `RESULTS_REPLICATORS.md` (2026-10-21): the replicators of computational life are fixed points and short cycles of the rewriting map; here they are listed by census and prescribed by design, and their spread is the medium's work; two corollaries for the processor arm (the processors' attractor census; what a processor adds is run-dependence and hidden state, not replication).

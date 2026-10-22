@@ -1,0 +1,5 @@
+cpu26-pm0.5-ps1-n256-t2000: decoder alone after 200 turns, 98.6 % of cells on a cycle, 63610 species: 1-cycle 1.17 %
+seed 1: 227502 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 0.3 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 2: 218021 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.2 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 3: 220323 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.4 %, first seen at turn 1, 50 % at -, 90 % at -
+seed 4: 220812 species seen, 99.9 % of cells on a cycle at the end, leader (1-cycle) 0.2 %, first seen at turn 1, 50 % at -, 90 % at -

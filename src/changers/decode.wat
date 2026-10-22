@@ -114,6 +114,10 @@
       (return (call $dct (local.get $p) (local.get $prm) (i32.const 0)))))
     (if (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 18)) (then
       (return (call $dct (local.get $p) (local.get $prm) (i32.const 1)))))
+    (if (i32.and (i32.ge_u (i32.load offset=72 (local.get $prm)) (i32.const 256)) (i32.le_u (i32.load offset=72 (local.get $prm)) (i32.const 511))) (then
+      (return (call $eca (local.get $p) (local.get $prm) (i32.sub (i32.load offset=72 (local.get $prm)) (i32.const 256))))))   ;; 256..511: elementary rule 0..255 on the cell's bit ring
+    (if (i32.and (i32.ge_u (i32.load offset=72 (local.get $prm)) (i32.const 50)) (i32.le_u (i32.load offset=72 (local.get $prm)) (i32.const 64))) (then
+      (return (call $lookandsay (local.get $p) (local.get $prm) (i32.sub (i32.load offset=72 (local.get $prm)) (i32.const 48))))))   ;; 50..64: look-and-say in base 2..16
     (if (i32.or (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 41)) (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 42))) (then
       (return (call $sortx (local.get $p) (local.get $prm) (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 42))))))   ;; 41 sort, 42 primes first
     (if (i32.or (i32.and (i32.ge_u (i32.load offset=72 (local.get $prm)) (i32.const 31)) (i32.le_u (i32.load offset=72 (local.get $prm)) (i32.const 40))) (i32.or (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 45)) (i32.eq (i32.load offset=72 (local.get $prm)) (i32.const 46)))) (then

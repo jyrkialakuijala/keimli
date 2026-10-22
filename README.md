@@ -34,7 +34,7 @@ to a named picture: the Brotli front, the dissolving cloud, the foam, the
 codebook cycles on pairs, the Motorola 68000, PDP-11 and VAX-11/780 link machines
 with the mixing and settling off, the Declaration through the LZ
 decompressor. The **Settings** line below it is the same thing as
-text, `keimli1 size=512x512 dict=ca-gray20c ...`: Copy settings puts
+text, `keimli1 size=512x512 dict=ca-swarm-f ...`: Copy settings puts
 the current state there and on the clipboard, Apply (or Enter) sets the
 page from whatever is pasted in, and Copy link gives a URL to the public
 page that opens with those settings, as `#s=` after the address. Unknown

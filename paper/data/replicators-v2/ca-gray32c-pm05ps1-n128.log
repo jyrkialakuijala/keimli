@@ -1,0 +1,21 @@
+ca-gray32c-pm0.5-ps1-n128-t2000: decoder alone after 200 turns, 100.0 % of cells on a cycle, 35 species: 8-cycle 13.84 %, 8-cycle 8.93 %, 8-cycle 8.60 %, 8-cycle 7.06 %, 8-cycle 6.90 %, 8-cycle 6.63 %, 8-cycle 4.72 %, 8-cycle 4.02 %, 8-cycle 3.50 %, 8-cycle 3.49 %, 8-cycle 3.17 %, 8-cycle 3.16 %, 8-cycle 2.91 %, 8-cycle 2.77 %, 8-cycle 2.75 %, 8-cycle 2.28 %, 8-cycle 2.08 %, 8-cycle 1.62 %, 8-cycle 1.53 %, 8-cycle 1.51 %, 8-cycle 1.23 %, 8-cycle 1.21 %, 8-cycle 1.17 %, 8-cycle 1.16 %, 8-cycle 1.15 %, 8-cycle 0.82 %, 8-cycle 0.57 %, 8-cycle 0.52 %, 8-cycle 0.38 %, 8-cycle 0.13 %
+seed 1: 832 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 97.1 %, first seen at turn 18, 50 % at 43, 90 % at 82
+seed 2: 800 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.4 %, first seen at turn 17, 50 % at 43, 90 % at 79
+seed 3: 893 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.5 %, first seen at turn 18, 50 % at 44, 90 % at 96
+seed 4: 872 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 97.9 %, first seen at turn 18, 50 % at 43, 90 % at 74
+seed 5: 783 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.7 %, first seen at turn 18, 50 % at 45, 90 % at 113
+seed 6: 1030 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.2 %, first seen at turn 17, 50 % at 45, 90 % at 103
+seed 7: 906 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.0 %, first seen at turn 17, 50 % at 43, 90 % at 78
+seed 8: 903 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.1 %, first seen at turn 18, 50 % at 43, 90 % at 136
+seed 9: 901 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 97.7 %, first seen at turn 19, 50 % at 43, 90 % at 90
+seed 10: 964 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 97.5 %, first seen at turn 17, 50 % at 48, 90 % at 116
+seed 11: 899 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.1 %, first seen at turn 17, 50 % at 41, 90 % at 71
+seed 12: 810 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.1 %, first seen at turn 19, 50 % at 43, 90 % at 72
+seed 13: 773 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 97.8 %, first seen at turn 18, 50 % at 43, 90 % at 80
+seed 14: 934 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 97.9 %, first seen at turn 17, 50 % at 44, 90 % at 86
+seed 15: 905 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.2 %, first seen at turn 19, 50 % at 42, 90 % at 79
+seed 16: 963 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.0 %, first seen at turn 18, 50 % at 45, 90 % at 87
+seed 17: 992 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.8 %, first seen at turn 19, 50 % at 45, 90 % at 86
+seed 18: 808 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.2 %, first seen at turn 18, 50 % at 43, 90 % at 89
+seed 19: 843 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 98.4 %, first seen at turn 17, 50 % at 44, 90 % at 81
+seed 20: 1018 species seen, 100.0 % of cells on a cycle at the end, leader (8-cycle) 97.5 %, first seen at turn 18, 50 % at 44, 90 % at 96

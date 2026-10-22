@@ -12,13 +12,13 @@ const opt = Object.fromEntries(process.argv.slice(2).map(a => { const i = a.inde
 const design = JSON.parse(fs.readFileSync(opt.design || dir + '/paper/data/design/ca-gray3.json', 'utf8'));
 const dictText = fs.readFileSync(`${dir}/paper/data/design/${design.name}.txt`, 'latin1');
 const pm = Number(opt.pm ?? 0.5), ps = Number(opt.ps ?? 1), salt = Number(opt.salt ?? 0), seed = Number(opt.seed ?? 1), n = Number(opt.n ?? 256), turns = Number(opt.turns ?? 1000), page = Number(opt.page ?? 0);
-const pair = Number(opt.pair ?? design.pairMode ?? 0);   // the Cells setting: 0 each cell on its own, 1 pairs concatenated, 2 bit-interleaved, 3 nibble, 5 byte
+const pair = Number(opt.pair ?? design.pairMode ?? 0), mixSync = Number(opt.mixsync ?? 0) === 1;   // the Cells setting: 0 each cell on its own, 1 pairs concatenated, 2 bit-interleaved, 3 nibble, 5 byte
 const outDir = opt.out || dir + '/paper/data/design/runs', margin = Number(opt.margin ?? n >> 3);
-const tag = `${design.name}-${page ? 'page' : `pm${pm}-ps${ps}`}-salt${salt}-n${n}-t${turns}-seed${seed}${pair ? '-pair' + pair : ''}`;
+const tag = `${design.name}-${page ? 'page' : `pm${pm}-ps${ps}`}-salt${salt}-n${n}-t${turns}-seed${seed}${pair ? '-pair' + pair : ''}${mixSync ? '-sync' : ''}`;
 const NSP = design.states.length, NAMES = design.states.map(x => x.species), NLEN = design.states.map(x => x.states.length);
 const label = new Map();   // 16-byte latin1 -> { s: species index, k }
 design.states.forEach((sp, si) => sp.states.forEach(x => { for (const t of (x.texts ?? [x.text])) label.set(t, { s: si, k: x.k }); }));   // pair designs list both cells of a state
-const sim = await makeSim({ W: n, H: n, changer: 36, pairMode: pair, maxlen: 3, skip: 6, cread: design.V ?? 4096, coff: 0, saltMode: salt, swap: page ? [0, 1] : [pm, pm], smooth: page ? [0, 1] : [ps, ps] });
+const sim = await makeSim({ W: n, H: n, altOrder: opt.order || 'rotate', mixSync, changer: 36, pairMode: pair, maxlen: 3, skip: 6, cread: design.V ?? 4096, coff: 0, saltMode: salt, swap: page ? [0, 1] : [pm, pm], smooth: page ? [0, 1] : [ps, ps] });
 sim.setDict(dictText); sim.reset(seed);
 const { W, H, N } = sim;
 const POP = new Uint8Array(256); for (let i = 0; i < 256; i++) POP[i] = (i & 1) + POP[i >> 1];

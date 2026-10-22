@@ -1,0 +1,20 @@
+cpu22-pm0.5-ps1-n256-t2000: decoder alone after 200 turns, 100.0 % of cells on a cycle, 65526 species: 
+seed 1: 477677 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 29, 50 % at -, 90 % at -
+seed 2: 477635 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 23, 50 % at -, 90 % at -
+seed 3: 486606 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 49, 50 % at -, 90 % at -
+seed 4: 476782 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 70, 50 % at -, 90 % at -
+seed 5: 477801 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 38, 50 % at -, 90 % at -
+seed 6: 489344 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 20, 50 % at -, 90 % at -
+seed 7: 485950 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 60, 50 % at -, 90 % at -
+seed 8: 482292 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 52, 50 % at -, 90 % at -
+seed 9: 485173 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 55, 50 % at -, 90 % at -
+seed 10: 485355 species seen, 100.0 % of cells on a cycle at the end, leader (1-cycle) 0.0 %, first seen at turn 32, 50 % at -, 90 % at -
+file:///home/jyrki/life/paper/experiments/replicators.mjs:73
+fs.writeFileSync(`${outDir}/${tag}.json`, JSON.stringify({ tag, dict: changer === 36 ? dictId : 'cpu' + changer, changer, steps, salt, n, turns, seeds, pm, ps, page, pair, mixSync, basins: [...basins.entries()].map(([id, b]) => ({ id: id.toString(16), ...b })), rows }, null, 1));
+                                               ^
+
+RangeError: Invalid string length
+    at JSON.stringify (<anonymous>)
+    at file:///home/jyrki/life/paper/experiments/replicators.mjs:73:48
+
+Node.js v22.22.1

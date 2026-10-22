@@ -5,8 +5,9 @@
 // 8 x 8 block is classed by its change, neighbour difference and entropy at the last sample and again ten turns earlier,
 // and the score is the effective number of (now, before) classes present, behind guards against frozen, blinking,
 // uniform and pure-noise fields.
-// Usage: node tools/ca-swarm.mjs [hours] [kind] [skip] [dictLen] [cursorRead] [grid] [turns] [seed] [workers]
-// Defaults: 16 36 6 4400 4096 128 200 1 8. The modes score cannot exceed the number of 8 x 8 blocks, so the 64 grid
+// Usage: node tools/ca-swarm.mjs [hours] [kind] [skip] [dictLen] [cursorRead] [grid] [turns] [seed] [workers] [pair]
+// Defaults: 16 36 6 4400 4096 128 200 1 8 0. pair is the page's Cells value (0 each cell on its own, 1..5 pixel pairs,
+// 9..13 the cell with its 4-neighbour vote). The modes score cannot exceed the number of 8 x 8 blocks, so the 64 grid
 // saturates near 32 and 128 (256 blocks) leaves headroom. The children of a generation are judged in parallel on [workers] threads, each
 // with its own lattice. Writes build/ca-swarm-best*.json and appends to build/ca-swarm*.log; an existing best file seeds
 // the next run, so a run can be stopped and restarted.
@@ -15,11 +16,11 @@ import { Worker, isMainThread, parentPort, workerData } from 'node:worker_thread
 import { makeSim, evaluate } from './ca-harness.mjs';
 const dir = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const ARGS = isMainThread ? process.argv.slice(2) : workerData.args;
-const [HOURS, KIND, SKIP, DLEN, CREAD, GRIDN, TURNS, SEED, WORKERS] = [16, 36, 6, 4400, 4096, 128, 200, 1, 8].map((d, i) => Number(ARGS[i] ?? d));
-const TAG = `-k${KIND}-s${SKIP}-l${DLEN}-v${CREAD}-g${GRIDN}`;
+const [HOURS, KIND, SKIP, DLEN, CREAD, GRIDN, TURNS, SEED, WORKERS, PAIR] = [16, 36, 6, 4400, 4096, 128, 200, 1, 8, 0].map((d, i) => Number(ARGS[i] ?? d));
+const TAG = `-k${KIND}-s${SKIP}-l${DLEN}-v${CREAD}-g${GRIDN}${PAIR ? '-p' + PAIR : ''}`;
 const OUT = dir + `/build/ca-swarm-best${TAG}.json`;
 const LOG = m => { console.log(m); fs.appendFileSync(dir + `/build/ca-swarm${TAG}.log`, m + '\n'); };
-const sim = await makeSim({ W: GRIDN, H: GRIDN, changer: KIND, pairMode: 0, skip: SKIP, cread: CREAD, coff: 0 });
+const sim = await makeSim({ W: GRIDN, H: GRIDN, changer: KIND, pairMode: PAIR, skip: SKIP, cread: CREAD, coff: 0 });
 let seed = (SEED * 2654435761) >>> 0; const rand = () => { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; return seed / 4294967296; };   // a 32-bit LCG; the earlier double arithmetic could fall into a short cycle
 const ri = n => Math.floor(rand() * n), pick = a => a[ri(a.length)];
 const clean = ch => { const c = ch.charCodeAt(0); return c === 10 || (c >= 32 && c < 127) ? ch : ' '; };   // one byte each, printable or newline

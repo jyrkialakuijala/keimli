@@ -7,3 +7,24 @@ paper/data/ablation/*.json
 paper/data/design/runs/*.png
 paper/data/design/life/*.json
 paper/data/design/order/*.json
+paper/data/replicators/*.json
+# notes on positioning and authorship, kept out of the repository for now
+paper/private/
+paper/data/entropy/*.json
+paper/data/replicators-v2/*.json
+paper/data/droplets/*.json
+paper/data/heredity/*.json
+paper/data/ablation-v2/*.json
+paper/data/replicase/*.json
+paper/data/replicase/runs/
+paper/data/closure/*.json
+paper/data/frame-mechanism/*.json
+paper/data/dose/*.json
+paper/data/infodyn/*.json
+paper/data/ablation-sizes/*.json
+paper/data/map/*.json
+paper/data/bff/*.json
+paper/data/candidate/*.json
+paper/data/replicators-old/*.json
+paper/data/redesign/
+paper/data/**/*.c

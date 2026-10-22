@@ -15,6 +15,18 @@ const thrTab = (v, w = 8) => { new BigUint64Array(memory.buffer, L.THR, w).fill(
 // per-row smoothing threshold table (uniform value), returns its address
 const smTab = (v, h = 8) => { new BigUint64Array(memory.buffer, L.THRY, h).fill(v); return L.THRY; };
 const m8 = new Uint8Array(memory.buffer);
+// ---- look-and-say in base 2..16 (kinds 50..64): a BigInt reference of the rule, on random and run-heavy cells
+const lasRef = (bytes, b) => {
+  const B = BigInt(8 * bytes.length), bb = BigInt(b); let n = 0, pw = 1n; while (pw < (1n << B)) { pw *= bb; n++; }
+  let N = 0n; for (const v of bytes) N = (N << 8n) | BigInt(v);
+  const d = []; for (let j = 0; j < n; j++) { d.unshift(Number(N % bb)); N /= bb; }
+  const o = []; for (let i = 0; i < n && o.length < n;) { let r = 1; while (i + r < n && d[i + r] === d[i]) r++; o.push(...r.toString(b).split('').map(c => parseInt(c, b)), d[i]); i += r; }
+  o.length = Math.min(o.length, n); while (o.length < n) o.push(0);
+  let V = 0n; for (const x of o) V = V * bb + BigInt(x); V &= (1n << B) - 1n;
+  const out = new Uint8Array(bytes.length); for (let k = bytes.length - 1; k >= 0; k--) { out[k] = Number(V & 255n); V >>= 8n; } return out;
+};
+const ecaRef = (bytes, rule) => { const n = 8 * bytes.length, bit = i => (bytes[((i + n) % n) >> 3] >> (7 - (((i + n) % n) & 7))) & 1, o = new Uint8Array(bytes.length);
+  for (let i = 0; i < n; i++) if ((rule >> (4 * bit(i - 1) + 2 * bit(i) + bit(i + 1))) & 1) o[i >> 3] |= 128 >> (i & 7); return o; };
 const kraft = ls => ls.reduce((s, l) => s + (l ? 2 ** -l : 0), 0);
 
 // ---- length code for every N
@@ -1096,6 +1108,12 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
       dn.join() === '0,0,0,0,1' && rv[0] > 32 && rv[0] <= 128 && rv[1] === 1 && rv[2] > 32 && rv[3] === 1 && cb[4] === 1 && cb[0] > 0 && cb[2] > 0 && untouched);
     io.setChanger(0);
   }
+  for (const [mode, b] of [[1, 10], [1, 3], [3, 16], [5, 7]]) {   // look-and-say on a joint cell: 256 bits, more digits
+    const J = joinRef(A, B, mode, 0), [a2, b2] = splitRef(lasRef(J, b), mode, 0); run(48 + b, mode, 0);
+    check(`pairs: look-and-say base ${b} on a ${{ 1: 'concatenated', 3: 'nibble-interleaved', 5: 'byte-interleaved' }[mode]} joint cell matches the reference`, eq(px(0), a2) && eq(px(1), b2));
+  }
+  { const J = joinRef(A, B, 1, 0), [a2, b2] = splitRef(ecaRef(J, 110), 1, 0); run(256 + 110, 1, 0);   // a concatenated pair is one 256-bit ring
+    check('pairs: rule 110 on a concatenated joint cell is one 256-bit ring (A\'s last bit next to B\'s first)', eq(px(0), a2) && eq(px(1), b2)); }
   // a Z80 program in A writes into B's half: the joint cell is the whole address space
   const prog = new Uint8Array(16); prog.set([0x3E, 0x42, 0x32, 0x14, 0x00, 0x76]);   // LD A,42h; LD (0014h),A; HALT
   const zero = new Uint8Array(16);
@@ -1360,6 +1378,44 @@ check('seeded halves: whole pixels change places (uniform pixels have one contex
   check(`primes first: ${out().join(' ')}`, out().join() === '2,3,5,7,7,11,0,1,4,6,8,9,10,128,200,255');
   m8.set([251, 250, 1, 0, 2, 253, 211, 221, 223, 227, 229, 233, 239, 241, 255, 254], GRID); decode_pixel(GRID, 0, PRM);
   check(`primes first near 255: ${out().join(' ')}`, out().join() === '2,211,223,227,229,233,239,241,251,0,1,221,250,253,254,255');
+  io.setChanger(0);
+}
+// ---- look-and-say (kinds 50..64, base = kind - 48)
+{
+  io.setPair(0, 0); let bad = [], rs = 12345;
+  const rnd = () => (rs = (Math.imul(rs, 1664525) + 1013904223) >>> 0) >>> 24;
+  for (let b = 2; b <= 16; b++) {
+    io.setChanger(48 + b);
+    for (let c = 0; c < 40; c++) {
+      const cell = Uint8Array.from({ length: 16 }, (_, k) => c === 0 ? 0 : c === 1 ? 255 : c < 10 ? (k < c ? 0 : 0x11 * (c & 15)) : c < 20 ? (rnd() & (c & 1 ? 0x80 : 0x81)) : rnd());
+      m8.set(cell, GRID); decode_pixel(GRID, 0, PRM);
+      const want = lasRef(cell, b); if (out().join() !== Array.from(want).join()) bad.push(`base ${b} cell ${c}`);
+    }
+  }
+  check(`look-and-say: every base 2..16 matches the BigInt reference on 600 cells${bad.length ? ': ' + bad.slice(0, 4).join(', ') : ''}`, bad.length === 0);
+  io.setChanger(58); m8.fill(0, GRID, GRID + 16); m8[GRID + 15] = 1; decode_pixel(GRID, 0, PRM);   // decimal: 38 zeros then a 1 -> "38 0 1 1", zero padded, past 2^128 so it wraps
+  const dec = BigInt('0x' + out().map(v => v.toString(16).padStart(2, '0')).join(''));
+  check(`look-and-say base 10: the cell 1 (38 zeros, then 1) says "38 0, 1 1" = 3.8011e38, wrapped at 2^128 to ${dec}`, dec === 380110n * 10n ** 33n - (1n << 128n));
+  io.setChanger(64); m8.fill(0, GRID, GRID + 16); m8[GRID + 15] = 1; decode_pixel(GRID, 0, PRM);   // hexadecimal: 31 zero nibbles then a 1 -> "1f 0 1 1"
+  check(`look-and-say base 16: the cell 1 says thirty-one 0s (1f), one 1: ${out().map(v => v.toString(16).padStart(2, '0')).join(' ')}`, out().join() === [0x1f, 0x01, 0x10, ...Array(13).fill(0)].join());
+  io.setChanger(50); m8.fill(0xaa, GRID, GRID + 16); decode_pixel(GRID, 0, PRM);   // binary 1010...: each digit a run of one -> "1 1 1 0" repeated
+  check(`look-and-say base 2: 1010... says one 1, one 0, ... = 11101110... (${out().map(v => v.toString(16)).join(' ')})`, out().every(v => v === 0xee));
+  io.setChanger(0);
+}
+// ---- elementary rules on the cell's bit ring (kind 256 + rule): a bit-by-bit reference, and the exact losses of 90 and 60
+{
+  io.setPair(0, 0); let bad = [], rs = 777;
+  const rnd = () => (rs = (Math.imul(rs, 1664525) + 1013904223) >>> 0) >>> 24;
+  for (let rule = 0; rule < 256; rule++) {
+    io.setChanger(256 + rule);
+    for (let c = 0; c < 6; c++) { const cell = Uint8Array.from({ length: 16 }, () => rnd()); m8.set(cell, GRID); decode_pixel(GRID, 0, PRM); if (out().join() !== Array.from(ecaRef(cell, rule)).join()) bad.push(rule); }
+  }
+  check(`elementary rules: all 256 match the bit-by-bit reference on a 128-bit ring${bad.length ? ': rules ' + [...new Set(bad)].slice(0, 8).join(' ') : ''}`, bad.length === 0);
+  const iterate = (rule, cell, t) => { io.setChanger(256 + rule); m8.set(cell, GRID); for (let s = 0; s < t; s++) { decode_pixel(GRID, 0, PRM); m8.set(out(), GRID); } return Array.from(m8.subarray(GRID, GRID + 16)); };
+  const cells = Array.from({ length: 20 }, () => Uint8Array.from({ length: 16 }, () => rnd()));
+  check('rule 90 on 128 bits is nilpotent: every cell is zero after 64 turns, not all after 63 (2 bits left: a quarter are zero)', cells.every(c => iterate(90, c, 64).every(v => v === 0)) && cells.some(c => iterate(90, c, 63).some(v => v)));
+  check('rule 60 on 128 bits: every cell is zero after 128 turns, not all after 127 (1 bit left)', cells.every(c => iterate(60, c, 128).every(v => v === 0)) && cells.some(c => iterate(60, c, 127).some(v => v)));
+  check('rule 150 and rule 170 on 128 bits: 128 turns of 170 return the cell (a rotation), 150 never reaches zero', cells.every(c => iterate(170, c, 128).join() === Array.from(c).join()) && cells.every(c => iterate(150, c, 200).some(v => v)));
   io.setChanger(0);
 }
 // ---- decoders (changers 31..40): hand-made cells with known decodings

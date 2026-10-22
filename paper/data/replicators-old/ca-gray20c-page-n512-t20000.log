@@ -1,0 +1,4 @@
+ca-gray20c-page-n512-t20000: decoder alone after 200 turns, 100.0 % of cells on a cycle, 22 species: 8-cycle 15.97 %, 8-cycle 14.78 %, 8-cycle 12.66 %, 8-cycle 8.04 %, 8-cycle 7.12 %, 8-cycle 6.78 %, 8-cycle 6.13 %, 8-cycle 4.77 %, 8-cycle 3.57 %, 8-cycle 3.51 %, 8-cycle 3.03 %, 8-cycle 2.91 %, 8-cycle 2.78 %, 8-cycle 1.98 %, 8-cycle 1.97 %, 8-cycle 1.54 %, 8-cycle 1.53 %, 8-cycle 0.75 %
+seed 1: 25464 species seen, 44.1 % of cells on a cycle at the end, leader (8-cycle) 21.8 %, first seen at turn 32, 50 % at -, 90 % at -
+seed 2: 26869 species seen, 44.1 % of cells on a cycle at the end, leader (8-cycle) 23.5 %, first seen at turn 32, 50 % at -, 90 % at -
+seed 3: 25546 species seen, 44.3 % of cells on a cycle at the end, leader (8-cycle) 21.6 %, first seen at turn 32, 50 % at -, 90 % at -

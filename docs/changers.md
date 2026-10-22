@@ -25,7 +25,7 @@ steps" box appears with it).
 `$decode` in `decode.wat` dispatches on the changer number in the parameter
 block (`codec.js` keeps the numbering: 0 LZ, 1 and 2 Brainfuck (1 unused), 3 to 5 the
 simple transforms, 6 to 15, 19 to 30, 43, 44 and 47 CPUs, 16 extremes, 17 and 18 DCT,
-31 to 40 decoders, 41 and 42 the sorts),
+31 to 40 decoders, 41 and 42 the sorts, 50 to 64 look-and-say in base 2 to 16, 256 to 511 the elementary rules 0 to 255),
 and is itself the LZ decoder. The parameter block, output buffer, flags
 (one byte per output byte, for the inspector) and the dictionary are placed
 in memory by `Codec.install`, whose `LAYOUT` is the module's memory map.
@@ -120,6 +120,60 @@ insertion sort on the key value + 256 for a non-prime; primality by trial
 division). On a pair they sort the 32 bytes of the joint cell. Both are
 fixed points after one turn, so what they show is the swapping and the
 mutation: the cell becomes a sorted histogram of what it receives.
+
+"Elementary rule" (kinds 256 to 511, rule = kind − 256, Wolfram's
+numbering) is one step of a one-dimensional binary automaton on the cell's
+bits taken as a closed ring in reading order: byte 0's top bit first, bit
+127 next to bit 0; on a pair, one ring of 256 bits. A bit's new value is
+bit 4 × left + 2 × self + right of the rule number, left being the bit
+before it in reading order. The lattice then becomes a three-dimensional
+binary automaton, W × H × 128: the elementary rule acts along the depth,
+coupling bit plane i to planes i − 1 and i + 1, while mixing and settling
+act within each plane. The page offers the four rules whose information
+loss on a ring of 2ᵏ bits is exact, as calibrated entropy manipulators.
+Rules 170 (a rotation) and 150 (x XOR both neighbours) are bijections.
+Rule 60 (x XOR its left neighbour) multiplies the ring polynomial by
+1 + x⁻¹ and loses one bit a turn. Rule 90 (left XOR right) multiplies by
+x⁻¹(1 + x)² and loses two bits a turn. Since x¹²⁸ − 1 = (x + 1)¹²⁸ over
+GF(2), both are nilpotent: every cell is all zero after 128 and 64 turns
+respectively, 256 and 128 on a pair (Martin, Odlyzko and Wolfram 1984).
+Wolfram 1983 is the classical account of many-to-one rules organising a
+lattice by losing information. Two more are offered for their pictures: rule 184,
+the traffic rule, which keeps the number of 1s, and whose jams meet and
+cancel so that it loses information slowly; and rule 57, which in a scan
+of the 88 inequivalent rules lost information fastest without dying out
+under mixing and settling (collision entropy about 6 bits a cell at turn
+64 under uniform settings; measured, not known exactly). Every rule is reachable by its kind number
+from scripts; `test/mix.test.mjs` checks all 256 against a bit-by-bit
+reference.
+
+"Look-and-say" (kinds 50 to 64, base = kind − 48) is one step of Conway's
+look-and-say sequence, his audioactive decay (Conway 1987), on a cell of
+fixed width. The cell's 128 bits (256 on a pair) are one number, byte 0
+most significant, written as the n digits of base b that hold any value of
+that width: n is the smallest with bⁿ ≥ 2¹²⁸, so 128 binary digits, 81
+ternary, 64 quaternary, 43 octal, 39 decimal, 32 hexadecimal (256, 162,
+128, 86, 78 and 64 on a pair). Each maximal run of equal digits becomes its
+length written in base b, without leading zeros (Conway writes twelve 1s
+as 121), followed by the digit. The description is cut at n digits and
+padded with zero digits when it is shorter, and read back as a number;
+where bⁿ exceeds 2¹²⁸ (every base but 2, 4 and 16) a description worth
+more than the cell can hold wraps modulo 2¹²⁸. Bases 2, 4, 8 and 16 read
+and write the digits as bit fields. The other bases convert with 32-bit
+limbs, dividing by the largest power of b below 2³², so a base-3 cell
+takes five divisions per limb. Scratch is at `$DT + 2048`: input digits,
+output digits and the limbs. In base 2 a run's length is itself binary:
+1010… says one 1, one 0, … and becomes 11101110…. On an unbounded string
+Conway's only fixed point is 22. On the fixed-width cell, from 300 random
+cells per base with the transform alone, no cell ended on a fixed point
+and almost every cell ended on a 3-cycle within about 12 turns. In bases
+4, 7, 8, 10 and 12 to 16 the dominant cycle is the same digit string, a
+prefix of Conway's 1113122113121113222123211211131211121311121321…, since
+on the digits 1 to 3 with runs shorter than the base the rule does not
+depend on the base. Base 2 (run lengths in binary) and base 3 (a run of
+three is written 10) have cycles of their own. In bases 5, 6, 9 and 11,
+where the wrap at 2¹²⁸ is large, the wrap makes the cycle: in base 11 it
+is a 2-cycle.
 
 ## DCT and inverse DCT
 
@@ -360,16 +414,27 @@ bit-interleaved: A on the even bits; nibble-interleaved: A on the low
 nibbles), the B→A machine's the joint cell with B in the first
 role. The joint cell is built when the instruction runs and split back
 straight after, so under the bit and nibble interleavings a store into one
-byte lands in both pixels. A round runs the four link phases in the swap-phase order
-(UD0, LR0, UD1, LR1) on even rounds and in the reverse order (LR1, UD1,
-LR0, UD0) on odd ones, because with one fixed order information travels
-two cells down and right in a round but only one cell up and left, and the
-lattice grew streaks along the down-right diagonal (the VAX link machines
-showed it first): in each phase every pair of that phase runs one
-instruction of its forward machine (left or top pixel first) and then one
-of its backward machine, which sees what the forward one wrote. So a pixel
-is visited by eight machines a round, four of them running code that starts
-in the pixel itself, and each machine advances one instruction a round. A turn makes a number of rounds in a row (the
+byte lands in both pixels. A round is synchronous: the grid is copied before the round's first phase
+(`links_snapshot`), every machine reads its two pixels from that copy, and
+only the bytes an instruction changes are written to the live pixels, so
+no machine sees what another wrote in the same round and the order of the
+phases and of a pair's two machines matters only where two machines write
+the same byte. The four phases run in the swap phases' rotating order, the
+pattern turned by 90 degrees each round (UD0 LR0 UD1 LR1, then LR0 UD0 LR1
+UD1, UD1 LR1 UD0 LR0, LR1 UD1 LR0 UD0), for those collisions. Earlier the
+machines read the live pixels, the backward machine seeing what the
+forward one had just written: with a fixed phase order information
+travelled two cells down and right in a round but one cell up and left and
+the lattice grew streaks along the down-right diagonal (the VAX link
+machines showed it first), and with the order reversed on odd rounds the
+contents still drifted, about 0.2 pixel per five turns down-right under the
+VAX, up-left under the 68000 and over a pixel under the PDP-11, because the
+two machines of a pair ran in a fixed order (`paper/results/swap-order.md`).
+In each phase every pair of that phase runs one instruction of its forward
+machine (left or top pixel first) and one of its backward machine. So a
+pixel is visited by eight machines a round, four of them running code that
+starts in the pixel itself, and each machine advances one instruction a
+round. A turn makes a number of rounds in a row (the
 "CPU cycles per frame" box: any whole number, 2 by default; 0 leaves the machines
 idle for the turn) before the lattice is drawn, so
 by default each machine runs 2 instructions a turn, interleaved with its
@@ -401,11 +466,13 @@ two pixels, so a phase splits over the bands exactly; only the up-down pairs
 across a band edge need care. A band owns the left-right pairs of its rows
 and the up-down pairs whose first row is y0 − 1 to y1 − 2, so the pair
 across its top edge is its own (an odd first row, a UD1 pair) and the pair
-across its bottom edge belongs to the band below. Each round a band runs
-UD0 and LR0 on its rows, sends its bottom row to the band below, receives
-the row above from the band above into its halo and runs UD1 including the
-top-edge pair, hands that row back changed, puts the returned bottom row in
-place and runs LR1. The rows travel over direct channels between
+across its bottom edge belongs to the band below. Each round a band
+snapshots its buffer, runs the phases before UD1 on its rows, sends its
+bottom row as the snapshot has it to the band below, receives the row
+above from the band above into its live and snapshot halo and runs UD1
+including the top-edge pair, hands that row back changed, applies the
+returned bottom row's changes (the bytes that differ from its snapshot)
+and runs the phases after UD1. The rows travel over direct channels between
 neighbouring workers, two short messages per band edge per round, and the
 result is bit-identical to the single-instance run (`test/band.test.mjs`).
 With a transform or Brainfuck there are no link machines: the joining

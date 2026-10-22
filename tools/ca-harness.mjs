@@ -14,13 +14,14 @@ const L = Codec.LAYOUT;
 // parameter. mixOn / settleOn / rewriteOn switch the three stages for the ablations. rewrite: an optional JS function
 // (grid Uint8Array, N) that replaces the wasm changer, for null-model rewriting rules; it returns the bits it changed.
 export async function makeSim({ W = 128, H = 128, passes = 3, nbr = 1, changer = 39, pairMode = 1, maxlen = 3, skip = 0, cread = 127, coff = 0, gpow = 0.2, saltMode = 0,
-                                swap = [0, 1], smooth = [0, 1], mixOn = true, settleOn = true, rewriteOn = true, rewrite = null, altOrder = false, pairWrite = false, mixSync = false } = {}) {
+                                swap = [0, 1], smooth = [0, 1], mixOn = true, settleOn = true, rewriteOn = true, rewrite = null, altOrder = false, pairWrite = false, mixSync = false, steps = 0 } = {}) {
   if (!settleOn) passes = 0;
   const { instance } = await WebAssembly.instantiate(wasmBytes);
   const wasm = instance.exports, N = W * H, S = 16 * W, D = Band.depthFor(passes, nbr);
   const GRID = L.GRID, GRID2 = GRID + (H + 2 * D) * S + 64, need = GRID2 + (H + 2 * D) * S + 65536;
   if (need > wasm.memory.buffer.byteLength) wasm.memory.grow(Math.ceil((need - wasm.memory.buffer.byteLength) / 65536));
   const st = { wasm, W, H, y0: 0, rows: H, D, GRID, GRID2, PRM: L.PRM, THR: L.THR, THRY: L.THRY };
+  if (steps) new Int32Array(wasm.memory.buffer, L.PRM + 92, 1)[0] = steps;   // instructions a pixel for the CPU changers (256 by default)
   const thrSwap = mixOn ? Band.gradient(swap[0], swap[1], W, Band.mixRate, gpow) : new BigUint64Array(W), thrSmooth = settleOn ? Band.gradient(smooth[0], smooth[1], H) : new BigUint64Array(H);
   let io = null, turn = 0;
   const m8 = () => new Uint8Array(wasm.memory.buffer);
@@ -28,6 +29,7 @@ export async function makeSim({ W = 128, H = 128, passes = 3, nbr = 1, changer =
   function setDict(text) {
     io = Codec.install(wasm.memory, Codec.build(text, maxlen));
     io.setChanger(changer); io.setSkipBits(skip); io.setCursorRead(cread); io.setCursorOffset(coff);
+    if (steps) new Int32Array(wasm.memory.buffer, L.PRM + 92, 1)[0] = steps;   // after the install, which resets the parameter block (before 2026-10-21 the budget set below was overwritten here and every run used 256)
   }
   function reset(seed) { wasm.randomize(4 * N, base, seed); turn = 0; }
   function step() {
