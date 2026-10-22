@@ -1,6 +1,0 @@
-ca-swarm-f-pm0.5-ps1-n256-t2000: decoder alone after 200 turns, 100.0 % of cells on a cycle, 2 species: 3-cycle 100.00 %
-seed 1: 978 species seen, 99.7 % of cells on a cycle at the end, leader (3-cycle) 98.9 %, first seen at turn 8, 50 % at 12, 90 % at 31
-seed 2: 675 species seen, 99.6 % of cells on a cycle at the end, leader (3-cycle) 99.0 %, first seen at turn 8, 50 % at 12, 90 % at 28
-seed 3: 1143 species seen, 99.6 % of cells on a cycle at the end, leader (3-cycle) 98.9 %, first seen at turn 7, 50 % at 12, 90 % at 32
-seed 4: 867 species seen, 99.6 % of cells on a cycle at the end, leader (3-cycle) 98.9 %, first seen at turn 8, 50 % at 13, 90 % at 29
-seed 5: 1246 species seen, 99.2 % of cells on a cycle at the end, leader (3-cycle) 98.6 %, first seen at turn 6, 50 % at 12, 90 % at 32

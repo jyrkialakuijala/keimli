@@ -1,3 +1,0 @@
-ca-swarm-f K=2: 2/2 headers, 128 s
-{"dict":"ca-swarm-f","K":2,"headers":2,"complete":false,"nodes":2176320872,"seconds":128.327,"leaves":5538,"bad":0,"solutions":0,"cycles":0,"families":null,"freeHist":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"stored":0,"verified":0,"out":"/home/jyrki/life/paper/data/map/exact-ca-swarm-f-K2-tie3fc-h1285_1927.json"}
-{"dict":"ca-swarm-f","K":2,"headers":2,"complete":false,"nodes":2176320872,"seconds":128.327,"leaves":5538,"bad":0,"solutions":0,"cycles":0,"families":null,"freeHist":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"stored":0,"verified":0,"out":"/home/jyrki/life/paper/data/map/exact-ca-swarm-f-K2-tie3fc-h1285_1927.json"}

@@ -1,0 +1,23 @@
+The article, its drafts, figures and results in this directory (paper/) are
+licensed under the Creative Commons Attribution 4.0 International License
+(CC BY 4.0).
+
+Copyright 2026 Jyrki Alakuijala
+
+You are free to share and adapt this material for any purpose, including
+commercially, provided you give appropriate credit, link to the license,
+and indicate if changes were made.
+
+The full license text: https://creativecommons.org/licenses/by/4.0/legalcode
+Summary: https://creativecommons.org/licenses/by/4.0/
+
+Exceptions:
+- paper/experiments/ (scripts) is code and is under the Apache License 2.0
+  (see ../LICENSE).
+- The data summaries under paper/data/ (tables, logs, series) are released
+  under CC0 1.0 (public domain dedication):
+  https://creativecommons.org/publicdomain/zero/1.0/
+- paper/reviews/ contains reviews written for this project by simulated
+  reviewers; they are part of the project record and under CC BY 4.0.
+- Quotations and figures reproduced from other works remain under their
+  own terms and are credited where they appear.

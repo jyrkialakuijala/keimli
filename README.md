@@ -24,8 +24,10 @@ with the module inlined as base64, so they run straight from `file://`.
 
 ## Run it
 
-Open `index.html` (the lattice) or `life.html` (a Game of Life, the older
-and smaller demo) in a browser, or build them yourself (below). Click a
+Open the published page, or run `./build.sh` and open `index.html` (the lattice)
+or `life.html` (a Game of Life, the older and smaller demo) in a browser.
+The built pages are not committed: a GitHub Action (.github/workflows/pages.yml)
+builds them from `src/` on every push and publishes them to GitHub Pages. Click a
 cell to inspect it, shift-drag to paint ones, ctrl-shift-drag to paint
 zeros.
 
@@ -82,7 +84,7 @@ tools/build.py    inlines a wasm module and the helper files into a page templat
 build.sh          assembles the module from the parts, compiles, builds the pages
 test/             unit, band, activity and browser smoke tests
 build/            assembled keimli.wat and the compiled modules (made by build.sh, not committed)
-index.html, life.html   the built pages
+index.html, life.html   the built pages (made by build.sh, published by the action, not committed)
 ```
 
 The wasm module has one source of truth: the parts under `src/`. `build.sh`
@@ -109,3 +111,13 @@ that no pixel consumes more than the decoder's 1024-bit input cap, that
 rendering finishes in bounded time, and that the default random start
 keeps moving. `test/cdp-poll.mjs` is the small DevTools-protocol poller the
 smoke test uses.
+
+## Licence
+
+The code (`src/`, `tools/`, `test/`, `build.sh`, `paper/experiments/`) is under
+the Apache License 2.0 (`LICENSE`). The article, figures and results under
+`paper/` are under CC BY 4.0 (`paper/LICENSE`); the data summaries are CC0.
+The text dictionaries are public-domain works transcribed from Wikisource and
+Wikipedia, each with its source in `src/changers/dict/manifest.json`; the
+generated dictionaries are CC BY 4.0. The Declaration of Independence is in
+the public domain.

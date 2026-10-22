@@ -1,8 +1,0 @@
-ca-cyc5to12: 11 attractor types from 16384 random cells; chosen: #0 period 5 basin 27.65 %, #1 period 11 basin 20.40 %, #2 period 1 basin 0.28 %
-  pair #0 in #1 done
-  pair #0 in #2 done
-  pair #1 in #0 done
-  pair #1 in #2 done
-  pair #2 in #0 done
-  pair #2 in #1 done
-written /home/jyrki/life/paper/data/droplets/droplets-ca-cyc5to12-n128-t400.md

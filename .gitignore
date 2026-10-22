@@ -32,3 +32,9 @@ paper/data/review2/
 paper/data/droplets3/
 paper/data/start-replace/
 paper/data/pstar/
+paper/data/
+paper/draft/
+paper/figures/redesign/*.png
+!paper/figures/redesign/sheet.png
+/index.html
+/life.html

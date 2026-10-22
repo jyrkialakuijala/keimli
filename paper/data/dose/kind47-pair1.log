@@ -1,9 +1,0 @@
-kind 47 pair 1 steps 1: map H2 >27 -> >27, on cycles 94 %, 15333 types, largest 0 % (period 25) | lattice H2 16.2, distinct 14956, on cycles 79 %, leader 0 %, block8 0.994 | 6 s
-kind 47 pair 1 steps 2: map H2 >27 -> >27, on cycles 82 %, 13373 types, largest 0 % (period 21) | lattice H2 15.9, distinct 14781, on cycles 76 %, leader 0 %, block8 0.982 | 5 s
-kind 47 pair 1 steps 4: map H2 >27 -> >27, on cycles 70 %, 11449 types, largest 0 % (period 14) | lattice H2 15.1, distinct 14371, on cycles 66 %, leader 0 %, block8 0.961 | 7 s
-kind 47 pair 1 steps 8: map H2 >27 -> 20.2, on cycles 67 %, 10571 types, largest 1 % (period 1) | lattice H2 15.0, distinct 13918, on cycles 69 %, leader 0 %, block8 0.922 | 10 s
-kind 47 pair 1 steps 16: map H2 >27 -> 17.3, on cycles 67 %, 10498 types, largest 1 % (period 1) | lattice H2 7.8, distinct 12400, on cycles 61 %, leader 6 %, block8 0.877 | 15 s
-kind 47 pair 1 steps 32: map H2 27.0 -> 13.9, on cycles 68 %, 10749 types, largest 1 % (period 1) | lattice H2 4.2, distinct 9350, on cycles 76 %, leader 23 %, block8 0.796 | 19 s
-kind 47 pair 1 steps 64: map H2 26.0 -> 13.5, on cycles 70 %, 10987 types, largest 1 % (period 1) | lattice H2 3.4, distinct 7602, on cycles 83 %, leader 30 %, block8 0.720 | 32 s
-kind 47 pair 1 steps 128: map H2 23.1 -> 13.0, on cycles 71 %, 11161 types, largest 1 % (period 1) | lattice H2 1.5, distinct 3047, on cycles 93 %, leader 58 %, block8 0.559 | 56 s
-kind 47 pair 1 steps 256: map H2 19.6 -> 12.8, on cycles 72 %, 11443 types, largest 1 % (period 1) | lattice H2 0.4, distinct 143, on cycles 99 %, leader 85 %, block8 0.403 | 107 s

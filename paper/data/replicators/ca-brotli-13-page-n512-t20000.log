@@ -1,4 +1,0 @@
-ca-brotli-13-page-n512-t20000: decoder alone after 200 turns, 95.9 % of cells on a cycle, 6 species: 9-cycle 92.89 %, 1-cycle 2.88 %, 1-cycle 0.11 %
-seed 1: 12845 species seen, 74.1 % of cells on a cycle at the end, leader (1-cycle) 60.9 %, first seen at turn 4, 50 % at 604, 90 % at -
-seed 2: 13766 species seen, 74.1 % of cells on a cycle at the end, leader (1-cycle) 60.4 %, first seen at turn 4, 50 % at 576, 90 % at -
-seed 3: 12834 species seen, 74.1 % of cells on a cycle at the end, leader (1-cycle) 60.1 %, first seen at turn 5, 50 % at 721, 90 % at -

@@ -1,8 +1,0 @@
-ca-gray3c: 3 attractor types from 16384 random cells; chosen: #0 period 8 basin 42.59 %, #1 period 8 basin 30.59 %, #2 period 8 basin 26.82 %
-  pair #0 in #1 done
-  pair #0 in #2 done
-  pair #1 in #0 done
-  pair #1 in #2 done
-  pair #2 in #0 done
-  pair #2 in #1 done
-written /home/jyrki/life/paper/data/droplets/droplets-ca-gray3c-n128-t400.md

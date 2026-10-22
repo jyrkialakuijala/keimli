@@ -1,8 +1,0 @@
-ca-brotli-13: 5 attractor types from 16384 random cells; chosen: #0 period 9 basin 92.90 %, #1 period 18 basin 4.18 %, #2 period 1 basin 2.77 %
-  pair #0 in #1 done
-  pair #0 in #2 done
-  pair #1 in #0 done
-  pair #1 in #2 done
-  pair #2 in #0 done
-  pair #2 in #1 done
-written /home/jyrki/life/paper/data/droplets/droplets-ca-brotli-13-n128-t400.md
