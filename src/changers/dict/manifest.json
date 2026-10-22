@@ -1226,5 +1226,70 @@
   "note": "Built for the byte-interleaved pair mode: the two cells of a pair differ, and the 32-byte dictionary word at each state's pointer holds the next state in its role-swapped form, so the pair walks an 8-cycle whichever cell leads. 10 species on constant filler regions (\"9\" \"#\" \"?\" \"2\" \"7\" \"+\" \"3\" \"'\" \"/\" \";\") with landing pads for the letter and its swapped image. Set Cells to pairs byte-interleaved and the window range to 60000 (settings line pair=5 cread=60000). On the lattice the swap phase mixes the two cells of a pair, so at swap p near ½ these do not settle on their cycles: the picture is the pair mixing itself. See paper/results/design-gray3.md section 11. Not a text.",
   "cread": 60000,
   "pair": 5
+ },
+ {
+  "id": "ca-live-phases",
+  "file": "ca-live-phases.txt",
+  "title": "Designed: three phases chasing",
+  "titleLatin": "Designed: three phases chasing (4,096 bytes; one far 3-cycle whose phases invade each other in turn)",
+  "author": "paper/experiments/design-live.mjs name=ca-live-phases",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Built, not searched: the decoder is a table over 8-bit codes (paper/experiments/design-live.mjs). One attractor, a 3-cycle whose states are 4 to 6 bits apart; every crossover child of two of its phases is sent to the next state of the phase ahead, so each phase invades the one behind it and the three phase domains chase each other (the mechanism behind Swarm search F's moving fronts, by construction). A constant filler with a landing pad brings random cells in within about eight turns. See paper/results/redesign.md. Not a text.",
+  "cread": 4096
+ },
+ {
+  "id": "ca-live-archipelago",
+  "file": "ca-live-archipelago.txt",
+  "title": "Designed: archipelago",
+  "titleLatin": "Designed: archipelago (4,096 bytes; the chasing 3-cycle sea plus a Gray 8-cycle land that the sea grows and wears away)",
+  "author": "paper/experiments/design-live.mjs name=ca-live-archipelago",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Built, not searched (paper/experiments/design-live.mjs): the chasing 3-cycle of Three phases chasing as a sea, plus a closed Gray 8-cycle as land. 30 % of the sea's crossover children are sent to the land, so islands nucleate where the sea's phases meet; at the coast half the children go to the sea and half to the nearer parent, so the sea wears the islands away. See paper/results/redesign.md. Not a text.",
+  "cread": 4096
+ },
+ {
+  "id": "ca-live-coast",
+  "file": "ca-live-coast.txt",
+  "title": "Designed: coast",
+  "titleLatin": "Designed: coast (4,096 bytes; the chasing 3-cycle sea and a Gray 8-cycle land in a stand-off)",
+  "author": "paper/experiments/design-live.mjs name=ca-live-coast",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Built, not searched (paper/experiments/design-live.mjs): the chasing 3-cycle sea and a closed Gray 8-cycle land; 10 % of the sea's crossover children become land and the coast goes to the nearer parent, a stand-off. See paper/results/redesign.md. Not a text.",
+  "cread": 4096
+ },
+ {
+  "id": "ca-live-reef",
+  "file": "ca-live-reef.txt",
+  "title": "Designed: reef",
+  "titleLatin": "Designed: reef (4,096 bytes; the chasing sea, a Gray land and a fixed point that eats the land and is eaten by the sea)",
+  "author": "paper/experiments/design-live.mjs name=ca-live-reef",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Built, not searched (paper/experiments/design-live.mjs): the chasing 3-cycle sea, a closed Gray 8-cycle land nucleated by 10 % of the sea's crossover children and eroded at half the coast's, and a fixed point that takes every land crossover and loses every sea crossover: sea makes land, the fixed point eats land, the sea eats the fixed point. See paper/results/redesign.md. Not a text.",
+  "cread": 4096
+ },
+ {
+  "id": "ca-live-lagoon",
+  "file": "ca-live-lagoon.txt",
+  "title": "Designed: lagoon",
+  "titleLatin": "Designed: lagoon (4,096 bytes; a near 5-cycle sea whose phases chase, a Gray land it erodes and a fixed point that eats the sea and is eaten by the land)",
+  "author": "paper/experiments/design-live.mjs name=ca-live-lagoon",
+  "language": "none",
+  "script": "Latin",
+  "year": "2026",
+  "source": "",
+  "note": "Built, not searched (paper/experiments/design-live.mjs): a 5-cycle whose states are 2 to 3 bits apart (phases chasing as in Three phases chasing), a closed Gray 8-cycle land that the sea erodes, and a fixed point that eats the sea and is eaten by the land: a cycle of conquest over three types. See paper/results/redesign.md. Not a text.",
+  "cread": 4096
  }
 ]

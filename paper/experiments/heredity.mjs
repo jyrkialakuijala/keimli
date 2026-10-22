@@ -16,7 +16,8 @@ const dictId = opt.dict || 'ca-brotli-12', cread = Number(opt.cread ?? 4096), NT
 fs.mkdirSync(outDir, { recursive: true });
 const designPath = `${dir}/paper/data/design/${dictId}.txt`;
 const text = fs.existsSync(designPath) ? fs.readFileSync(designPath, 'latin1') : asText(loadDict(dictId).bytes);
-const common = { changer: 36, maxlen: 3, skip: 6, cread, coff: 0, passes: 1, nbr: 1, altOrder: 'rotate', pairMode: 0 };
+const common = { changer: 36, maxlen: 3, skip: 6, cread, coff: 0, passes: Number(opt.passes ?? 1), nbr: 1, altOrder: 'rotate', pairMode: 0 };   // passes: settling passes, 1 as in the 2026-10-21 runs, 3 on the page
+const sfx = common.passes === 1 ? '' : '-pass' + common.passes;   // output names of the three-pass runs
 const key = (g, i) => Buffer.from(g.subarray(16 * i, 16 * i + 16)).toString('latin1');
 const KMAX = 64;
 async function census(n, seed, T0, cells) {   // iterate f alone on n*n cells (random, or the given keys), then each cell's cycle
@@ -60,8 +61,8 @@ for (const p of P) for (const m of M) {
     }
     lat.push({ type: c.id, p, m, ...out }); }
 }
-const prov = provenance(import.meta.url, { dictId, cread, NT });
-fs.writeFileSync(`${outDir}/heredity-${dictId}.json`, JSON.stringify({ provenance: prov, dict: dictId, types: chosen.map(({ states, canon, ...c }) => c), map, lattice: lat }));
+const prov = provenance(import.meta.url, { dictId, cread, NT, passes: common.passes });
+fs.writeFileSync(`${outDir}/heredity-${dictId}${sfx}.json`, JSON.stringify({ provenance: prov, dict: dictId, types: chosen.map(({ states, canon, ...c }) => c), map, lattice: lat }));
 const pc = (a, b) => (100 * a / b).toFixed(1) + ' %';
 const md = [provLine(prov), `# Heredity: ${dictId}`, '', '## The map alone: every one-bit mutant of every state of each type, after 300 turns', '',
   '| type | period | basin | mutants | repaired | converted to another type | new attractor | still transient | the mutant is itself on a cycle |', '|---|---|---|---|---|---|---|---|---|',
@@ -69,5 +70,5 @@ const md = [provLine(prov), `# Heredity: ${dictId}`, '', '## The map alone: ever
   '', '## The lattice: a 3 x 3 patch of a one-bit mutant in an in-phase domain of its parent, 64², 200 turns, 12 trials each', '', 'erased / persists (≤ 9 cells off the parent type) / spread (> 9) / domain lost (more than half the cells off)', '',
   '| type | swap p \\ median m | ' + M.join(' | ') + ' |', '|---|---|' + M.map(() => '---').join('|') + '|'];
 for (const c of chosen) for (const p of P) md.push(`| #${c.id} (period ${c.period}) | ${p} | ` + M.map(m => { const r = lat.find(x => x.type === c.id && x.p === p && x.m === m); return `${r.erased}/${r.persists}/${r.spread}/${r.domainLost}`; }).join(' | ') + ' |');
-fs.writeFileSync(`${outDir}/heredity-${dictId}.md`, md.join('\n') + '\n');
-console.error('written', `${outDir}/heredity-${dictId}.md`);
+fs.writeFileSync(`${outDir}/heredity-${dictId}${sfx}.md`, md.join('\n') + '\n');
+console.error('written', `${outDir}/heredity-${dictId}${sfx}.md`);

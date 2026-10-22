@@ -751,9 +751,9 @@ function workerMain() {
   const declText = $('decl').textContent.trim();
   // the dictionaries: the manifest embedded by the build (id, title, language, text), the Declaration first
   const DICTS = (() => { try { const d = JSON.parse($('dicts').textContent); if (Array.isArray(d) && d.length) return d; } catch (e) {} return [{ id: 'declaration', titleLatin: 'US Declaration of Independence', language: 'English', text: declText }]; })();
-  // three kinds of dictionary: the texts; the byte strings bred by the genetic searches; the ones built by design-dict.mjs. The kind
+  // three kinds of dictionary: the texts; the byte strings bred by the genetic searches; the ones built by design-dict.mjs and design-live.mjs. The kind
   // selector chooses which list the Dictionary menu shows; each entry carries its description as a tooltip and its length.
-  const kindOf = d => /design-dict/.test(d.author || '') ? 'designed' : /^ca-/.test(d.id) ? 'search' : 'text';
+  const kindOf = d => /design-(dict|live)/.test(d.author || '') ? 'designed' : /^ca-/.test(d.id) ? 'search' : 'text';
   function fillDictList(kind, keep) {
     const sel = $('dict'); sel.innerHTML = '';
     for (const d of DICTS) { if (kindOf(d) !== kind) continue; const o = document.createElement('option'); o.value = d.id; const bytes = d.text ? new TextEncoder().encode(d.text).length : 0;
@@ -1636,6 +1636,11 @@ function workerMain() {
       ['Brotli front and islands (Swarm search F, the default)', {}],
       ['Twenty Gray 8-cycles', { dict: 'ca-gray20c', cread: 60000 }],
       ['Twelve Gray 8-cycles', { dict: 'ca-gray12c', cread: 60000 }],
+      ['Three phases chasing: one designed 3-cycle, each phase invading the one behind it', { dict: 'ca-live-phases', cread: 4096 }],
+      ['Archipelago: a chasing sea that grows Gray islands and wears them away', { dict: 'ca-live-archipelago', cread: 4096 }],
+      ['Coast: the chasing sea and Gray islands in a stand-off', { dict: 'ca-live-coast', cread: 4096 }],
+      ['Reef: the chasing sea, Gray islands and a fixed point that eats them', { dict: 'ca-live-reef', cread: 4096 }],
+      ['Lagoon: a five-phase sea, Gray land and a fixed point in a cycle of conquest', { dict: 'ca-live-lagoon', cread: 4096 }],
       ['Life-like: synchronous isotropic mixing, one 4-neighbour vote a turn, the cell rewritten with its 4-neighbour vote interleaved 1 bit at a time, under the usual gradients', { mixRule: 'sync', nbr: '0', iters: '1', pair: '10' }],
       ['Life-like with the dictionary designed for it: the cell and its vote interleaved 1 bit at a time, one Gray 8-cycle', { mixRule: 'sync', nbr: '0', iters: '1', pair: '10', dict: 'ca-vote1', cread: 60000 }],
       ['Pairs concatenated: four designed species', { dict: 'ca-paircat4', cread: 60000, pair: '1' }],
@@ -1652,9 +1657,9 @@ function workerMain() {
       ['The Declaration through the LZ decompressor', { changer: 'dec', dec: '0', dict: 'declaration', skip: '6', cread: 5, coff: '50', maxlen: '3', pair: '0' }],
     ]],
     ['Computational: CPUs rewrite the cells', [
-      ['Motorola 68000 link machines, no mixing or settling', { changer: 'cpu', cpu: '21', pair: '1', rounds: '16', lnever: true, size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', swapOn: false, medOn: false }],
-      ['DEC PDP-11 link machines, no mixing or settling', { changer: 'cpu', cpu: '20', pair: '1', rounds: '16', lnever: true, size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', swapOn: false, medOn: false }],
-      ['VAX-11/780 link machines, no mixing or settling', { changer: 'cpu', cpu: '23', pair: '1', rounds: '16', lnever: true, size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', swapOn: false, medOn: false }],
+      ['Motorola 68000 link machines, no mixing or settling', { changer: 'cpu', cpu: '21', pair: '1', rounds: '1', lnever: true, size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', swapOn: false, medOn: false }],
+      ['DEC PDP-11 link machines, no mixing or settling', { changer: 'cpu', cpu: '20', pair: '1', rounds: '1', lnever: true, size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', swapOn: false, medOn: false }],
+      ['VAX-11/780 link machines, no mixing or settling', { changer: 'cpu', cpu: '23', pair: '1', rounds: '1', lnever: true, size: '512x512', dict: 'declaration', skip: '6', cread: 5, coff: '50', swapOn: false, medOn: false }],
     ]],
     ['Arithmetic: a transform rewrites the cells', [
       ['Extremes ±23: the largest byte gives, the smallest takes, a slow deterministic drift', { changer: 'xf', xf: '16' }],

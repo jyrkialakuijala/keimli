@@ -28,3 +28,7 @@ paper/data/candidate/*.json
 paper/data/replicators-old/*.json
 paper/data/redesign/
 paper/data/**/*.c
+paper/data/review2/
+paper/data/droplets3/
+paper/data/start-replace/
+paper/data/pstar/

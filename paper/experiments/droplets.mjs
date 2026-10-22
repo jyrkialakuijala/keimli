@@ -16,7 +16,8 @@ const outDir = opt.out || dir + '/paper/data/droplets'; fs.mkdirSync(outDir, { r
 const designPath = `${dir}/paper/data/design/${dictId}.txt`;
 const text = fs.existsSync(designPath) ? fs.readFileSync(designPath, 'latin1') : asText(loadDict(dictId).bytes);
 const N = n * n, key = (g, i) => Buffer.from(g.subarray(16 * i, 16 * i + 16)).toString('latin1');
-const common = { W: n, H: n, changer: 36, maxlen: 3, skip: 6, cread, coff: 0, passes: 1, nbr: 1, altOrder: 'rotate', pairMode: 0 };
+const common = { W: n, H: n, changer: 36, maxlen: 3, skip: 6, cread, coff: 0, passes: Number(opt.passes ?? 1), nbr: 1, altOrder: 'rotate', pairMode: 0 };   // passes: settling passes, 1 as in the 2026-10-21 runs, 3 on the page
+const sfx = common.passes === 1 ? '' : '-pass' + common.passes;   // output names of the three-pass runs
 // ---- 1. the attractor types and their basins: the decoder alone from random cells
 const simB = await makeSim({ ...common, swap: [0, 0], smooth: [0, 0], mixOn: false, settleOn: false });
 simB.setDict(text); simB.reset(99);
@@ -64,8 +65,8 @@ for (const Y of chosen) for (const phase of ['coherent', 'random']) for (const m
   for (let t = 1; t <= T; t++) sim.step();
   runs.push({ X: Y.id, Y: Y.id, p: 0.1, m, phase, lam: 0, x0: 1, xT: shares(sim.grid()).types[Y.id], whole: true });
 }
-const prov = provenance(import.meta.url, { dictId, cread, n, T, R, NT });
-fs.writeFileSync(`${outDir}/droplets-${dictId}-n${n}-t${T}.json`, JSON.stringify({ provenance: prov, dict: dictId, n, T, R, types: chosen.map(c => ({ id: c.id, period: c.period, basin: c.basin })), runs }));
+const prov = provenance(import.meta.url, { dictId, cread, n, T, R, NT, passes: common.passes });
+fs.writeFileSync(`${outDir}/droplets-${dictId}-n${n}-t${T}${sfx}.json`, JSON.stringify({ provenance: prov, dict: dictId, n, T, R, types: chosen.map(c => ({ id: c.id, period: c.period, basin: c.basin })), runs }));
 // ---- 3. tables
 const sym = r => { const g = r.xT / r.x0; return r.xT > 0.9 ? 'X takes all' : g > 2 ? `grows ×${g.toFixed(1)}` : g < 0.05 ? 'vanishes' : g < 0.5 ? `shrinks ×${g.toFixed(2)}` : `holds ×${g.toFixed(2)}`; };
 const out = [provLine(prov), `# Droplets: ${dictId}, ${n}², ${T} turns, disc radius ${R}`, '', 'Types: ' + chosen.map(c => `#${c.id} ${c.period === 1 ? 'fixed point' : c.period + '-cycle'}, basin ${(100 * c.basin).toFixed(2)} %`).join('; '), ''];
@@ -77,5 +78,5 @@ out.push('## Noise (swap 0.1, coherent): X share at the end / at the start', '',
 for (const X of chosen) for (const Y of chosen) { if (X === Y) continue; for (const lam of [0.01, 0.05, 0.2, 1]) out.push(`| #${X.id} in #${Y.id} | ${lam} | ` + [0, 0.5, 1].map(m => sym(runs.find(r => !r.whole && r.X === X.id && r.Y === Y.id && r.p === 0.1 && r.m === m && r.lam === lam))).join(' | ') + ' |'); }
 out.push('', '## Whole-lattice domains (swap 0.1): share of the type after ' + T + ' turns', '', '| type | phases | ' + M.map(m => 'm = ' + m).join(' | ') + ' |', '|---|---|' + M.map(() => '---').join('|') + '|');
 for (const Y of chosen) for (const phase of ['coherent', 'random']) out.push(`| #${Y.id} (period ${Y.period}) | ${phase} | ` + M.map(m => (100 * runs.find(r => r.whole && r.Y === Y.id && r.phase === phase && r.m === m).xT).toFixed(0) + ' %').join(' | ') + ' |');
-fs.writeFileSync(`${outDir}/droplets-${dictId}-n${n}-t${T}.md`, out.join('\n') + '\n');
-console.error('written', `${outDir}/droplets-${dictId}-n${n}-t${T}.md`);
+fs.writeFileSync(`${outDir}/droplets-${dictId}-n${n}-t${T}${sfx}.md`, out.join('\n') + '\n');
+console.error('written', `${outDir}/droplets-${dictId}-n${n}-t${T}${sfx}.md`);
