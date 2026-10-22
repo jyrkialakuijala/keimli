@@ -458,12 +458,12 @@
 <div class="group">
       <label for="cread" title="the docs call this the LZ cursor read: the cursor read range V: the LZ decompressor, and Deflate, LZ4, Snappy and the Brotli-like decoder for their preset dictionary, read ceil(log2 V) bits of the pixel first as a position among V bytes of the dictionary (a value of V or more wraps round: with V = 5, 6 and 7 read as 0 and 1); V = 1 reads no bits, the dictionary size makes every byte a start position">Dictionary window range</label>
       <input id="cread" type="range" min="0" max="60" value="60" step="1">
-      <input id="creadNum" type="number" min="1" max="65535" step="1" value="4096" class="mono" style="width: 7ch" title="the exact cursor read range V; the slider moves to its nearest stop, and moving the slider fills this box">
+      <input id="creadNum" type="number" min="1" max="16777216" step="1" value="4096" class="mono" style="width: 7ch" title="the exact cursor read range V; the slider moves to its nearest stop, and moving the slider fills this box">
       <span id="creadVal" class="mono val">→ 12 bits</span>
     </div>
 <div class="group">
       <label for="coff" title="the docs call this the LZ cursor offset: a constant added to the start cursor, not read from the pixel">Dictionary window offset</label>
-      <input id="coff" type="range" min="0" max="65535" value="0" step="1">
+      <input id="coff" type="range" min="0" max="16777216" value="0" step="1">
       <span id="coffVal" class="mono val">+0</span>
     </div>
 <div class="group">
@@ -639,7 +639,7 @@ function workerMain() {
           lut = d.lut; built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut); io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); if (d.cread) io.setCursorRead(d.cread); io.setCursorOffset(d.coff); io.setSkipBits(d.skip || 0);
           break;
         }
-        case 'setN': if (d.text) text = d.text; built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut); io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); if (d.cread) io.setCursorRead(d.cread); io.setCursorOffset(d.coff); io.setSkipBits(d.skip || 0); break;
+        case 'setN': if (d.text) text = d.text; built = Codec.build(text, d.N); io = Codec.install(wasm.memory, built, lut, 3, st ? HIST + 1024 + 64 : undefined); if (st) { LINKS = io.big ? io.TEXT + io.textLen + 512 + 64 : HIST + 1024 + 64; linkKey = null; m8 = new Uint8Array(wasm.memory.buffer); } io.setChanger(d.changer); io.setSteps(d.steps); io.setHeaderBits(d.hbits); if (d.cread) io.setCursorRead(d.cread); io.setCursorOffset(d.coff); io.setSkipBits(d.skip || 0); break;   // a big dictionary sits past the band's buffers, the link states after it
         case 'hbits': io.setHeaderBits(d.hbits); break;
         case 'cread': io.setCursorRead(d.cread); break;
         case 'linksReset': linkKey = null; break;   // the next link round starts from fresh machines
@@ -657,6 +657,7 @@ function workerMain() {
           LINKS = HIST + 1024 + 64; linkKey = null;                                 // LINKS: the link states, allocated when links run
           const need = HIST + 1024, have = wasm.memory.buffer.byteLength;
           if (need > have) wasm.memory.grow(Math.ceil((need - have) / 65536));
+          if (io.big) LINKS = io.relocate(HIST + 1024 + 64) + io.textLen + 512 + 64;   // a big dictionary moves past the band's buffers; the link states follow it
           m8 = new Uint8Array(wasm.memory.buffer);
           m8.fill(0, GRID, PIX);
           new Uint32Array(wasm.memory.buffer, PAL, 129).set(d.palette);
@@ -753,10 +754,10 @@ function workerMain() {
   const DICTS = (() => { try { const d = JSON.parse($('dicts').textContent); if (Array.isArray(d) && d.length) return d; } catch (e) {} return [{ id: 'declaration', titleLatin: 'US Declaration of Independence', language: 'English', text: declText }]; })();
   // three kinds of dictionary: the texts; the byte strings bred by the genetic searches; the ones built by design-dict.mjs and design-live.mjs. The kind
   // selector chooses which list the Dictionary menu shows; each entry carries its description as a tooltip and its length.
-  const kindOf = d => /design-(dict|live)/.test(d.author || '') ? 'designed' : /^ca-/.test(d.id) ? 'search' : 'text';
+  const kindOf = d => /design-(dict|live|scale)/.test(d.author || '') ? 'designed' : /^ca-/.test(d.id) ? 'search' : 'text';
   function fillDictList(kind, keep) {
     const sel = $('dict'); sel.innerHTML = '';
-    for (const d of DICTS) { if (kindOf(d) !== kind) continue; const o = document.createElement('option'); o.value = d.id; const bytes = d.text ? new TextEncoder().encode(d.text).length : 0;
+    for (const d of DICTS) { if (kindOf(d) !== kind) continue; const o = document.createElement('option'); o.value = d.id; const bytes = d.text ? new TextEncoder().encode(d.text).length : d.bytes || 0;
       if (kind === 'text') { o.textContent = `${d.titleLatin} (${d.language}${d.script && d.script !== 'Latin' ? ', ' + d.script : ''})`; o.title = [d.title, d.author, d.year].filter(Boolean).join(' · '); }
       else { o.textContent = `${d.title.replace(/^Designed: /, '')}${bytes ? ` · ${bytes.toLocaleString()} bytes` : ''}`; o.title = d.titleLatin + (d.note ? '. ' + d.note : ''); }
       sel.appendChild(o); }
@@ -767,6 +768,14 @@ function workerMain() {
   selectDict(DEFAULT_DICT);
   const dictEntry = () => DICTS.find(d => d.id === $('dict').value) || DICTS[0];
   const dictText = () => dictEntry().text;
+  // a large dictionary (manifest "url") is not inlined: it is fetched when selected, normalised as the build normalises
+  // the inlined ones; when the fetch fails (file://, or the page served without src/) the page says so and keeps its dictionary
+  let dictNote = null;   // shown in the Code row by the next codeNote()
+  async function loadDictText(d) {
+    if (d.text || !d.url) return !!d.text;
+    try { const r = await fetch(d.url); if (!r.ok) throw new Error('HTTP ' + r.status); d.text = (await r.text()).normalize('NFC').replace(/\n+$/, '') + '\n'; return true; }
+    catch (e) { dictNote = `${d.title} (${(d.bytes || 0).toLocaleString()} bytes) is fetched from ${d.url} when selected and could not be loaded here (${e.message}); the page served over http(s), such as the GitHub Pages copy, has it. The dictionary was not changed.`; return false; }
+  }
   const codecSrc = $('codec-src').textContent, bandSrc = $('band-src').textContent;
 
   let W = 0, H = 0, N = 0;
@@ -876,7 +885,7 @@ function workerMain() {
     return {
       threads: 1,
       async init(Nmax) { io = Codec.install(wasm.memory, Codec.build(dictText(), Nmax), LUT); settings(); },
-      async setN(Nmax) { io = Codec.install(wasm.memory, Codec.build(dictText(), Nmax), LUT); settings(); },   // also after a dictionary change
+      async setN(Nmax) { io = Codec.install(wasm.memory, Codec.build(dictText(), Nmax), LUT, 3, HIST ? HIST + 1024 : undefined); if (HIST) { LINKS = io.big ? io.TEXT + io.textLen + 512 : HIST + 1024; linkKey = null; views(); } settings(); },   // also after a dictionary change; a big dictionary sits past the lattice, the link states after it
       async setChanger(m) { io.setChanger(m); },
       async setSteps(n) { io.setSteps(n); },
       async setHeaderBits(n) { io.setHeaderBits(n); },
@@ -888,6 +897,7 @@ function workerMain() {
         PIX = GRID + 16 * N; PAL = PIX + 4 * N; GRID2 = PAL + 129 * 4 + 12; HIST = GRID2 + 16 * N; LINKS = HIST + 1024; linkKey = null;   // HIST: 256 byte counts
         const need = HIST + 1024, have = wasm.memory.buffer.byteLength;
         if (need > have) wasm.memory.grow(Math.ceil((need - have) / 65536));
+        if (io.big) LINKS = io.relocate(HIST + 1024) + io.textLen + 512;   // a big dictionary moves past the lattice; the link states follow it
         views(); m8.fill(0, GRID, GRID + 16 * N);
         new Uint32Array(wasm.memory.buffer, PAL, 129).set(pal);
       },
@@ -1063,6 +1073,7 @@ function workerMain() {
     built = Codec.build(dictText(), Nmax, HB);
     $('maxlenVal').textContent = 'N = ' + Nmax;
     $('coffVal').textContent = '+' + $('coff').value; $('skipVal').textContent = skipBits();
+    if (dictNote) { $('codeNote').textContent = dictNote; dictNote = null; return; }
     if (changerId() === 7) {
       $('codeNote').textContent = 'MOS 6502: each pixel\'s 16 bytes are the whole address space (addresses wrap mod 16; the stack at $0100+S wraps into the same bytes); ' +
         'registers start at zero, 256 instructions run from PC = 0 and the memory afterwards is the pixel\'s new content. All 151 documented opcodes with decimal mode; ' +
@@ -1551,8 +1562,13 @@ function workerMain() {
   let creadByHint = false;
   const creadForDict = () => { const hint = dictEntry().cread; if (hint) { setCursorReadExact(hint); creadByHint = true; } else if (creadByHint) { setCursorReadExact(4096); creadByHint = false; } };
   // a dictionary designed for a pair mode brings its Cells setting too (manifest field pair); one designed for single cells sets Cells back to each cell on its own
-  const pairForDict = () => { const e = dictEntry(); if (e.pair) $('pair').value = String(e.pair); else if (/design-(dict|pair)/.test(e.author || '')) $('pair').value = '0'; };
-  $('dict').addEventListener('change', () => { applyDict(); creadForDict(); pairForDict(); codeNote(); run(async () => { await engine.setN(Number($('maxlen').value)); if ($('dictRandom').checked) await reset('random'); else await draw(); }); });   // a designed dictionary brings its window range
+  const pairForDict = () => { const e = dictEntry(); if (e.pair) $('pair').value = String(e.pair); else if (/design-(dict|pair|scale)/.test(e.author || '')) $('pair').value = '0'; };
+  let lastDict = $('dict').value;
+  $('dict').addEventListener('change', () => run(async () => {   // a designed dictionary brings its window range; a fetched one is loaded first
+    if (!(await loadDictText(dictEntry()))) { selectDict(lastDict); codeNote(); return; }
+    lastDict = $('dict').value; applyDict(); creadForDict(); pairForDict(); codeNote();
+    await engine.setN(Number($('maxlen').value)); if ($('dictRandom').checked) await reset('random'); else await draw();
+  }));
   $('cread').addEventListener('input', () => { CREAD_EXACT = null; creadByHint = false; showCread(); codeNote(); run(async () => { await engine.setCursorRead(cursorRead()); await draw(); }); });
   $('creadNum').addEventListener('change', () => { setCursorReadExact($('creadNum').value); creadByHint = false; codeNote(); run(async () => { await engine.setCursorRead(cursorRead()); await draw(); }); });
   $('skip').addEventListener('input', () => { $('skipVal').textContent = skipBits(); codeNote(); run(async () => { await engine.setSkipBits(skipBits()); await draw(); }); });
@@ -1641,6 +1657,10 @@ function workerMain() {
       ['Coast: the chasing sea and Gray islands in a stand-off', { dict: 'ca-live-coast', cread: 4096 }],
       ['Reef: the chasing sea, Gray islands and a fixed point that eats them', { dict: 'ca-live-reef', cread: 4096 }],
       ['Lagoon: a five-phase sea, Gray land and a fixed point in a cycle of conquest', { dict: 'ca-live-lagoon', cread: 4096 }],
+      ['Designed at 2^12 bytes: one construction for every size (paper/results/dictionary-size.md)', { dict: 'ca-size-12', cread: 4096 }],
+      ['Designed at 2^16 bytes', { dict: 'ca-size-16', cread: 65536 }],
+      ['Designed at 2^20 bytes (1 MB, fetched when selected)', { dict: 'ca-size-20', cread: 1048576 }],
+      ['Designed at 2^24 bytes (16 MB, fetched when selected)', { dict: 'ca-size-24', cread: 16777216 }],
       ['Life-like: synchronous isotropic mixing, one 4-neighbour vote a turn, the cell rewritten with its 4-neighbour vote interleaved 1 bit at a time, under the usual gradients', { mixRule: 'sync', nbr: '0', iters: '1', pair: '10' }],
       ['Life-like with the dictionary designed for it: the cell and its vote interleaved 1 bit at a time, one Gray 8-cycle', { mixRule: 'sync', nbr: '0', iters: '1', pair: '10', dict: 'ca-vote1', cread: 60000 }],
       ['Pairs concatenated: four designed types', { dict: 'ca-paircat4', cread: 60000, pair: '1' }],
@@ -1676,7 +1696,8 @@ function workerMain() {
   async function applySettings(str) {
     const o = decodeSettings(str);
     if (!o) { $('shareNote').textContent = 'not a settings line (it starts with keimli1)'; return; }
-    restoreControls(o);
+    const want = DICTS.find(d => d.id === o.dict); if (want && !(await loadDictText(want))) o.dict = $('dict').value;   // a fetched dictionary that is not available: keep the current one
+    restoreControls(o); lastDict = $('dict').value;
     showCread(); showChangerBoxes(); showAvgBoxes(); codeNote(); showThreshold(); showSpeed();
     sel = -1;
     await rebuild($('pattern').value);
@@ -1707,7 +1728,8 @@ function workerMain() {
     const selftest = location.hash === '#selftest' || location.hash === '#selftest-workers';
     if (location.hash.startsWith('#s=')) { const o = decodeSettings(decodeURIComponent(location.hash.slice(3))); if (o) saved = o; }   // a shared link
     if (saved && saved.w) {
-      restoreControls(saved);
+      const want = DICTS.find(d => d.id === saved.dict); if (want && !(await loadDictText(want))) saved.dict = DEFAULT_DICT;
+      restoreControls(saved); lastDict = $('dict').value;
       sel = saved.sel ?? -1; turn = saved.turn || 0;
       setRunning(saved.running ?? running);
     } else {

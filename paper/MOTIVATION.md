@@ -1,5 +1,9 @@
 # The motivation, as the author framed it (2026-10-21)
 
+> **Superseded framing (2026-10-22).** Kept as the record of the question as first asked. The paper is now written on
+> `OUTLINE.md`, with the terms of `TERMS.md` and the definitions of `DEFINITION.md` §6; the claims of this draft that
+> were retracted or reframed are listed in `reviews/team2/SYNTHESIS.md` §3–4. Do not quote numbers from here.
+
 This is the argument the article's introduction should make. The author's
 framing, written up with the references the bibliography already holds;
 the claims marked *to show* are the ones the experiments have to carry.

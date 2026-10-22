@@ -15,7 +15,7 @@ const Codec = (() => {
 
   // Fixed memory map (bytes). The grid starts after the static region.
   const LAYOUT = { PRM: 0, COS: 512, LIT: 1024, DEC: 1024 + (4 << LIT_BITS), LUT: 31744, THR: 32768, THRY: 49152, VP8: 65536, TEXT: 131072, GRID: 196608 };
-  // TEXT: the dictionary (UTF-8 bytes, up to about 64 KB), then the decoder's output buffer and flags; GRID: the lattice
+  // TEXT: the dictionary (UTF-8 bytes, up to 65,024 bytes here; a longer one is placed past the lattice, see install), then the decoder's output buffer and flags; GRID: the lattice
   // LUT: 256 x i32 byte colours; THR: per-column swap thresholds (i64, up to 2048 columns); THRY: per-row smoothing thresholds (i64, up to 2048 rows)
   // DEC: the decoders' tables (codecs.wat); VP8: the order-1 model for the boolean decoder, 256 contexts x 256 tree nodes
 
@@ -144,22 +144,37 @@ const Codec = (() => {
 
   // Write the table, the dictionary, the byte LUT and the parameter block into wasm memory.
   // `gain` stretches the LUT-average views around the palette mean (1 = plain average).
-  function install(memory, built, lut = byteLut(built.bytes), gain = 3) {
+  // A dictionary that fits the static region (up to 65,024 bytes) goes to LAYOUT.TEXT as always. A larger one (up to
+  // 2^24 bytes) goes to `textBase` when given, else to the end of the memory as it stands, and the memory grows; the
+  // output and flag buffers follow it, and every decoder reads the dictionary as out - textLen from the parameter
+  // block, so nothing else moves. The host that lays out a lattice after such an install moves the text past the
+  // lattice with io.relocate(base) (the worker's resize does), or passes textBase itself.
+  const TEXT_ROOM = LAYOUT.GRID - LAYOUT.TEXT - 512;   // the longest dictionary the static region holds
+  const bigText = textLen => textLen > TEXT_ROOM;
+  const ensureMemory = (memory, need) => { const have = memory.buffer.byteLength; if (need > have) memory.grow(Math.ceil((need - have) / 65536)); };
+  function install(memory, built, lut = byteLut(built.bytes), gain = 3, textBase) {
+    const textLen = built.bytes.length;
+    if (textLen > 16777216) throw new Error('dictionary longer than 2^24 bytes');
+    const TEXT = bigText(textLen) ? (textBase ?? memory.buffer.byteLength) : LAYOUT.TEXT;
+    if (bigText(textLen)) ensureMemory(memory, TEXT + textLen + 512);
     const m8 = new Uint8Array(memory.buffer), m32 = new Int32Array(memory.buffer);
     const put = (off, arr) => { for (let i = 0; i < arr.length; i++) m32[(off >> 2) + i] = arr[i]; };
     put(LAYOUT.LIT, canonicalTable(built.lenLengths, LIT_BITS));
     put(LAYOUT.LUT, lut);
     const freq = new Float64Array(256); for (const b of built.bytes) freq[b]++;
     const meanRaw = lutMean(lut, new Float64Array(256).fill(1)), meanDec = lutMean(lut, freq);
-    const textLen = built.bytes.length, OUT = LAYOUT.TEXT + textLen, FLAGS = OUT + 256;
-    if (FLAGS + 256 > LAYOUT.GRID) throw new Error('dictionary too long for the static region');
-    m8.set(built.bytes, LAYOUT.TEXT);
+    const OUT = TEXT + textLen, FLAGS = OUT + 256;
+    if (!bigText(textLen) && FLAGS + 256 > LAYOUT.GRID) throw new Error('dictionary too long for the static region');
+    m8.set(built.bytes, TEXT);
     decoderTables(memory, built.bytes);
     const headerBits = built.headerBits ?? cursorBits(textLen), offsetUnit = Math.ceil(textLen / 2 ** headerBits);
     put(LAYOUT.PRM, [OUT, OUT_BYTES, LAYOUT.LIT, 0, 0, 0, 0, 0, textLen, FLAGS, 0, offsetUnit, 0, 0, LAYOUT.LUT, meanRaw, meanDec, gain, 0, 0, 0, 0, 0, 256, headerBits, CURSOR_OFFSET, 0, 0, FLAGS + 128, 3, 0, 0, 0, 0]);   // ..., pairBuf, pairWrite (3: both cells), gridW, gridY0, gridH, snap   // ..., pairMode, pairFlip, pairBuf
     const cosTab = new Float64Array(memory.buffer, LAYOUT.COS, 33);   // cos(pi m / 64), m = 0..32, for the DCT processors (16 and 32 points, the rest by symmetry)
     for (let m = 0; m <= 32; m++) cosTab[m] = Math.cos(Math.PI * m / 64);
-    const io = { OUT, FLAGS, textLen, OUT_BYTES, offsetUnit, headerBits, cursorOffset: CURSOR_OFFSET, skipBits: 0, cursorRead: 0, meanRaw, meanDec, gain, lastOffset: () => new Int32Array(memory.buffer, LAYOUT.PRM, 13)[12],
+    const io = { OUT, FLAGS, textLen, TEXT, big: bigText(textLen), OUT_BYTES, offsetUnit, headerBits, cursorOffset: CURSOR_OFFSET, skipBits: 0, cursorRead: 0, meanRaw, meanDec, gain, lastOffset: () => new Int32Array(memory.buffer, LAYOUT.PRM, 13)[12],
+             // move a big dictionary (with its output and flag buffers) to base, growing the memory; a small one stays put
+             relocate: base => { if (!io.big || base === io.TEXT) return io.TEXT; ensureMemory(memory, base + textLen + 512); new Uint8Array(memory.buffer).copyWithin(base, io.TEXT, io.TEXT + textLen + 512);
+               io.TEXT = base; io.OUT = base + textLen; io.FLAGS = io.OUT + 256; const a = new Int32Array(memory.buffer, LAYOUT.PRM, 29); a[0] = io.OUT; a[9] = io.FLAGS; a[28] = io.FLAGS + 128; return base; },
              // cursor header width: 2^bits start positions, ceil(textLen / 2^bits) bytes apart
              setHeaderBits: bits => { const a = new Int32Array(memory.buffer, LAYOUT.PRM, 25); io.headerBits = bits; io.offsetUnit = Math.ceil(textLen / 2 ** bits); a[11] = io.offsetUnit; a[24] = bits; },
              setCursorOffset: n => { io.cursorOffset = n; new Int32Array(memory.buffer, LAYOUT.PRM, 26)[25] = n; },
@@ -221,6 +236,6 @@ const Codec = (() => {
     0xffa77f, 0x9e7080, 0x752600, 0xd4b36e, 0xca00a2, 0xdfa2d3, 0x252585, 0xa258d4]);
   function byteLut() { return new Uint32Array(BYTE_PALETTE); }
 
-  return { MIN_MATCH, MAX_MATCH_LIMIT, SKIP_BITS, LIT_BITS, OUT_BYTES, cursorBits, rangeBits, CURSOR_OFFSET, pixelRate, LAYOUT,
+  return { MIN_MATCH, MAX_MATCH_LIMIT, SKIP_BITS, LIT_BITS, OUT_BYTES, cursorBits, rangeBits, CURSOR_OFFSET, pixelRate, LAYOUT, TEXT_ROOM, bigText,
            huffmanLengths, canonicalTable, build, install, reverseBits, byteLut, BYTE_PALETTE, lutMean, vp8Model, morseTable, decoderTables, MORSE, ZIGZAG4, JPEG_Q4 };
 })();

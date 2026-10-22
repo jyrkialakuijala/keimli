@@ -1,5 +1,9 @@
 # Motivation: a draft of the article's opening
 
+> **Superseded framing (2026-10-22).** Kept as the record of the question as first asked. The paper is now written on
+> `OUTLINE.md`, with the terms of `TERMS.md` and the definitions of `DEFINITION.md` §6; the claims of this draft that
+> were retracted or reframed are listed in `reviews/team2/SYNTHESIS.md` §3–4. Do not quote numbers from here.
+
 2026-10-21. Written from the author's framing (`MOTIVATION.md`), from what
 the prototype has shown so far (`results/README.md` and the notes it
 indexes), and from the related-work map (`RELATED_WORK.md`). Citation

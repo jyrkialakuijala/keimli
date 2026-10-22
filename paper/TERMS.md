@@ -38,8 +38,8 @@ using. When a term has a traditional meaning we keep that meaning and say nothin
   dictionaries' files and the older results keep "species" in their names; the paper does not.
 - **Phase.** A cell's position within its cycle. A domain is **in phase** (coherent) when all its cells share
   it, **in random phases** otherwise.
-- **Family.** A set of fixed points that differ only in bytes the map never reads. Its size is 2 to the number
-  of such bytes. (For a replicator, this is where heredity lives; see below.)
+- **Family.** A set of fixed points that differ only in bytes whose value the map carries verbatim (for a fixed point
+  of f alone, bytes it never reaches). Its size is 2 to the number of such bytes. (For a replicator, this is where heredity lives; see below.)
 - **Transient.** A state not on any type.
 
 ## Regions of the lattice
@@ -47,9 +47,18 @@ using. When a term has a traditional meaning we keep that meaning and say nothin
 - **Domain.** A connected region of cells on one type. A **uniform domain** is one in phase: by Lemma 1, mixing and
   settling do nothing to its interior.
 - **Wall.** The boundary between two domains. A wall **advances** or **stands**; we do not say "front".
+- **Nucleation.** Growth of a type X inside a domain of another type Y that needs a seed above a critical size.
+  Three clauses, each a measurement (results/nucleation.md): (N1) a critical radius R\* > 1 cell: discs of X below
+  it shrink to nothing, above it grow to fill the domain; (N2) spontaneous starts are rare and local: with no X
+  planted, X first appears as a few compact clusters that then grow, at a rate per cell and turn, rather than
+  everywhere at once; (N3) so the waiting time to the first X falls with the domain's area, and the takeover time is
+  that waiting time plus a growth time set by the wall speed. Growth with R\* ≤ 1 is **seeded growth without a
+  barrier**; appearance everywhere at once is **instability**, not nucleation. In an in-phase domain the spontaneous
+  rate is zero by Lemma 1, so nucleation there can only start at walls or planted seeds (heterogeneous). We use the
+  word only where N1–N3 are measured.
 - **Hold, invade, dissolve.** A domain **holds** if its share stays near its starting share; a type **invades**
   another when its wall advances into the other's domain; a domain **dissolves** when its cells become transients.
-  These replace "survive", "melt", "nucleate", "coarsen" and "take over". "Takeover" stays only as the name of the
+  These replace "survive", "melt", "coarsen" and "take over"; "nucleate" only as defined above. "Takeover" stays only as the name of the
   measured event in the replicator runs (a type reaching half the lattice).
 
 ## Closure (our one new term)
@@ -63,23 +72,30 @@ using. When a term has a traditional meaning we keep that meaning and say nothin
 - **Threshold p\*(type, m).** The smallest mixing strength at which a domain of the type dissolves under the medium
   at settling strength m. The closure index is a one-step quantity; p\* is the same question asked over whole turns.
 
-## Replication and heredity (von Neumann's words, used narrowly)
+## Copying and heredity (von Neumann's words, used narrowly; DEFINITION.md §6)
 
-- **Replicator.** A state R of a system with a pair map such that g(R, X) contains R twice for almost every partner
-  X: joined with anything, it leaves itself and a copy. BFF's evolved loops and Core War's imp are replicators.
-  Keimli's types are not: they are fixed points of f, which maintain themselves and copy nothing. We say
-  "replicator" only for the former.
-- **Variant.** A state differing from a given one in one bit or one byte (the older results say "mutant").
-- **Heritable.** A variant R′ of a replicator R is heritable if R′ is also a replicator. A byte of R is heritable
-  if every value of it gives a replicator; these are the bytes the map copies without reading.
-- **Heritable information.** log₂ of the size of R's family: the number of heritable bytes, times 8. This is
-  what Maynard Smith and Szathmáry call the capacity of a heredity system, measured on the map. BFF: 48–54 bytes;
-  the imp: 0; Keimli's families: 0–3 bytes, and those are not copied anywhere.
-- **Inherited / removed.** On the lattice, a variant is inherited if it is present in the copies after a turn and
-  removed if it is not. Settling removes variants (majority over neighbours restores the common value); we say
-  "removed by settling", not "repaired", and we do not give the medium an intention.
+- **Pair map.** The rewrite of two joined cells, g on 256 bits: the decoder in a pair mode, or a processor run on
+  two memories concatenated.
+- **Copier.** A state R with g(R, X) = (R, R) for almost every partner X: joined with anything, it leaves itself and
+  a copy. The decoder's types are not copiers; their neighbours are converted by the medium, not by the state.
+- **Variant.** A state differing from a given one in one bit or one byte (older results say "mutant").
+- **Family.** The set of variants of a copier that are copiers themselves, over the bytes every value of which keeps
+  it a copier: the bytes the map copies verbatim, whatever else it does with them. The copy covaries with the original across the family.
+- **Heritable information.** log₂ of the family's size: 8 bits per free byte. BFF's loops 384–432 bits; the imp
+  about log₂ 3; the decoder's types 0.
+- **Replicator.** A copier with heritable information above zero. We say "replicator" only for these.
+- **Crystal.** A copier with none: a fixed point of the pair map that absorbs its partner, so the copy does not
+  depend on the original. The imp is one. On the lattice the decoder's types grow like crystals: new cells take the
+  form the medium and the map prefer, and variants do not propagate.
+- **Trivial replication.** Langton's name for the case where the physics copies every state (rule 90): then nothing
+  is a copier in a useful sense and no form can be selected.
+- **Inherited / removed.** On the lattice, a variant is inherited if it is present in the grown region after a turn
+  and removed if the region carries the original. Settling removes variants; we say "removed by settling", not
+  "repaired", and give the medium no intention.
 - **Error threshold.** The settling or mutation strength above which no variant is inherited (Eigen 1971). Used only
   where it is measured.
+- **Self-maintenance and heredity** are the paper's two axes: a type is closed or open (held against the medium or
+  not), and a copier has heritable information or not. The two are independent properties of maps.
 
 ## Measures
 
@@ -95,7 +111,7 @@ using. When a term has a traditional meaning we keep that meaning and say nothin
 
 ## Words we stop using
 
-"melt", "nucleate", "front", "coarsening" and any exponent for the full system; "species" for a type; "replicator"
-for a Keimli type; "mutant" (say variant); "repair" (say removed by settling); "entropy pump", "computation" as a
+"melt" (say dissolve), "nucleate" except as defined above, "front" (say wall), "coarsening" and any exponent for the full system; "species" for a type; "replicator"
+for a Keimli type (say type, or crystal when it grows); "mutant" (say variant); "repair" (say removed by settling); "entropy pump", "computation" as a
 measured thing, "self-decoding" as a claim about the cell; "interesting" as a score. "Life-like" stays as the name
 of the page preset only.

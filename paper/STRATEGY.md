@@ -52,15 +52,19 @@ science happened in the last three.
    seeds against cycles with 93–100 % basins; establishment is size-independent (times to 25 % and 40 % equal at 128²
    to 512²) with a logarithmic creep after. Removing every fixed-point-basin cell from the start changes nothing: the
    medium creates them.
-6. **How: at the page's settling, not melting but invasion.** At three passes the open cycle re-coheres; the closed
-   type is created inside the cycle's domains and its walls advance into it; the reverse wall does not move. Melting
-   of open types is real only at one settling pass. The closure index separates closed from open (10 of 10 hold, 4 of
-   4 melt at one pass) but is a 2 × 2 table, not a gradation, and it is silent among closed types. The n = 5 version
-   with the radius series and the threshold p* is running (A1–A4).
+6. **How: at the page's settling, dissolution where the open type is disordered, invasion where it is ordered.**
+   With partial settling and mixing, open types in random phases dissolve and in-phase domains hold (Lemma 1); the
+   leading closed type fills the first and advances its wall into the second. This is nucleation by the definition
+   in TERMS.md and results/nucleation.md: a critical radius of 5–8 cells against an ordered sea with a constant wall
+   speed of 0.06–0.13 cells a turn, and spontaneous starts as rare clusters in a disordered sea at 10⁻⁶–10⁻⁴ per
+   cell and turn, never inside an in-phase domain. The seeds are made by the medium (start replacement, n =
+   20: no difference). Weak settling dissolves everything, strong settling freezes everything. Closure decides who
+   holds (every open type dissolves at partial settling; every closed type holds) but not who wins a wall: Brotli
+   12's second fixed point holds and loses. (results/mechanism-v2.md, n = 5 throughout.)
 7. **Heredity is the sharp contrast, not computation.** Keimli's types repair mutants: 0 of 2,944 one-bit mutants are
    inherited. BFF's replicators inherit 80–85 % of single-byte mutations, because the copy loop copies bytes it never
    reads; the constructed replicase ablation finds exactly that ingredient necessary. Heritable information = log₂ of
-   the fixed-point family size = bytes copied unread (BFF 48–54, Keimli 0–3, the imp 0).
+   the fixed-point family size = bytes copied verbatim, whatever else is done with them (BFF 48–54, Keimli 0–3, the imp 0).
 8. **Processors against the decoder.** Processors keep most of a cell's information and order the lattice locally;
    the decoder collapses the cell onto a handful of states. Redcode's imp, a fixed point with a 0.6 % basin, takes
    over joined pairs with the instruction budget (12 → 77 %). The information-dynamics decomposition returned a
@@ -71,6 +75,13 @@ science happened in the last three.
 10. **Entropy measures.** Collision entropy is exact against rules of known loss and is the right whole-cell measure;
     block entropy is blind to rule 90's loss; the stopping-time bound H(f(U)) ≤ E[bits read] holds (93.5 bits for the
     decoder, 72–99 for look-and-say by base). "Bits lost" figures are collision figures, not Shannon losses.
+
+11. **A fixed point and a replicator differ by whether the copy depends on the original** (DEFINITION.md §6, added
+    2026-10-22). A copier is a state that, joined with almost any partner, leaves itself and a copy; its heritable
+    information is log₂ the size of the family of variants that still copy, the bytes the map carries without
+    reading. Above zero it is a replicator; at zero it is a crystal (the imp; the decoder's types on the lattice).
+    No instruction set or universality is needed: one copy operation the state can invoke on itself suffices
+    (Langton's criterion); rule 90's copying of everything is the trivial end where nothing can be selected.
 
 Retracted along the way, each by a later measurement: the H1 arrest claim; "no fixed points"; the 2^93.5 image bound;
 ξ ≈ 60 (plane bias); "takeover moves as a front" and its 716 / 1,093 speeds; the t^⅓ hash-pinning story; "closed
@@ -118,20 +129,22 @@ The failures repeat, so they are worth naming once.
 cellular-automaton rule has an exactly countable attractor set carried by the dictionary's words; attractors can be
 built in and proved closed; in a medium of exchange and majority a type holds a region if its own bit exchanges return
 to the type, and the medium creates the closed types and advances their walls, so rare fixed points and designed
-cycles displace large-basin open cycles; and the surviving types have no heredity of variants, which separates them
-from the replicators of BFF by exactly the bytes a copier does not read.
+cycles displace large-basin open cycles; and the surviving types are crystals, not copiers: they have no heredity of variants, which separates them from the
+replicators of BFF by exactly the bytes a copier carries verbatim; a decoder type with one self-copy command
+and a free tail crosses that line with no processor at all.
 
 **Paper 2 (origin and heredity of replicators in BFF, Core War and a constructed replicase; an outside co-author).**
 The replicators of computational life are fixed points of their interaction maps; what makes them heritable is
-verbatim copying of unread tape; BFF's are built by the walk, not listed in the start.
+verbatim copying of the tape; BFF's are built by the walk, not listed in the start.
 
 **Not claimed:** anything about computation as such; a coarsening exponent or a correlation length for the full
 system; emergence rates; anything measured at one seed or one settling pass.
 
 ## 6. Strategy for the next three weeks
 
-**Order of work.** Finish the mechanism (A1–A4, running; A5–A8 after), then the corrections (B1–B3), then write
-paper 1 (E), then paper 2's experiments (F). Writing waits for A1 only; B can overlap with A.
+**Order of work.** Finish the mechanism (A1–A4, running; A5–A8 after), build the heritable type (A9, so the paper's
+contrast is shown inside one system), then the corrections (B1–B3), then write paper 1 on OUTLINE.md (E), then paper
+2's experiments (F). Writing waits for A1 and A9; B can overlap with A.
 
 **Decision rules.**
 1. No number enters a draft without a results file and a data file behind it; the results file names its script,

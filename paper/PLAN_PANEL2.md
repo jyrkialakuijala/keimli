@@ -10,21 +10,27 @@ kept here as the items are done; results go to results/ and the raw data to data
 
 | # | item | days | CPU-h | who | status |
 |---|---|---|---|---|---|
-| A1 | The mechanism block at three settling passes, seed as a parameter: every ordered pair of types as a disc in a sea (coherent and random phases), whole-lattice domains, the closed type planted in a pre-melted sea; Brotli 12 and 13 (three types), Swarm F and gray3c; swap {0, 0.1, 0.25, 0.5} × median {0.25, 0.5, 1}; 5 seeds; 128², 2,000 turns; share at the end as mean with bootstrap interval, the track every 20 turns | 1 | 35 | physics A, computation Q6, optimization a, ALife 2, information 5 | **running** (`experiments/droplets3.sh`, started 2026-10-22 10:50; data/droplets3/) |
-| A2 | Seed origin: the frame from a random start with every fixed-point-basin cell replaced by a cycle-basin cell, Brotli 12, 256², 2,000 turns, 20 seeds, against the unchanged start | 0.3 | 3 | mathematics 8, physics A, computation (3 seeds done in review) | **running** (`experiments/start-replace.mjs`; data/start-replace/) |
-| A3 | The radius series R ∈ {1, 2, 4, 8, 16, 32}, the fixed point in the cycle, Brotli 12 and 13, at (0.1, 0.5), (0.5, 0.5), (0.1, 1), 5 seeds, 1,000 turns: a critical radius licenses "nucleation"; growth from R = 1 means no barrier | 0.2 | 3 | physics B | **running** (in droplets3.sh, `modes=radius`) |
-| A4 | The whole-turn melting threshold p*(type, median): a 32² patch in random phases, three passes, swap {0.01 … 0.5} × median {0, 0.25, 0.5, 1}, 200 turns, 10 seeds, the share at turns 1, 2, 4, 8 … 200; Brotli 12, 13, Swarm F, gray3c, cyc5to12 | 0.5 | 2 | physics C, information 13, mathematics 7, optimization b–c, professor 6 | **running** (`experiments/pstar.mjs`; data/pstar/) |
-| A4b | Heredity patches at three passes, Brotli 12 and 13 | – | 1 | ALife, professor | **running** (`heredity.mjs passes=3`) |
+| A1 | The mechanism block at three settling passes, seed as a parameter: every ordered pair of types as a disc in a sea (coherent and random phases), whole-lattice domains, the closed type planted in a pre-melted sea; Brotli 12 and 13 (three types), Swarm F and gray3c; swap {0, 0.1, 0.25, 0.5} × median {0.25, 0.5, 1}; 5 seeds; 128², 2,000 turns; share at the end as mean with bootstrap interval, the track every 20 turns | 1 | 35 | physics A, computation Q6, optimization a, ALife 2, information 5 | **done** 2026-10-22 (`experiments/droplets3.sh`; results/mechanism-v2.md) |
+| A2 | Seed origin: the frame from a random start with every fixed-point-basin cell replaced by a cycle-basin cell, Brotli 12, 256², 2,000 turns, 20 seeds, against the unchanged start | 0.3 | 3 | mathematics 8, physics A, computation (3 seeds done in review) | **done**: no difference at n = 20 (mechanism-v2.md §3) |
+| A3 | The radius series R ∈ {1, 2, 4, 8, 16, 32}, the fixed point in the cycle, Brotli 12 and 13, at (0.1, 0.5), (0.5, 0.5), (0.1, 1), 5 seeds, 1,000 turns: a critical radius licenses "nucleation"; growth from R = 1 means no barrier | 0.2 | 3 | physics B | **done**, extended to the full nucleation tests (results/nucleation.md): R* = 5–8 at one-cell resolution, constant wall speed, spontaneous rate and clusters at three sizes, the in-phase control, R* against order |
+| A4 | The whole-turn melting threshold p*(type, median): a 32² patch in random phases, three passes, swap {0.01 … 0.5} × median {0, 0.25, 0.5, 1}, 200 turns, 10 seeds, the share at turns 1, 2, 4, 8 … 200; Brotli 12, 13, Swarm F, gray3c, cyc5to12 | 0.5 | 2 | physics C, information 13, mathematics 7, optimization b–c, professor 6 | **done**: the threshold is in the settling strength; p* separates open from closed, does not grade (§6) |
+| A4b | Heredity patches at three passes, Brotli 12 and 13 | – | 1 | ALife, professor | **done**: nothing inherited at three passes either (§8) |
 | A5 | Frame maps for Swarm F and gray3c, 256², 3 seeds; the competition matrix and transitivity from the droplet JSON | 0.2 | 1 | optimization c, e; ALife 2.3 | |
 | A6 | Exact fixed points of Brotli 12, 13 and every Gray design; the 2-cycle class search for Brotli 12 and 13; the mutual-closure corollary checked on gray3c and gray20c | 0.2 | 1 | professor 12, mathematics 4 | |
 | A7 | The Declaration at kmax = 200, 4 settings × 10 seeds, 128² and 256²; first appearance at 32² and 64² | 0.3 | 7 | computation 5, Q6 | |
 | A8 | The lattice basin after one three-pass turn on an 8 × 8 (swap, median) grid; the 256² check of the Brotli 12 cell (0.1, 0.5), 3 seeds | 0.1 | 1 | physics §2.6, A | |
+| A9 | A heritable type built into the decoder: in pair-concatenated mode, a designed state whose prefix copies its own dictionary word, passes a tail of k bytes through as literals, and copies the 16 bytes over its partner by a backward reference; verify the decoder allows the reference; measure as for BFF (variant inheritance under g: tail 100 %, prefix 0 %; family 2^8k) and on the lattice (tail alleles as domains; inheritance against settling strength, the error threshold); a page colouring by tail allele for the figure | 1.5 | 4 | the author's question of 2026-10-22; DEFINITION.md §6 | |
 
 What A1–A3 decide (physics A): if the fixed-point disc at (0.1–0.5, 0.25–0.5) grows at three passes, the frame's
 mechanism is the three-pass medium and "closed types grow into the open type" stands, with "melt" only where the
 whole-lattice runs show dissolution; if it dies, the frame's fixed point is seeded by the strongly settled rows, and
 A2 says whether the start matters. The three reviewers' round-2 reruns (n = 1–3, data/review2/) predict growth and
 no melt at median ½; the block is the n = 5 version with the pre-melted sea and the radius series added.
+
+
+### A′. Experiments designed to the ten sentences (DESIGN_SENTENCES.md, 2026-10-22)
+
+E3a–E4a (census and shuffles for Brotli 12 and 13), E5a (closure prediction-first on 15 more dictionaries), E6a–c (the settling scan, the robustness of 99 of 100 under annealed hashing and isotropic mixing, the frame by row), E7a–d (the wall-velocity matrix and its predictors, the nucleation rate over settings and against the period), E8a (single-byte variants for every type), E9a (`copier.mjs`, one heredity measurement for every system), E10a–d (A9 in full). Predictions written in that file before the runs.
 
 ### B. Corrections to the formal text, the results and the pipeline
 
@@ -44,8 +50,9 @@ no melt at median ½; the block is the n = 5 version with the pre-melted sea and
 
 ### E. The writing (three to four days)
 
-Abstract, introduction, methods and results written on the claims table (RELATED_WORK.md §0) and the panel's thesis
-(SYNTHESIS.md §4). The nine false sentences out of every draft. "No copy instruction, no fitness function, no heredity
+Written on OUTLINE.md (2026-10-22): Figure 1 is the plane of self-maintenance (closed or open) against heritable
+information (bits), with every measured state placed on it (DEFINITION.md §6). Abstract, introduction, methods and
+results on the claims table (RELATED_WORK.md §0) and the panel's thesis (SYNTHESIS.md §4), in the words of TERMS.md. The nine false sentences out of every draft. "No copy instruction, no fitness function, no heredity
 of variants" on the first page. The co-authorship of the 2024 study declared. Vocabulary: "melt" defined once as the
 dissolution of a domain into transients; attractor types and domain competition; no nucleation, front or coarsening
 unless A3 licenses it. Citations: Hopfield 1982, Eigen 1971, Wilke 2001, Vasas–Szathmáry–Santos 2010, Kaneko,

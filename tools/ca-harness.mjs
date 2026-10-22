@@ -27,7 +27,7 @@ export async function makeSim({ W = 128, H = 128, passes = 3, nbr = 1, changer =
   const m8 = () => new Uint8Array(wasm.memory.buffer);
   const base = GRID + D * S;
   function setDict(text) {
-    io = Codec.install(wasm.memory, Codec.build(text, maxlen));
+    io = Codec.install(wasm.memory, Codec.build(text, maxlen), undefined, 3, need);   // a dictionary too long for the static region goes past the lattice
     io.setChanger(changer); io.setSkipBits(skip); io.setCursorRead(cread); io.setCursorOffset(coff);
     if (steps) new Int32Array(wasm.memory.buffer, L.PRM + 92, 1)[0] = steps;   // after the install, which resets the parameter block (before 2026-10-21 the budget set below was overwritten here and every run used 256)
   }

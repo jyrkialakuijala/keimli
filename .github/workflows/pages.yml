@@ -26,6 +26,8 @@ jobs:
         run: ./build.sh
       - name: Test
         run: node test/mix.test.mjs && node test/band.test.mjs && node test/lemma.test.mjs
+      - name: Generate the large designed dictionaries (2^17 .. 2^24, not tracked; deterministic)
+        run: seq 17 24 | xargs -P 2 -I{} node paper/experiments/design-scale.mjs sizes={} workers=2
       - name: Site tree
         run: |
           mkdir -p site

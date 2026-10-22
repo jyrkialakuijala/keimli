@@ -1,5 +1,7 @@
 # Why the medium, not the basin, picks the winner
 
+> **Note (2026-10-22).** The uniform-parameter experiments of §2–3 and §5 (closure, droplets, whole-lattice survival, variant patches) ran with **one** settling pass; the frame maps of §4 and every replicator run use the page's three. The two are different automata. The three-pass rerun with seeds is `mechanism-v2.md`, which supersedes the mechanism stated here; the one-pass tables remain valid for the one-pass automaton.
+
 2026-10-21. The mechanism experiments the editors asked for: Lemmas 1–2 (DEFINITION.md), the closure index, droplets,
 whole-lattice domains, mutants and the frame maps. Scripts and raw data:
 

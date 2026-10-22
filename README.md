@@ -27,7 +27,9 @@ with the module inlined as base64, so they run straight from `file://`.
 Open the published page, or run `./build.sh` and open `index.html` (the lattice)
 or `life.html` (a Game of Life, the older and smaller demo) in a browser.
 The built pages are not committed: a GitHub Action (.github/workflows/pages.yml)
-builds them from `src/` on every push and publishes them to GitHub Pages. Click a
+builds them from `src/` on every push and publishes them to GitHub Pages; it also
+regenerates the designed dictionaries of 128 KB to 16 MB (`ca-size-17` .. `24`,
+deterministic, not tracked) that the page fetches when one is selected. Click a
 cell to inspect it, shift-drag to paint ones, ctrl-shift-drag to paint
 zeros.
 

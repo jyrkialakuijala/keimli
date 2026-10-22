@@ -452,7 +452,7 @@
     (local.set $base (i32.sub (i32.load (global.get $cprm)) (local.get $tl)))
     (block $e (loop $l (br_if $e (call $stop))
       (local.set $c (call $bitsM (i32.const 10)))
-      (local.set $pos (i32.rem_u (i32.add (global.get $dwin) (i32.shr_u (i32.mul (local.get $c) (local.get $tl)) (i32.const 10))) (local.get $tl)))
+      (local.set $pos (i32.rem_u (i32.add (global.get $dwin) (i32.wrap_i64 (i64.shr_u (i64.mul (i64.extend_i32_u (local.get $c)) (i64.extend_i32_u (local.get $tl))) (i64.const 10)))) (local.get $tl)))   ;; c L in 64 bits: L may be 2^24
       (call $cmd)
       (call $oput (i32.load8_u (i32.add (local.get $base) (local.get $pos))))
       (local.set $pos (i32.add (local.get $pos) (i32.const 1)))
@@ -478,7 +478,7 @@
     (local.set $op (global.get $cbp))   ;; the writer starts where the header ended
     (block $e (loop $l (br_if $e (i32.ge_u (global.get $cused) (local.get $nb)))
       (local.set $c (call $bitsM (i32.const 10)))
-      (local.set $pos (i32.rem_u (i32.add (global.get $dwin) (i32.shr_u (i32.mul (local.get $c) (local.get $tl)) (i32.const 10))) (local.get $tl)))
+      (local.set $pos (i32.rem_u (i32.add (global.get $dwin) (i32.wrap_i64 (i64.shr_u (i64.mul (i64.extend_i32_u (local.get $c)) (i64.extend_i32_u (local.get $tl))) (i64.const 10)))) (local.get $tl)))   ;; c L in 64 bits: L may be 2^24
       (local.set $w (i32.load8_u (i32.add (local.get $base) (local.get $pos))))
       (local.set $len (i32.add (i32.const 11) (i32.rem_u (local.get $w) (i32.const 3))))
       (local.set $pos (i32.add (local.get $pos) (i32.const 1)))

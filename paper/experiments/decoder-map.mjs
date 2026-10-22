@@ -25,7 +25,7 @@ const rnd32 = () => { rs ^= rs << 13; rs >>>= 0; rs ^= rs >>> 17; rs ^= rs << 5;
 async function wasmDecoder(dictBytes, { skip, V, coff }) {
   const { instance } = await WebAssembly.instantiate(fs.readFileSync(dir + '/build/keimli.wasm'));
   const wasm = instance.exports, L = Codec.LAYOUT;
-  const io = Codec.install(wasm.memory, Codec.build(Buffer.from(dictBytes).toString('latin1'), 3));   // latin1 keeps every byte as one byte
+  const io = Codec.install(wasm.memory, Codec.build(Buffer.from(dictBytes).toString('latin1'), 3), undefined, 3, L.GRID + 4096);   // latin1 keeps every byte as one byte; a big dictionary goes past the scratch cell at GRID
   if (io.textLen !== dictBytes.length) throw new Error('dictionary length mismatch through install');
   io.setChanger(36); io.setSkipBits(skip); io.setCursorRead(V); io.setCursorOffset(coff);
   const m8 = new Uint8Array(wasm.memory.buffer), GRID = L.GRID;

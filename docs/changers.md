@@ -290,7 +290,12 @@ cursor offset and the preset-dictionary windows are byte counts, and every
 decoder treats the bytes as bytes; only the inspector decodes a window or an
 output back to text for display. Changing the dictionary rebuilds the code
 tables and the VP8 model and re-installs them in every worker; the sliders
-that run over the text are clamped to the new length. The byte colours
+that run over the text are clamped to the new length. A dictionary longer
+than the 64 KB static region (up to 2^24 bytes) is placed past the lattice
+in each engine's memory (`Codec.install` with a `textBase`, `io.relocate`);
+a manifest entry with a `url` is not inlined into the page but fetched when
+selected (GitHub Pages serves `src/` next to the page; from `file://` the
+page says so and keeps the dictionary it had). The byte colours
 stay those of the Declaration's alphabet, so a non-Latin text shows in the
 darker opcode colours of the bytes above 127.
 

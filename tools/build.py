@@ -26,7 +26,11 @@ if a.dicts:
     import json, unicodedata
     man = pathlib.Path(a.dicts); entries = json.loads(man.read_text(encoding='utf-8'))
     for e in entries:
-        e['text'] = unicodedata.normalize('NFC', (man.parent / e['file']).read_text(encoding='utf-8')).strip('\n') + '\n'
+        text = unicodedata.normalize('NFC', (man.parent / e['file']).read_text(encoding='utf-8')).strip('\n') + '\n'
+        if e.get('url'):   # a large dictionary: the page fetches it from its url when selected; only its size is inlined
+            e['bytes'] = len(text.encode('utf-8'))
+        else:
+            e['text'] = text
     page = page.replace('__DICTS_JSON__', json.dumps(entries, ensure_ascii=False).replace('</', '<\\/'))
 if a.band:
     page = page.replace('__BAND_JS__', pathlib.Path(a.band).read_text())

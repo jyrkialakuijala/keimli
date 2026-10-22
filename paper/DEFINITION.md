@@ -167,3 +167,56 @@ any bitwise combination of them: a crossover, or a bitwise majority of three sta
 - No statement about the image size of f beyond the entropy bound and the census.
 - No computation: the decoder is not claimed to be computationally weak globally. The lattice it drives may well be
   able to compute; Life and rule 110 are universal.
+- No replicators in the decoder's lattice: by §6 its types are not copiers. The word is used only where §6 applies.
+
+## 6. Copiers, replicators and heredity, defined on the pair map
+
+Added 2026-10-22. These definitions need no instruction set and no notion of computation: they are properties of a map.
+
+- **Pair map.** g : Σ × Σ → Σ × Σ is the rewrite of two joined cells: the decoder in a pair mode on the 256-bit joint
+  state, or a processor run on the two memories concatenated (the setting of BFF and of the Redcode runs).
+- **Copier.** A state R is a copier at tolerance ε if g(R, X) = (R, R) for at least a fraction 1 − ε of partners X
+  drawn uniformly from Σ. Joined with almost anything, it leaves itself and a copy. (Order matters where the map is
+  not symmetric; BFF's loops copy when R holds the first slot, about half the encounters.)
+- **Family.** For a copier R and a set of byte positions B, write R[B ← v] for R with the bytes of B set to v. B is
+  free for R if R[B ← v] is a copier for every v. The family of R is F(R) = { R[B ← v] : v } for the largest free B
+  (the union of free sets, when they nest). Equivalently: g(R′, X) = (R′, R′) for every R′ in the family, the copy
+  covaries with the original.
+- **Heritable information.** h(R) = log₂ |F(R)| = 8 |B| bits. It is an upper bound on what one encounter can
+  transmit (a capacity), reached only when the partner is overwritten entirely.
+- **What makes a byte free.** Not whether the map reads it but what it does with the value: a byte whose value is
+  copied verbatim into the output is free even if it is also interpreted (a BFF byte executed as a no-op and copied by
+  the loop; a literal the decoder consumes and writes unchanged); a byte that is read and regenerated at a canonical
+  value is not free even if its value never mattered (the variant maps to (R, R), the "repaired" case); a byte the
+  map never reaches is kept by f in its own cell, which is memory, and is carried to other cells only by mixing
+  (results/nucleation.md's companion test, DESIGN_SENTENCES.md E8b).
+- **Replicator.** A copier with h(R) > 0. A copier with h(R) = 0 is a fixed point of g that absorbs its partner:
+  the copy does not depend on the original, so nothing is inherited. We call such a state a **crystal**, by analogy
+  with crystal growth, where new material takes the form the physics prefers and defects do not propagate.
+- **On the lattice.** The single-cell analogue of absorbing a partner is a type's domain growing into its neighbours
+  under the medium; the analogue of the family test is the variant-patch experiment: a variant is inherited if it is
+  present in the grown region, removed if the region carries the original.
+
+**Classification of what the project has measured.**
+
+| state | copier | h (bits) | class |
+|---|---|---|---|
+| the decoder's types (Swarm F, Brotli 12, 13; the Gray designs) | no: the medium, not the state, converts the neighbours | 0 (families of 0–3 unreached bytes, copied nowhere by the map) | attractors; crystals on the lattice |
+| Core War's imp (a memory of one repeated MOV) | yes | ≈ log₂ 3: the self-copying single instructions | crystal |
+| BFF's evolved loops | yes, in the first slot | 384–432 (48–54 free bytes) | replicator |
+| the constructed replicase with verbatim copying (results/replicase-ablation.md) | yes | 8 × the tape it copies verbatim | replicator |
+| a decoder type with a self-copy command and a free tail of k bytes (proposed, PLAN_PANEL2.md A9) | yes | 8k | replicator |
+
+**Remarks.**
+1. The boundary between a fixed point and a replicator is sharp in kind (h = 0 or h > 0: does the copy depend on
+   the original at all?) and graded in degree (h). The question "is this a replicator?" is answered by perturbing it.
+2. Nothing here requires a general-purpose instruction set or universality. What h > 0 requires is that the state's
+   content is used twice, as the thing that invokes the copy and as the thing copied; this is Langton's criterion
+   for non-trivial replication [langton1984], von Neumann's separation of constructor and tape [vonneumann1966]. One
+   copy operation that the state can invoke on itself suffices: an LZ backward reference, Redcode's MOV, BFF's loop.
+3. **Trivial replication** is the case where every state is a copier under the physics alone (rule 90 copies any
+   configuration after 2ⁿ steps). Then F(R) = Σ for every R, "copier" distinguishes nothing, and no form can be
+   selected. Heredity is only meaningful between the two extremes: some states copy, and what they copy varies.
+4. Universality enters a different question: what the interpreted part can build, and so how far the family can be
+   extended without losing the copier (evolvability). It is not needed for replication.
+

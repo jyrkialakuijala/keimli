@@ -38,3 +38,9 @@ paper/figures/redesign/*.png
 !paper/figures/redesign/sheet.png
 /index.html
 /life.html
+paper/data/nucleation/
+paper/data/scale/
+# the designed dictionaries of 128 KB and more (2^17 .. 2^24) are generated, deterministically, by
+# paper/experiments/design-scale.mjs; the Pages workflow rebuilds them, so they are not tracked
+src/changers/dict/ca-size-1[7-9].txt
+src/changers/dict/ca-size-2?.txt
