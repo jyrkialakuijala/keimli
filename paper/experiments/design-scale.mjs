@@ -28,7 +28,8 @@
 // Only patterns every rotation of which lands are used (a rotation without a landing made stray fixed points of filler
 // bytes with 42 % of the cells in a trial), one pattern per distinct pad (the one with the shortest reading); the pads
 // of the patterns in use are position-disjoint, and each rotation of a pattern may serve a different type (a pattern
-// of period L feeds up to L types; its region is shared, so a type's basin is about its share of the region). A
+// of period L feeds up to L types; its region is shared, so a type's basin is about its share of the region; rotations
+// whose pads share a position hold one head and serve one type). A
 // pattern's commands may carry a lowercase transform on a pad byte; such a pattern is given only to a type whose head
 // holds no letter there, and spots whose heads hold no letter at all are taken first.
 //
@@ -52,7 +53,10 @@
 // range, with a seed per chunk and the results merged in chunk order, so a re-run gives byte-identical dictionaries.
 // The sizes are independent: design-scale.sh runs them as separate processes and merges the manifest entries at the end.
 //
-// Usage: node paper/experiments/design-scale.mjs [sizes=8-24 | sizes=12,16,20] [out=src/changers/dict] [seed=1] [census=16384] [workers=N] [periods=4]
+// Usage: node paper/experiments/design-scale.mjs [sizes=8-26 | sizes=12,16,20] [out=src/changers/dict] [seed=1] [census=16384] [workers=N] [periods=4]
+//   seed=1 is the shipped construction; seed=2.. varies the approach too (the head form among the viable ones, the share of
+//   Gray groups, the period cap 3 or 4, the order patterns are offered in), recorded in the design JSON, and writes to
+//   paper/data/design-seeds/ca-size-NN-sK.* with no manifest entry (results/dictionary-size-seeds.md).
 //        node paper/experiments/design-scale.mjs merge          (the manifest entries of paper/data/design/*.entry.json into src/changers/dict/manifest.json)
 // Writes <out>/ca-size-NN.txt, paper/data/design/ca-size-NN.{json,md,entry.json}; sizes of 100 KB and more become
 // "url" manifest entries the page fetches on demand.
@@ -152,10 +156,14 @@ if (!isMainThread) {
   }
 } else {
   const opt = Object.fromEntries(process.argv.slice(2).filter(a => a.includes('=')).map(a => { const i = a.indexOf('='); return [a.slice(0, i), a.slice(i + 1)]; }));
-  const SIZES = (() => { const s = opt.sizes || '8-24'; if (/^\d+-\d+$/.test(s)) { const [a, b] = s.split('-').map(Number); return Array.from({ length: b - a + 1 }, (_, i) => a + i); } return s.split(',').map(Number); })();
-  const OUT = opt.out || `${dir}/src/changers/dict`, SEED = Number(opt.seed ?? 1), NCENSUS = Number(opt.census ?? 16384), PERIODS = Number(opt.periods ?? 4);
+  const SIZES = (() => { const s = opt.sizes || '8-26'; if (/^\d+-\d+$/.test(s)) { const [a, b] = s.split('-').map(Number); return Array.from({ length: b - a + 1 }, (_, i) => a + i); } return s.split(',').map(Number); })();
+  const SEED = Number(opt.seed ?? 1), NCENSUS = Number(opt.census ?? 16384);
+  // seed 1 is the shipped construction (src/changers/dict, paper/data/design, a manifest entry); other seeds are the
+  // design series of results/dictionary-size-seeds.md and go to paper/data/design-seeds as ca-size-NN-sK, no manifest entry
+  const OUT = opt.out || (SEED === 1 ? `${dir}/src/changers/dict` : `${dir}/paper/data/design-seeds`);
   const WORKERS = Math.max(1, Number(opt.workers ?? Math.min(24, os.cpus().length - 4)));
-  const DATA = `${dir}/paper/data/design`; fs.mkdirSync(DATA, { recursive: true });
+  const DATA = SEED === 1 ? `${dir}/paper/data/design` : `${dir}/paper/data/design-seeds`; fs.mkdirSync(DATA, { recursive: true });
+  const CACHE = `${dir}/paper/data/design/patterns`; fs.mkdirSync(CACHE, { recursive: true });   // the pattern enumeration depends only on the header bits, the head bytes and the period cap: shared by every seed of a size
   const runTasks = tasks => Promise.all(tasks.map(wd => new Promise((res, rej) => { const w = new Worker(new URL(import.meta.url), { workerData: wd }); w.once('message', m => { res(m); w.terminate(); }); w.once('error', rej); })));
   const chunks = (n, k) => { k = Math.max(1, Math.min(k, n)); const out = []; for (let i = 0; i < k; i++) out.push([Math.floor(i * n / k), Math.floor((i + 1) * n / k)]); return out; };
   if (process.argv.includes('merge')) {
@@ -168,7 +176,14 @@ if (!isMainThread) {
 
   async function design(n) {
     const t0 = Date.now(), times = {}, lap = what => { times[what] = +((Date.now() - t0) / 1000).toFixed(1); };
-    const V = 2 ** n, TL = V, HB = n, NAME = `ca-size-${String(n).padStart(2, '0')}`;
+    const V = 2 ** n, TL = V, HB = n, NAME = `ca-size-${String(n).padStart(2, '0')}`, TAG = SEED === 1 ? NAME : `${NAME}-s${SEED}`;
+    // the approach, varied by the seed (seed 1: the shipped construction): the head form among the viable ones, the share of
+    // Gray groups in the block budget, the pattern period cap, and the order in which patterns are offered
+    const ar = (() => { const r = xorshift(SEED * 2246822519 + 17 + 1000003 * n); return () => r() / 4294967296; })();
+    const pickA = list => list[Math.floor(ar() * list.length)];
+    const approach = SEED === 1 ? { formRank: 0, grayFactor: 1, periods: Number(opt.periods ?? 4), order: 'shortest' }
+      : { formRank: ar(), grayFactor: pickA([0.5, 0.75, 1, 1.5, 2]), periods: Number(opt.periods ?? pickA([3, 4, 4])), order: pickA(['shortest', 'longest', 'shuffled']) };
+    const PERIODS = approach.periods;
     const CODES = V >> 4, SPOTS = CODES >> 3, GROUP_DIMS = HB >= 12 ? [6, 7] : HB === 11 ? [6] : [];   // code bits that group spots
     const groupSize = 1 << GROUP_DIMS.length;
     const codeOfLocal = (base, l) => { let c = base | (l & 7); for (let j = 0; j < GROUP_DIMS.length; j++) if ((l >> (3 + j)) & 1) c |= 1 << GROUP_DIMS[j]; return c; };   // local index: Gray bits, then group bits
@@ -177,7 +192,7 @@ if (!isMainThread) {
     const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
     const spread = (list, m) => m >= list.length ? list.slice() : Array.from({ length: m }, (_, i) => list[Math.floor((i + 0.5) * list.length / m)]);
     // ---- the form: the one with the most safe groups (spots below 12 bits), then the shortest head
-    let form = null;
+    let form = null; const viable = [];
     for (const f of FORMS) {
       const { cell: base, end } = packHead(0, HB, f), HEAD_BYTES = Math.ceil(end / 8);
       if (end > 64) continue;
@@ -191,25 +206,33 @@ if (!isMainThread) {
       const spotSafe = new Uint8Array(SPOTS); let nSpots = 0, nFree = 0; for (let k = 1; k < SPOTS; k++) { spotSafe[k] = spotClass(k); if (spotSafe[k]) nSpots++; if (spotSafe[k] === 2) nFree++; }   // spot 0 is skipped: the slot of h = 0 wraps onto the file's last bytes; 2 = letter-free, 1 = safe with letters
       let nGroups = 0, nGroupsFree = 0; if (GROUP_DIMS.length) for (let k = 1; k < SPOTS; k++) { const c = 8 * k; if (c & groupMask) continue; let all = 2; for (let l = 0; l < groupSize && all; l++) all = Math.min(all, spotSafe[codeOfLocal(c, l << 3) >> 3]); if (all) nGroups++; if (all === 2) nGroupsFree++; }
       const score = GROUP_DIMS.length ? nGroups + nGroupsFree : nSpots + nFree;   // letter-free counted twice
-      if (!form || score > form.score || (score === form.score && end < form.end)) form = { ...f, score, end, HEAD_BYTES, base, pm, pf, spotSafe, nSpots, nFree, nGroups, nGroupsFree };
+      if (score) viable.push({ ...f, score, end, HEAD_BYTES, base, pm, pf, spotSafe, nSpots, nFree, nGroups, nGroupsFree });
     }
-    if (!form) throw new Error(`${NAME}: no head form`);
+    viable.sort((x, y) => y.score - x.score || x.end - y.end);
+    if (!viable.length) throw new Error(`${NAME}: no head form`);
+    const good = viable.filter(f => f.score >= 0.6 * viable[0].score);   // the forms within 60 % of the best; seed 1 takes the best, the others one of these
+    form = good[Math.min(good.length - 1, Math.floor(approach.formRank * good.length))]; approach.formsViable = good.length; approach.formIndex = good.indexOf(form);
     const { end: HEAD_END, HEAD_BYTES, spotSafe, pm } = form, D = form.d, FORM = { lens: form.lens, d: D, first: form.first, ring: form.ring, tfs: form.tfs };
     const head = (h, b0) => { const { cell } = packHead(h, HB, FORM); cell[0] |= b0 & 63; return cell.subarray(0, HEAD_BYTES); };   // the bytes the head fixes (the last one partially, in its low pm bits)
     lap('form');
-    console.error(`${NAME}: V ${V}, ${HB} header bits; form copy ${form.lens.join(' + ')} at d ${D} (${form.first} first distance, ${form.ring ? 'ring' : 'explicit'} after), tf ${form.tfs.join('/')}: head ${HEAD_END} bits (${HEAD_BYTES} bytes); ${form.nSpots} of ${SPOTS - 1} spots safe (${form.nFree} letter-free), ${form.nGroups} groups (${form.nGroupsFree} letter-free) (${times.form} s)`);
+    console.error(`${TAG}: V ${V}, ${HB} header bits; form copy ${form.lens.join(' + ')} at d ${D} (${form.first} first distance, ${form.ring ? 'ring' : 'explicit'} after), tf ${form.tfs.join('/')}: head ${HEAD_END} bits (${HEAD_BYTES} bytes); ${form.nSpots} of ${SPOTS - 1} spots safe (${form.nFree} letter-free), ${form.nGroups} groups (${form.nGroupsFree} letter-free) (${times.form} s)`);
     // ---- the patterns, in parallel by first byte; one per distinct pad, the shortest reading
-    const found = (await runTasks(chunks(PAT.length, WORKERS).map(([a0, a1]) => ({ task: 'patterns', HB, HEAD_BYTES, periods: PERIODS, a0, a1 })))).flat();   // (the control-byte alphabet is the first 29 of PAT, so its chunks are the first ones)
+    const cacheFile = `${CACHE}/hb${HB}-head${HEAD_BYTES}-p${PERIODS}.json`; let found;
+    if (fs.existsSync(cacheFile)) found = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+    else { found = (await runTasks(chunks(PAT.length, WORKERS).map(([a0, a1]) => ({ task: 'patterns', HB, HEAD_BYTES, periods: PERIODS, a0, a1 })))).flat(); const tmp = `${cacheFile}.${process.pid}`; fs.writeFileSync(tmp, JSON.stringify(found)); fs.renameSync(tmp, cacheFile); }   // (the control-byte alphabet is the first 29 of PAT, so its chunks are the first ones)
     const byPad = new Map(); for (const c of found) { const o = byPad.get(c.padKey); if (!o || c.reading < o.reading || (c.reading === o.reading && (c.P.length < o.P.length || (c.P.length === o.P.length && key(c.P) < key(o.P))))) byPad.set(c.padKey, c); }
-    const cands = [...byPad.values()].sort((a, b) => a.reading - b.reading || a.P.length - b.P.length || (key(a.P) < key(b.P) ? -1 : 1));
+    // the order patterns are offered in: by reading length (shortest first: the lattice favours short readings), longest first, or a seeded shuffle
+    const hashP = c => { let h = 2166136261 ^ SEED; for (const v of c.P) { h ^= v; h = Math.imul(h, 16777619); } return h >>> 0; };
+    const orderKey = c => approach.order === 'shortest' ? c.reading : approach.order === 'longest' ? -c.reading : hashP(c);
+    const cands = [...byPad.values()].sort((a, b) => orderKey(a) - orderKey(b) || a.P.length - b.P.length || (key(a.P) < key(b.P) ? -1 : 1));
     lap('patterns');
-    console.error(`${NAME}: ${found.length} patterns of periods 1..${PERIODS} land in every rotation, ${cands.length} distinct pads, readings ${cands.length ? Math.min(...cands.map(c => c.reading)) + '..' + Math.max(...cands.map(c => c.reading)) : '-'} bits (${times.patterns} s, ${WORKERS} workers)`);
+    console.error(`${TAG}: ${found.length} patterns of periods 1..${PERIODS} land in every rotation, ${cands.length} distinct pads, readings ${cands.length ? Math.min(...cands.map(c => c.reading)) + '..' + Math.max(...cands.map(c => c.reading)) : '-'} bits (${times.patterns} s, ${WORKERS} workers)`);
     // ---- the schedule
     const spotsAll = []; for (let k = 1; k < SPOTS; k++) if (spotSafe[k]) spotsAll.push(k);
     const groupsAll = [], groupClass = new Map(); if (GROUP_DIMS.length) for (let k = 1; k < SPOTS; k++) { const c = 8 * k; if (c & groupMask) continue; let all = 2; for (let l = 0; l < groupSize && all; l++) all = Math.min(all, spotSafe[codeOfLocal(c, l << 3) >> 3]); if (all) { groupsAll.push(c); groupClass.set(c, all); } }
     let gG, gC, nF, nGsingle = 0;
     const budget = u => Math.max(1, Math.floor(u / 2));   // half the safe groups (spots below 12 bits): blocks cover at most a quarter of the dictionary
-    if (GROUP_DIMS.length === 2) { const B = budget(groupsAll.length); gG = Math.max(1, Math.round(B / 5)); gC = Math.max(0, B - gG); nF = Math.min(6, Math.max(1, Math.floor(B / 4))); }
+    if (GROUP_DIMS.length === 2) { const B = budget(groupsAll.length); gG = Math.min(B, Math.max(1, Math.round(approach.grayFactor * B / 5))); gC = Math.max(0, B - gG); nF = Math.min(6, Math.max(1, Math.floor(B / 4))); }
     else if (GROUP_DIMS.length === 1) { const B = budget(spotsAll.length); nF = B >= 2 ? 1 : 0; gG = Math.min(groupsAll.length, Math.max(1, Math.floor((B - nF) / 2))); gC = 0; nGsingle = Math.max(0, B - nF - 2 * gG); }
     else { const B = budget(spotsAll.length); nF = B >= 2 ? 1 : 0; gG = 0; gC = 0; nGsingle = Math.max(1, B - nF); }
     const scheduled = { gray: gG * groupSize + nGsingle, chase: gC, fixed: nF };
@@ -249,7 +272,9 @@ if (!isMainThread) {
     const assign = (types, pats) => {   // one slot (pattern, rotation) per type; a rotation no type took points at a compatible type (the pattern's own first, else any); a pattern with a rotation that no type can take is left out
       pats = pats.slice();
       for (;;) {
-        const slots = pats.flatMap(c => c.rots.map((r, i) => ({ c, i, reading: r.consumed, lowers: r.lowers }))).sort((x, y) => x.reading - y.reading || x.c.P.length - y.c.P.length || x.i - y.i);
+        // a slot is a set of rotations of one pattern that share a pad position (they must hold one head, so they serve one type); usually a single rotation
+        for (const c of pats) if (!c.sets) { const at = new Map(), parent = c.rots.map((_, i) => i), find = i => parent[i] === i ? i : (parent[i] = find(parent[i])); c.rots.forEach((r, i) => r.pos.forEach(p => { if (at.has(p)) parent[find(i)] = find(at.get(p)); else at.set(p, i); })); const sets = new Map(); c.rots.forEach((_, i) => { const k = find(i); if (!sets.has(k)) sets.set(k, []); sets.get(k).push(i); }); c.sets = [...sets.values()].map(rots => ({ rots, reading: Math.max(...rots.map(i => c.rots[i].consumed)), lowers: [...new Set(rots.flatMap(i => c.rots[i].lowers))] })); }
+        const slots = pats.flatMap(c => c.sets.map(st => ({ c, i: st.rots[0], set: st.rots, reading: st.reading, lowers: st.lowers }))).sort((x, y) => (approach.order === 'shortest' ? x.reading - y.reading : approach.order === 'longest' ? y.reading - x.reading : orderKey(x.c) - orderKey(y.c)) || x.c.P.length - y.c.P.length || x.i - y.i);
         const used = new Set(), take = (t, pool) => { for (const sl of pool) { if (used.has(sl) || !compatible(sl, t)) continue; used.add(sl); t.slot = sl; return true; } return false; };
         for (const t of types) delete t.slot;
         const fixedTypes = types.filter(t => t.kind === 'fixed');
@@ -258,7 +283,8 @@ if (!isMainThread) {
         const placed = types.filter(t => t.slot), bad = new Set();
         for (const c of new Set(placed.map(t => t.slot.c))) {
           const own = placed.filter(t => t.slot.c === c);
-          c.targets = c.rots.map((r, i) => own.find(t => t.slot.i === i) ?? own.find(t => compatible(r, t)) ?? placed.find(t => compatible(r, t)) ?? null);
+          c.targets = c.rots.map(() => null);
+          for (const st of c.sets) { const target = own.find(t => t.slot.set === st.rots) ?? own.find(t => compatible(st, t)) ?? placed.find(t => compatible(st, t)) ?? null; for (const i of st.rots) c.targets[i] = target; }
           if (c.targets.some(t => !t)) bad.add(c);
         }
         if (!bad.size) return types;
@@ -361,22 +387,23 @@ if (!isMainThread) {
     lap('census');
     // ---- write
     fs.mkdirSync(OUT, { recursive: true });
-    fs.writeFileSync(`${OUT}/${NAME}.txt`, Buffer.from(dict));
+    fs.writeFileSync(`${OUT}/${TAG}.txt`, Buffer.from(dict));
     const counts = { gray: types.filter(t => t.kind === 'gray').length, chase: types.filter(t => t.kind === 'chase').length, fixed: types.filter(t => t.kind === 'fixed').length };
-    const info = { name: NAME, log2: n, V, len: TL, headerBits: HB, d: D, form: { ...FORM, headBits: HEAD_END, headBytes: HEAD_BYTES },
+    const info = { name: NAME, tag: TAG, log2: n, V, len: TL, headerBits: HB, d: D, approach, form: { ...FORM, headBits: HEAD_END, headBytes: HEAD_BYTES },
       spots: { all: SPOTS - 1, safe: form.nSpots, letterFree: form.nFree, groups: groupsAll.length, groupsLetterFree: form.nGroupsFree }, patterns: { landingAll: found.length, distinctPads: cands.length, periods: PERIODS }, scheduled, types: counts, nTypes: types.length,
       schedule: GROUP_DIMS.length === 2 ? `B = floor(${groupsAll.length} / 2) = ${budget(groupsAll.length)} groups: ${gG} Gray groups, ${gC} chasing, ${nF} fixed` : `B = floor(${spotsAll.length} / 2) = ${budget(spotsAll.length)} spots: ${gG} Gray pairs, ${nGsingle} single Gray, ${nF} fixed`,
       seed: SEED, R, workers: WORKERS, seconds: +((Date.now() - t0) / 1000).toFixed(1), times,
       patternsUsed: patsUsed.length, typeTable: types.map(t => ({ index: t.index, kind: t.kind, H0: t.H0, codes: t.codes, pattern: t.pattern, rotation: t.rot, sharedWith: t.pat.served - 1, reading: t.reading, region: t.region, states: t.states.map(key), lands: t.lands, routed: t.routed.length })),
-      census, provenance: provenance(import.meta.url, { n, SEED, NCENSUS, WORKERS, PERIODS }) };
-    fs.writeFileSync(`${DATA}/${NAME}.json`, JSON.stringify(info));
+      census, provenance: provenance(import.meta.url, { n, SEED, NCENSUS, WORKERS, PERIODS, approach }) };
+    fs.writeFileSync(`${DATA}/${TAG}.json`, JSON.stringify(info));
     const pct = v => (100 * v).toFixed(1);
-    const md = [`# Designed dictionary ${NAME}\n`, `${types.length} types (${counts.gray} Gray 8-cycles, ${counts.chase} chasing 3-cycles, ${counts.fixed} fixed points) at V = ${V} (${HB} header bits), ${TL} bytes. Head: copy ${form.lens.join(' + ')} at d ${D}, ${HEAD_END} bits. Spots: ${form.nSpots} of ${SPOTS - 1} safe, ${groupsAll.length} groups. Patterns: ${found.length} land in every rotation, ${cands.length} distinct pads, ${patsUsed.length} in use. Schedule: ${info.schedule}; scheduled ${JSON.stringify(scheduled)}, built ${JSON.stringify(counts)}. ${info.seconds} s with ${WORKERS} workers (${JSON.stringify(times)}).\n`,
+    const md = [`# Designed dictionary ${TAG}\n`, SEED === 1 ? '' : `Seed ${SEED}: ${JSON.stringify(approach)}\n`, `${types.length} types (${counts.gray} Gray 8-cycles, ${counts.chase} chasing 3-cycles, ${counts.fixed} fixed points) at V = ${V} (${HB} header bits), ${TL} bytes. Head: copy ${form.lens.join(' + ')} at d ${D}, ${HEAD_END} bits. Spots: ${form.nSpots} of ${SPOTS - 1} safe, ${groupsAll.length} groups. Patterns: ${found.length} land in every rotation, ${cands.length} distinct pads, ${patsUsed.length} in use. Schedule: ${info.schedule}; scheduled ${JSON.stringify(scheduled)}, built ${JSON.stringify(counts)}. ${info.seconds} s with ${WORKERS} workers (${JSON.stringify(times)}).\n`,
       `## Census (${NCENSUS} random cells, cap 2000)\n`, `Attractors realised ${census.attractors} (${census.designedReached} designed types reached, ${census.strayAttractors} stray attractors with ${pct(census.stray)} % of the cells, ${unsettled} unsettled). Transient mean ${census.transientMean.toFixed(1)}, p90 ${census.transientP90}, max ${census.transientMax}.\n`,
       '| type | kind | pattern (rotation) | reading | basin |', '|---|---|---|---|---|', ...types.slice(0, 40).map(t => `| ${t.name} | ${t.kind} | \`${JSON.stringify(t.pattern).slice(1, -1).replace(/\|/g, '\\|')}\` (${t.rot}) | ${t.reading} | ${pct(census.basins[t.index])} % |`), types.length > 40 ? `| ... ${types.length - 40} more | | | | |` : ''];
-    fs.writeFileSync(`${DATA}/${NAME}.md`, md.join('\n') + '\n');
-    console.error(`${NAME}: ${types.length} types (${counts.gray} Gray, ${counts.chase} chasing, ${counts.fixed} fixed; scheduled ${scheduled.gray}/${scheduled.chase}/${scheduled.fixed}); census: ${census.attractors} attractors, ${census.designedReached} designed reached, stray ${pct(census.stray)} %, transient ${census.transientMean.toFixed(1)} (p90 ${census.transientP90}); ${info.seconds} s ${JSON.stringify(times)}`);
-    // ---- the manifest entry (merged into manifest.json by `merge`, so parallel sizes do not race on the file)
+    fs.writeFileSync(`${DATA}/${TAG}.md`, md.join('\n') + '\n');
+    console.error(`${TAG}: ${types.length} types (${counts.gray} Gray, ${counts.chase} chasing, ${counts.fixed} fixed; scheduled ${scheduled.gray}/${scheduled.chase}/${scheduled.fixed}); census: ${census.attractors} attractors, ${census.designedReached} designed reached, stray ${pct(census.stray)} %, transient ${census.transientMean.toFixed(1)} (p90 ${census.transientP90}); ${info.seconds} s ${JSON.stringify(times)}`);
+    // ---- the manifest entry (seed 1 only; merged into manifest.json by `merge`, so parallel sizes do not race on the file)
+    if (SEED !== 1) return;
     const entry = { id: NAME, file: `${NAME}.txt`, title: `Designed at 2^${n} bytes`, titleLatin: `Designed at 2^${n} bytes (${TL.toLocaleString('en-US')} bytes; ${types.length} types: ${counts.gray} Gray 8-cycles, ${counts.chase} chasing 3-cycles, ${counts.fixed} fixed points)`,
       author: `paper/experiments/design-scale.mjs sizes=${n}`, language: 'none', script: 'Latin', year: '2026', source: '',
       note: `One construction for every size (paper/experiments/design-scale.mjs, paper/results/dictionary-size.md): quine heads copying 16-byte slots, Gray 8-cycles in mutually closed groups of four, phase-chasing 3-cycles, fixed points, and a filler pattern with a landing pad per type. ${HB} header bits, window range ${V}. Not a text.`,

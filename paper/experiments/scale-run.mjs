@@ -7,7 +7,7 @@
 // block change (the share of 8 x 8 blocks whose most common label differs from 200 turns earlier). At the end the
 // border matrix: how many 4-neighbour pairs each ordered pair of labels makes. PNG snapshots in the page's colouring
 // (view "Byte colours, raw bytes", as live-run.mjs) at the turns given.
-// Usage: node paper/experiments/scale-run.mjs size=16 [setting=frame|uniform] [seed=1] [n=256] [turns=2000] [png=200,1000,2000] [out=paper/data/scale]
+// Usage: node paper/experiments/scale-run.mjs size=16 [design=1] [dict=path.txt] [json=design.json] [setting=frame|uniform] [seed=design] [n=256] [turns=2000] [png=200,1000,2000] [out=paper/data/scale]
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { Codec, Band } from '../../tools/ca-harness.mjs';
@@ -15,13 +15,17 @@ import { loadDict, asText } from './dict-variants.mjs';
 import { provenance } from './provenance.mjs';
 const dir = new URL('../..', import.meta.url).pathname.replace(/\/$/, '');
 const opt = Object.fromEntries(process.argv.slice(2).map(a => { const i = a.indexOf('='); return [a.slice(0, i), a.slice(i + 1)]; }));
-const size = Number(opt.size ?? 16), NAME = `ca-size-${String(size).padStart(2, '0')}`, setting = opt.setting || 'frame', seed = Number(opt.seed ?? 1), n = Number(opt.n ?? 256), turns = Number(opt.turns ?? 2000);
+// design=K (default 1): the design seed; seed 1 is the shipped dictionary (src/changers/dict, paper/data/design), the others
+// are paper/data/design-seeds/ca-size-NN-sK.{txt,json}; dict= and json= name the files directly
+const size = Number(opt.size ?? 16), NAME = `ca-size-${String(size).padStart(2, '0')}`, DSEED = Number(opt.design ?? 1), DTAG = DSEED === 1 ? NAME : `${NAME}-s${DSEED}`;
+const setting = opt.setting || 'frame', seed = Number(opt.seed ?? DSEED), n = Number(opt.n ?? 256), turns = Number(opt.turns ?? 2000);
+const dictPath = opt.dict || (DSEED === 1 ? null : `${dir}/paper/data/design-seeds/${DTAG}.txt`), jsonPath = opt.json || (DSEED === 1 ? `${dir}/paper/data/design/${NAME}.json` : `${dir}/paper/data/design-seeds/${DTAG}.json`);
 const pngTurns = new Set((opt.png ?? '200,1000,2000').split(',').filter(Boolean).map(Number)), outDir = opt.out || `${dir}/paper/data/scale`;
 fs.mkdirSync(`${outDir}/png`, { recursive: true });
-const tag = `${NAME}-${setting}-s${seed}-n${n}`, outFile = `${outDir}/run-${tag}.json`;
+const tag = `${DTAG}-${setting}-s${seed}-n${n}`, outFile = `${outDir}/run-${tag}.json`;
 if (fs.existsSync(outFile) && !opt.force) { console.error(`${tag}: exists`); process.exit(0); }
-const design = JSON.parse(fs.readFileSync(`${dir}/paper/data/design/${NAME}.json`, 'utf8')), V = design.V;
-const text = asText(loadDict(NAME).bytes);
+const design = JSON.parse(fs.readFileSync(jsonPath, 'utf8')), V = design.V;
+const text = asText(loadDict(dictPath || NAME).bytes);
 // ---- the lattice, as tools/ca-harness.mjs makeSim, plus the renderer; the dictionary past the lattice when it is big
 const L = Codec.LAYOUT, W = n, H = n, N = W * H, passes = 3, nbr = 1, S = 16 * W, D = Band.depthFor(passes, nbr);
 const { instance } = await WebAssembly.instantiate(fs.readFileSync(dir + '/build/keimli.wasm'));
@@ -94,7 +98,7 @@ for (let t = 1; t <= turns; t++) {
   if (pngTurns.has(t)) { render(); fs.writeFileSync(`${outDir}/png/${tag}-t${String(t).padStart(4, '0')}.png`, png(W, H, render())); }
 }
 const last = rows[rows.length - 1], lab = labels();
-const summary = { name: NAME, log2: size, V, setting, seed, n, turns, nTypes: T, kinds: design.types, aliveEnd: last.alive, byKindEnd: last.byKind, entropyEnd: last.entropy, transientEnd: last.transient, domainsEnd: last.domains, blockChangeEnd: last.blockChange,
+const summary = { name: NAME, tag: DTAG, designSeed: DSEED, log2: size, V, setting, seed, n, turns, nTypes: T, kinds: design.types, aliveEnd: last.alive, byKindEnd: last.byKind, entropyEnd: last.entropy, transientEnd: last.transient, domainsEnd: last.domains, blockChangeEnd: last.blockChange,
   blockChangeLate: rows.filter(r => r.t >= 1000 && r.blockChange !== null).reduce((s, r, _, a) => s + r.blockChange / a.length, 0), aliveAt: Object.fromEntries([200, 1000, 2000].map(t => [t, rows.find(r => r.t === t)?.alive ?? null])), seconds: (Date.now() - t0) / 1000 };
-fs.writeFileSync(outFile, JSON.stringify({ provenance: provenance(import.meta.url, { size, setting, seed, n, turns, passes, nbr, order: 'rotate', salt: 'quenched', changer: 36, skip: 6, cread: V, swap: [swapA, swapB], median: [medA, medB], gpow: 0.2 }), summary, rows, borders: borders(lab) }));
+fs.writeFileSync(outFile, JSON.stringify({ provenance: provenance(import.meta.url, { size, design: DSEED, dictPath, jsonPath, setting, seed, n, turns, passes, nbr, order: 'rotate', salt: 'quenched', changer: 36, skip: 6, cread: V, swap: [swapA, swapB], median: [medA, medB], gpow: 0.2 }), summary, rows, borders: borders(lab) }));
 console.log(JSON.stringify(summary));

@@ -9,10 +9,12 @@ const D = `${dir}/paper/data/design`, S = `${dir}/paper/data/scale`;
 const rd = f => fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null;
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null, rng = a => a.length ? [Math.min(...a), Math.max(...a)] : null;
 const rows = [];
-for (let n = 8; n <= 24; n++) {
+for (let n = 8; n <= 26; n++) {
   const name = `ca-size-${String(n).padStart(2, '0')}`, d = rd(`${D}/${name}.json`), m = rd(`${S}/map-${name}.json`);
   if (!d) continue;
-  const row = { n, name, V: d.V, designed: d.nTypes, kinds: d.types, scheduled: d.scheduled, schedule: d.schedule, form: d.form, spots: d.spots, patterns: d.patterns, seconds: d.seconds, times: d.times, workers: d.workers, censusStray: d.census.stray, censusTransient: d.census.transientMean };
+  // generation seconds: the batch log's (without the pattern cache) when there is one, else the design file's
+  const log = (fs.existsSync(`${D}/${name}.log`) || fs.existsSync(`${D}/ca-size-${n}.log`)) ? fs.readFileSync(fs.existsSync(`${D}/${name}.log`) ? `${D}/${name}.log` : `${D}/ca-size-${n}.log`, 'utf8').match(/; ([\d.]+) s \{/) : null;
+  const row = { n, name, V: d.V, designed: d.nTypes, kinds: d.types, scheduled: d.scheduled, schedule: d.schedule, form: d.form, spots: d.spots, patterns: d.patterns, seconds: log ? Number(log[1]) : d.seconds, times: d.times, workers: d.workers, censusStray: d.census.stray, censusTransient: d.census.transientMean };
   if (m) Object.assign(row, { realised: m.attractors, reached: m.designedReached, reachedKinds: m.reachedKinds, strays: m.strayAttractors, strayShare: m.strayShare, transient: m.transientMean, transientP90: m.transientP90, basinZero: m.basinZero, closure: m.closure.map(c => c['C0.25']), closureMin: Math.min(...m.closure.map(c => c['C0.25'])), closureStrays: m.closure.filter(c => c.type === null).map(c => c['C0.25']) });
   for (const setting of ['frame', 'uniform']) {
     const runs = [1, 2, 3].map(s => rd(`${S}/run-${name}-${setting}-s${s}-n256.json`)).filter(Boolean);

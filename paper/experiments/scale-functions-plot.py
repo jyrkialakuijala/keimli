@@ -30,7 +30,7 @@ bc_f = [first(r[7]) for r in lat]; bc_u = [first(r[12]) for r in lat]
 kinds = np.array([[float(x) for x in r[3].split('/')] for r in lat])   # Gray / chasing / fixed alive on the frame
 fig, ax = plt.subplots(3, 4, figsize=(16, 10.5)); ax = ax.ravel()
 def panel(i, title, ylabel, log=False):
-    a = ax[i]; a.set_title(title, fontsize=9); a.set_ylabel(ylabel, fontsize=8); a.grid(alpha=0.3); a.set_xticks(range(8, 25, 2))
+    a = ax[i]; a.set_title(title, fontsize=9); a.set_ylabel(ylabel, fontsize=8); a.grid(alpha=0.3); a.set_xticks(range(8, 27, 2))
     if log: a.set_yscale('log', base=2)
     return a
 a = panel(0, '(a) the construction: what the size offers', 'count', True)
@@ -60,5 +60,5 @@ a.plot(L, cmin, 'o-', ms=4, color='C4'); a.set_ylim(0, 105); a.text(8.2, 8, 'bel
 a = panel(11, '(l) generation time (4 threads) and head bits', 'seconds')
 a.bar(L, secs, color='C7', width=0.7); a2 = a.twinx(); a2.plot(L, headbits, 'o-', ms=3, color='C3'); a2.set_ylabel('head bits (quine head length)', color='C3', fontsize=8); a2.set_ylim(0, 70)
 for a in ax: a.set_xlabel('log2 of the dictionary size (= header bits)', fontsize=8); a.tick_params(labelsize=8)
-fig.suptitle('Functions of the dictionary size, 2^8 .. 2^24: one construction per size; lattice 256², 2,000 turns, three settling passes, 3 seeds', fontsize=11)
+fig.suptitle('Functions of the dictionary size, 2^8 .. 2^26: one construction per size; lattice 256², 2,000 turns, three settling passes, 3 seeds', fontsize=11)
 fig.tight_layout(); fig.savefig(out, dpi=120); print('written', out)

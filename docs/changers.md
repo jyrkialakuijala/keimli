@@ -293,9 +293,13 @@ tables and the VP8 model and re-installs them in every worker; the sliders
 that run over the text are clamped to the new length. A dictionary longer
 than the 64 KB static region (up to 2^24 bytes) is placed past the lattice
 in each engine's memory (`Codec.install` with a `textBase`, `io.relocate`);
-a manifest entry with a `url` is not inlined into the page but fetched when
-selected (GitHub Pages serves `src/` next to the page; from `file://` the
-page says so and keeps the dictionary it had). The byte colours
+a manifest entry with a `url` is not inlined as text: the build inlines it
+gzip-compressed in base64 (field `gz`, a few kilobytes to 140 KB each) when
+its file is present, and the page inflates it with `DecompressionStream` when
+it is selected; built without the file, the page fetches it from the `url`
+when selected (GitHub Pages serves `src/` next to the page), and when that
+fails too the page says so beside the Dictionary menu and keeps the
+dictionary it had. The byte colours
 stay those of the Declaration's alphabet, so a non-Latin text shows in the
 darker opcode colours of the bytes above 127.
 

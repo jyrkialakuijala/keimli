@@ -1,4 +1,4 @@
-// Big dictionaries (past the 64 KB static region, up to 2^24 bytes): the wasm Brotli-like decoder against the JavaScript
+// Big dictionaries (past the 64 KB static region, up to 2^26 bytes): the wasm Brotli-like decoder against the JavaScript
 // reference decode36.mjs on random cells, with the dictionary placed past a lattice region and relocated once, and the
 // codebook decoders at a 16 MB text (their code x length product needs 64 bits). Run: node test/bigdict.test.mjs
 import fs from 'node:fs';
@@ -12,7 +12,7 @@ let rs = 0x1234567; const r32 = () => { rs ^= rs << 13; rs >>>= 0; rs ^= rs >>> 
 const randomCell = () => { const c = new Uint8Array(16); for (let i = 0; i < 16; i += 4) { const v = r32(); c[i] = v & 255; c[i + 1] = (v >> 8) & 255; c[i + 2] = (v >> 16) & 255; c[i + 3] = v >>> 24; } return c; };
 const randomText = n => { const d = new Uint8Array(n); for (let i = 0; i < n; i++) d[i] = 0x20 + (r32() % 95); return d; };   // printable bytes, one byte each through Codec.build
 const L = Codec.LAYOUT;
-for (const size of [1 << 20, 1 << 24]) {
+for (const size of [1 << 20, 1 << 24, 1 << 26]) {
   const dict = randomText(size), text = Buffer.from(dict).toString('latin1');
   const { instance } = await WebAssembly.instantiate(bytes); const wasm = instance.exports;
   const GRID = L.GRID, lattice = GRID + 16 * 256 * 256 + 65536;   // a 256 x 256 lattice region the dictionary must not touch
@@ -21,7 +21,7 @@ for (const size of [1 << 20, 1 << 24]) {
   io.setChanger(36); io.setSkipBits(6); io.setCursorRead(size); io.setCursorOffset(0);
   const run = (cell, V) => { const m8 = new Uint8Array(wasm.memory.buffer); m8.set(cell, GRID); const r = wasm.decode_pixel(GRID, 0, L.PRM); return { out: m8.slice(io.OUT, io.OUT + 16), consumed: r >> 8, window: io.lastOffset() }; };
   for (const V of [size, 4096]) {
-    io.setCursorRead(V); let bad = 0; const n = 20000;
+    io.setCursorRead(V); let bad = 0; const n = size >= 1 << 26 ? 5000 : 20000;
     for (let i = 0; i < n; i++) { const c = randomCell(), a = decode36(c, dict, { skip: 6, V, coff: 0 }), b = run(c, V); if (a.consumed !== b.consumed || a.window !== b.window || a.out.some((x, k) => x !== b.out[k])) bad++; }
     check(`${size >> 20} MB, V = ${V} (${Codec.rangeBits(V)} header bits): ${n} random cells decode alike in wasm and decode36`, bad === 0);
   }
@@ -30,7 +30,7 @@ for (const size of [1 << 20, 1 << 24]) {
   let bad = 0; for (let i = 0; i < 5000; i++) { const c = randomCell(), a = decode36(c, dict, { skip: 6, V: size, coff: 0 }), b = run(c, size); if (a.consumed !== b.consumed || a.out.some((x, k) => x !== b.out[k])) bad++; }
   check(`${size >> 20} MB: after relocate to ${moved} the decoder still agrees (5000 cells)`, bad === 0 && io.TEXT === moved && new Int32Array(wasm.memory.buffer, L.PRM, 1)[0] === moved + size);
   // the codebook decoders read (window + code L / 1024) mod L: the product needs 64 bits at 16 MB
-  if (size === 1 << 24) {
+  if (size >= 1 << 24) {
     const m8 = new Uint8Array(wasm.memory.buffer);
     io.setChanger(45); io.setSkipBits(0); io.setCursorRead(256); io.setCursorOffset(0);
     let ok = true;
@@ -43,7 +43,7 @@ for (const size of [1 << 20, 1 << 24]) {
       while (op < 16 && bp < 1024) { const code = bits(10); const pos = Number((BigInt(win) + ((BigInt(code) * BigInt(size)) >> 10n)) % BigInt(size)); ref[op++] = dict[pos]; if (op < 16) ref[op++] = dict[(pos + 1) % size]; }
       for (let k = 0; k < 16; k++) if (out[k] !== ref[k]) ok = false;
     }
-    check('16 MB: the codebook (kind 45) reads code x length in 64 bits (2000 cells against a BigInt reference)', ok);
+    check(`${size >> 20} MB: the codebook (kind 45) reads code x length in 64 bits (2000 cells against a BigInt reference)`, ok);
   }
 }
 // small dictionaries stay where they were

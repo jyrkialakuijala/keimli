@@ -132,6 +132,7 @@
   .inspect .text .c2 { border-bottom: 2px solid var(--line); }
   .inspect .text .n { color: var(--muted); }
   .inspect .note { font-family: var(--font-body); color: var(--muted); }
+  #dictNote { flex-basis: 100%; font-size: .9em; color: var(--muted); max-width: 70ch; }
   #lutLegend { width: 256px; max-width: 100%; height: 12px; vertical-align: middle; border-radius: 3px; image-rendering: pixelated; }
   #lutAlpha { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
   #lutAlpha span { display: inline-block; min-width: 18px; padding: 1px 3px; text-align: center; border-radius: 3px; font: 12px var(--font-mono); }
@@ -429,6 +430,7 @@
       <label for="dictKind" title="the static dictionary the LZ decompressor copies from and the LZ77 decoders and the VP8 model draw on, as UTF-8 bytes: a text, a byte string bred by the genetic searches, or one built by design">Dictionary</label>
       <select id="dictKind" title="which list the Dictionary menu shows"><option value="text">Text</option><option value="search">Searched dictionary</option><option value="designed">Designed dictionary</option></select>
       <select id="dict"></select>
+      <div id="dictNote" hidden></div>
       <label class="chk" for="dictRandom" title="when the dictionary is changed, start again from random bits (a new seed, turn 0); off: the lattice keeps its cells and the new dictionary takes over from them"><input id="dictRandom" type="checkbox" checked> Random start on change of dictionary</label>
     </div>
                       <details class="adv"><summary>More settings</summary>
@@ -458,12 +460,12 @@
 <div class="group">
       <label for="cread" title="the docs call this the LZ cursor read: the cursor read range V: the LZ decompressor, and Deflate, LZ4, Snappy and the Brotli-like decoder for their preset dictionary, read ceil(log2 V) bits of the pixel first as a position among V bytes of the dictionary (a value of V or more wraps round: with V = 5, 6 and 7 read as 0 and 1); V = 1 reads no bits, the dictionary size makes every byte a start position">Dictionary window range</label>
       <input id="cread" type="range" min="0" max="60" value="60" step="1">
-      <input id="creadNum" type="number" min="1" max="16777216" step="1" value="4096" class="mono" style="width: 7ch" title="the exact cursor read range V; the slider moves to its nearest stop, and moving the slider fills this box">
+      <input id="creadNum" type="number" min="1" max="67108864" step="1" value="4096" class="mono" style="width: 7ch" title="the exact cursor read range V; the slider moves to its nearest stop, and moving the slider fills this box">
       <span id="creadVal" class="mono val">→ 12 bits</span>
     </div>
 <div class="group">
       <label for="coff" title="the docs call this the LZ cursor offset: a constant added to the start cursor, not read from the pixel">Dictionary window offset</label>
-      <input id="coff" type="range" min="0" max="16777216" value="0" step="1">
+      <input id="coff" type="range" min="0" max="67108864" value="0" step="1">
       <span id="coffVal" class="mono val">+0</span>
     </div>
 <div class="group">
@@ -759,7 +761,7 @@ function workerMain() {
     const sel = $('dict'); sel.innerHTML = '';
     for (const d of DICTS) { if (kindOf(d) !== kind) continue; const o = document.createElement('option'); o.value = d.id; const bytes = d.text ? new TextEncoder().encode(d.text).length : d.bytes || 0;
       if (kind === 'text') { o.textContent = `${d.titleLatin} (${d.language}${d.script && d.script !== 'Latin' ? ', ' + d.script : ''})`; o.title = [d.title, d.author, d.year].filter(Boolean).join(' · '); }
-      else { o.textContent = `${d.title.replace(/^Designed: /, '')}${bytes ? ` · ${bytes.toLocaleString()} bytes` : ''}`; o.title = d.titleLatin + (d.note ? '. ' + d.note : ''); }
+      else { o.textContent = `${d.title.replace(/^Designed: /, '')}${bytes ? ` · ${bytes.toLocaleString()} bytes` : ''}${!d.text && !d.gz && d.url ? ' (fetched when selected)' : ''}`; o.title = d.titleLatin + (d.note ? '. ' + d.note : ''); }
       sel.appendChild(o); }
     if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
   }
@@ -768,13 +770,24 @@ function workerMain() {
   selectDict(DEFAULT_DICT);
   const dictEntry = () => DICTS.find(d => d.id === $('dict').value) || DICTS[0];
   const dictText = () => dictEntry().text;
-  // a large dictionary (manifest "url") is not inlined: it is fetched when selected, normalised as the build normalises
-  // the inlined ones; when the fetch fails (file://, or the page served without src/) the page says so and keeps its dictionary
+  // a large dictionary (manifest "url") is not inlined as text: the build inlines it gzip-compressed in base64 (field gz) when
+  // its file is there, and the browser inflates it when it is selected; built without the file, the page fetches it from its url
+  // (GitHub Pages serves src/). When neither works (file:// without the file at build time, or the page served without src/)
+  // the page says so beside the Dictionary menu and in the Code row, and keeps its dictionary.
   let dictNote = null;   // shown in the Code row by the next codeNote()
   async function loadDictText(d) {
-    if (d.text || !d.url) return !!d.text;
-    try { const r = await fetch(d.url); if (!r.ok) throw new Error('HTTP ' + r.status); d.text = (await r.text()).normalize('NFC').replace(/\n+$/, '') + '\n'; return true; }
-    catch (e) { dictNote = `${d.title} (${(d.bytes || 0).toLocaleString()} bytes) is fetched from ${d.url} when selected and could not be loaded here (${e.message}); the page served over http(s), such as the GitHub Pages copy, has it. The dictionary was not changed.`; return false; }
+    if (d.text) return true;
+    if (!d.gz && !d.url) return false;
+    try {
+      let text;
+      if (d.gz) { const bin = Uint8Array.from(atob(d.gz), c => c.charCodeAt(0)); text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text(); }
+      else { const r = await fetch(d.url); if (!r.ok) throw new Error('HTTP ' + r.status); text = await r.text(); }
+      d.text = text.normalize('NFC').replace(/\n+$/, '') + '\n'; delete d.gz; $('dictNote').hidden = true; return true;
+    } catch (e) {
+      dictNote = `${d.title} (${(d.bytes || 0).toLocaleString()} bytes) ${d.gz ? 'is inlined compressed and could not be inflated here' : `is fetched from ${d.url} when selected and could not be loaded here`} (${e.message}); ` +
+        (d.gz ? 'a browser with DecompressionStream (Chrome 80, Firefox 113, Safari 16.4 or later) has it.' : 'the page served over http(s), such as the GitHub Pages copy, has it.') + ' The dictionary was not changed.';
+      $('dictNote').textContent = dictNote; $('dictNote').hidden = false; return false;
+    }
   }
   const codecSrc = $('codec-src').textContent, bandSrc = $('band-src').textContent;
 
@@ -1564,7 +1577,7 @@ function workerMain() {
   // a dictionary designed for a pair mode brings its Cells setting too (manifest field pair); one designed for single cells sets Cells back to each cell on its own
   const pairForDict = () => { const e = dictEntry(); if (e.pair) $('pair').value = String(e.pair); else if (/design-(dict|pair|scale)/.test(e.author || '')) $('pair').value = '0'; };
   let lastDict = $('dict').value;
-  $('dict').addEventListener('change', () => run(async () => {   // a designed dictionary brings its window range; a fetched one is loaded first
+  $('dict').addEventListener('change', () => run(async () => {   // a designed dictionary brings its window range; a compressed or fetched one is loaded first
     if (!(await loadDictText(dictEntry()))) { selectDict(lastDict); codeNote(); return; }
     lastDict = $('dict').value; applyDict(); creadForDict(); pairForDict(); codeNote();
     await engine.setN(Number($('maxlen').value)); if ($('dictRandom').checked) await reset('random'); else await draw();
@@ -1659,8 +1672,9 @@ function workerMain() {
       ['Lagoon: a five-phase sea, Gray land and a fixed point in a cycle of conquest', { dict: 'ca-live-lagoon', cread: 4096 }],
       ['Designed at 2^12 bytes: one construction for every size (paper/results/dictionary-size.md)', { dict: 'ca-size-12', cread: 4096 }],
       ['Designed at 2^16 bytes', { dict: 'ca-size-16', cread: 65536 }],
-      ['Designed at 2^20 bytes (1 MB, fetched when selected)', { dict: 'ca-size-20', cread: 1048576 }],
-      ['Designed at 2^24 bytes (16 MB, fetched when selected)', { dict: 'ca-size-24', cread: 16777216 }],
+      ['Designed at 2^20 bytes (1 MB)', { dict: 'ca-size-20', cread: 1048576 }],
+      ['Designed at 2^24 bytes (16 MB)', { dict: 'ca-size-24', cread: 16777216 }],
+      ['Designed at 2^26 bytes (64 MB)', { dict: 'ca-size-26', cread: 67108864 }],
       ['Life-like: synchronous isotropic mixing, one 4-neighbour vote a turn, the cell rewritten with its 4-neighbour vote interleaved 1 bit at a time, under the usual gradients', { mixRule: 'sync', nbr: '0', iters: '1', pair: '10' }],
       ['Life-like with the dictionary designed for it: the cell and its vote interleaved 1 bit at a time, one Gray 8-cycle', { mixRule: 'sync', nbr: '0', iters: '1', pair: '10', dict: 'ca-vote1', cread: 60000 }],
       ['Pairs concatenated: four designed types', { dict: 'ca-paircat4', cread: 60000, pair: '1' }],
@@ -1696,7 +1710,7 @@ function workerMain() {
   async function applySettings(str) {
     const o = decodeSettings(str);
     if (!o) { $('shareNote').textContent = 'not a settings line (it starts with keimli1)'; return; }
-    const want = DICTS.find(d => d.id === o.dict); if (want && !(await loadDictText(want))) o.dict = $('dict').value;   // a fetched dictionary that is not available: keep the current one
+    const want = DICTS.find(d => d.id === o.dict); if (want && !(await loadDictText(want))) o.dict = $('dict').value;   // a large dictionary that is not available: keep the current one
     restoreControls(o); lastDict = $('dict').value;
     showCread(); showChangerBoxes(); showAvgBoxes(); codeNote(); showThreshold(); showSpeed();
     sel = -1;

@@ -1,11 +1,13 @@
-# Richness against dictionary size: one construction from 2^8 to 2^24 bytes
+# Richness against dictionary size: one construction from 2^8 to 2^26 bytes
 
 2026-10-22. Scripts: `experiments/design-scale.mjs` (the generator; batch `design-scale.sh`), `scale-map.mjs` (the map
 alone), `scale-run.mjs` (the lattice; batch `scale.sh`), `scale-summary.mjs` (the tables below, regenerated from the
 data), `scale-plot.py` and `scale-functions-plot.py` (the figures). Figures `../figures/dictionary-size.png`, `../figures/dictionary-size-snapshots.png` and `../figures/dictionary-size-functions.png` (twelve quantities against the size).
 Raw data `../data/design/ca-size-*.json` and `../data/scale/` (git-ignored, provenance in every file). The dictionaries
-are `src/changers/dict/ca-size-08.txt` .. `ca-size-24.txt`; the four of 2^12, 2^16, 2^20 and 2^24 bytes are page presets
-("Designed at 2^N bytes", Decompressive group), the sizes of 128 KB and more fetched by the page when selected.
+are `src/changers/dict/ca-size-08.txt` .. `ca-size-26.txt` (2^25 and 2^26 added 2026-10-23; the sizes of 128 KB and more
+are not tracked: the Pages workflow regenerates 2^17 .. 2^26 before building the page); 2^12, 2^16, 2^20, 2^24
+and 2^26 are page presets ("Designed at 2^N bytes", Decompressive group); the large ones are inlined gzip-compressed
+(0.5 MB in all for 2^17 .. 2^26) and inflated by the browser when selected. Eleven designs per size, with the approach varied by the seed, are in `dictionary-size-seeds.md`.
 Those eight files (2^17 .. 2^24, 32 MB in all) are not tracked in git: the generator is deterministic (a re-run gives
 byte-identical dictionaries), so `design-scale.sh` or `design-scale.mjs sizes=17-24` rebuilds them locally and the
 Pages workflow rebuilds them on every push.
@@ -19,15 +21,20 @@ bigger dictionary buy a richer lattice: more types, more entropy of the type sha
 
 ## 2. Method
 
-**The module.** Dictionaries up to 2^24 bytes now work everywhere. `Codec.install` keeps a text that fits the 64 KB
+**The module.** Dictionaries up to 2^26 bytes (64 MB) now work everywhere. `Codec.install` keeps a text that fits the 64 KB
 static region exactly where it was (every old result reproduces bit for bit: `test/mix.test.mjs`, `band`, `activity`,
 `lemma` unchanged); a longer text is placed past the lattice, the output and flag buffers after it, and the memory
 grows; every decoder reads the dictionary as out − textLen from the parameter block, so nothing else moved. The
 codebook decoders' code × length product was widened to 64 bits (it overflowed at 2^24). `test/bigdict.test.mjs`
 checks the wasm decoder against the reference `decode36.mjs` on 20,000 random cells at 1 MB and 16 MB (24 header bits
-and 12), after a relocation, and the codebook against a BigInt reference. The page's window-range box goes to 2^24;
-manifest entries with a `url` are not inlined but fetched when selected (GitHub Pages serves `src/`; from `file://`
-the page says so and keeps its dictionary); the self-test pages stay clean. The harness installs big dictionaries past
+and 12) and 5,000 at 64 MB (26 bits), after a relocation, and the codebook against a BigInt reference (the render's
+cursor-colour index was widened to 64 bits too). Memory: a 512² lattice with a 64 MB text and its buffers is about
+90 MB in one wasm32 memory; each page worker holds its own copy, so four workers with the 2^26 dictionary take about
+280 MB plus the text on the main thread. The page's window-range box goes to 2^26;
+manifest entries with a `url` are inlined gzip-compressed (base64, inflated with DecompressionStream when selected;
+the designed dictionaries compress to 2 to 140 KB each) when the build finds their files, else fetched when selected
+(GitHub Pages serves `src/`), and the page says so beside the Dictionary menu and keeps its dictionary when neither
+works; the self-test pages stay clean. The harness installs big dictionaries past
 its lattice.
 
 **One construction for every size** (`design-scale.mjs`, the header comment has the full schedule). V = the size,
@@ -77,7 +84,7 @@ the transient share, the domains (4-connected components of same-type cells), th
 common label differs from 200 turns earlier); at the end the border matrix (4-neighbour pairs by ordered label pair,
 in the run files). PNG snapshots in the page's colouring at turns 200, 1,000 and 2,000. 2^24 also once at 512².
 
-<!-- provenance: paper/experiments/scale-summary.mjs (04ef5e53f34569dd)  | commit 3dc3e4a+dirty | wasm ca7db341fb2dd98b | 2026-10-22T18:20:29.470Z -->
+<!-- provenance: paper/experiments/scale-summary.mjs (4df92a7cf6722f36)  | commit 1a2a747+dirty | wasm 70b2e1c5d518b905 | 2026-10-22T23:28:09.434Z -->
 
 ## 3. Results (the tables are `../data/scale/summary.md`, written by `scale-summary.mjs` from the data files)
 
@@ -85,11 +92,11 @@ in the run files). PNG snapshots in the page's colouring at turns 200, 1,000 and
 
 | log2 size | bytes | safe spots (letter-free) | groups | distinct pads | scheduled Gray / chasing / fixed | built Gray / chasing / fixed | types | head bits | seconds (workers) |
 |---|---|---|---|---|---|---|---|---|---|
-| 8 | 256 | 1 (1) | 0 | 16667 | 1 / 0 / 0 | 1 / 0 / 0 | **1** | 41 | 175.3 (4) |
-| 9 | 512 | 2 (1) | 0 | 9437 | 1 / 0 / 0 | 1 / 0 / 0 | **1** | 42 | 151.1 (4) |
+| 8 | 256 | 1 (1) | 0 | 16667 | 1 / 0 / 0 | 1 / 0 / 0 | **1** | 41 | 2.5 (4) |
+| 9 | 512 | 2 (1) | 0 | 9437 | 1 / 0 / 0 | 1 / 0 / 0 | **1** | 42 | 1.2 (4) |
 | 10 | 1,024 | 2 (1) | 0 | 422 | 1 / 0 / 0 | 1 / 0 / 0 | **1** | 41 | 122.6 (4) |
 | 11 | 2,048 | 4 (2) | 2 | 651 | 2 / 0 / 1 | 2 / 0 / 1 | **3** | 44 | 107.6 (4) |
-| 12 | 4,096 | 8 (4) | 2 | 485 | 4 / 0 / 1 | 4 / 0 / 1 | **5** | 44 | 38.9 (3) |
+| 12 | 4,096 | 8 (4) | 2 | 485 | 4 / 0 / 1 | 4 / 0 / 1 | **5** | 44 | 110.8 (4) |
 | 13 | 8,192 | 16 (8) | 4 | 384 | 4 / 1 / 1 | 4 / 1 / 1 | **6** | 44 | 120.6 (4) |
 | 14 | 16,384 | 32 (1) | 8 | 333 | 4 / 3 / 1 | 4 / 3 / 1 | **8** | 45 | 97 (4) |
 | 15 | 32,768 | 58 (29) | 10 | 25 | 4 / 4 / 1 | 4 / 4 / 1 | **9** | 49 | 114.9 (4) |
@@ -102,6 +109,8 @@ in the run files). PNG snapshots in the page's colouring at turns 200, 1,000 and
 | 22 | 4,194,304 | 2548 (936) | 546 | 76 | 220 / 218 / 6 | 4 / 28 / 6 | **38** | 64 | 86.4 (4) |
 | 23 | 8,388,608 | 5684 (2088) | 1218 | 14 | 488 / 487 / 6 | 0 / 4 / 6 | **10** | 57 | 87.6 (4) |
 | 24 | 16,777,216 | 11956 (4392) | 2562 | 13971 | 1024 / 1025 / 6 | 1024 / 1025 / 6 | **2055** | 57 | 67.6 (4) |
+| 25 | 33,554,432 | 19208 (5184) | 4116 | 4093 | 1648 / 1646 / 6 | 608 / 729 / 6 | **1343** | 58 | 266.9 (4) |
+| 26 | 67,108,864 | 19208 (5184) | 4116 | 250 | 1648 / 1646 / 6 | 56 / 76 / 6 | **138** | 57 | 115.8 (4) |
 
 ### 3.2 The map alone (16,384 random cells per size)
 
@@ -124,6 +133,8 @@ in the run files). PNG snapshots in the page's colouring at turns 200, 1,000 and
 | 22 | 38 | 47 | 38 | 9 (11.5 %) | 11.4 (21) | 0 | 20.5 % | 34.4 %, 100.0 %, 20.5 % |
 | 23 | 10 | 15 | 10 | 5 (3.1 %) | 8.0 (15) | 0 | 26.6 % | 26.6 %, 100.0 %, 71.1 %, 100.0 %, 100.0 % |
 | 24 | 2055 | 1896 | 1892 | 4 (0.1 %) | 6.1 (10) | 163 | 100.0 % | – |
+| 25 | 1343 | 1265 | 1263 | 2 (0.0 %) | 5.7 (9) | 80 | 100.0 % | – |
+| 26 | 138 | 139 | 138 | 1 (1.1 %) | 5.6 (9) | 0 | 100.0 % | – |
 
 ### 3.3 The lattice, 256², 2,000 turns, 3 seeds (mean, and the range over seeds where the seeds differ)
 
@@ -146,6 +157,8 @@ in the run files). PNG snapshots in the page's colouring at turns 200, 1,000 and
 | 22 | 38 | 1.33 (1–2) | 0.33 / 0 / 1 | 0.31 (0.18–0.40) | 84.8 % | 170 (151–198) | 0.01 (0.00–0.03) | 1 | 0.01 (0–0.03) | 99.5 % | 98 (87–109) | 0 |
 | 23 | 10 | 3.67 (3–4) | 0 / 1 / 2.67 | 0.30 (0.27–0.32) | 73.3 % | 391 (389–393) | 0.02 (0.02–0.02) | 2 | 0.91 (0.89–0.93) | 98.7 % | 278 (251–328) | 0 |
 | 24 | 2055 | 36.33 (36–37) | 22 / 14.33 / 0 | 4.90 (4.86–4.95) | 42.8 % | 2227 (2124–2344) | 0.03 (0.02–0.04) | 0 | 7.80 (7.72–7.95) | 99.0 % | 607 (567–672) | 0 |
+| 25 | 1343 | 7.67 (5–9) | 6.33 / 1.33 / 0 | 1.37 (0.82–1.98) | 57.8 % | 510 (457–548) | 0.01 (0.01–0.01) | 0 | 6.46 (6.36–6.63) | 99.7 % | 207 (182–243) | 0 |
+| 26 | 138 | 4.33 (4–5) | 3.33 / 1 / 0 | 2.71 (2.30–2.93) | 95.1 % | 298 (289–314) | 0 | 0.33 (0–1) | 3.55 (3.07–3.93) | 99.7 % | 132 (124–149) | 0 |
 
 2^24 at 512², frame, seed 1: alive 36, entropy 4.86, transients 41.9 %, domains 8354, block change 0.026 (604 s).
 
@@ -158,17 +171,20 @@ threads).
 ## 4. What the figures show (`../figures/dictionary-size.png`, `../figures/dictionary-size-snapshots.png`)
 
 - **Types designed** grow with the size as the schedule allows: 1 at 2^8–2^10, 3–9 at 2^11–2^15, 25–38 at 2^16–2^18,
-  56–70 at 2^19–2^21, then down to 38 and 10 at 2^22 and 2^23, and 2,055 at 2^24. The dip is the construction's, not
-  the size's (section 6).
-- **The map alone reaches every designed type** at every size up to 2^23 (basins 0.5–30 %); at 2^24 16,384 random
-  cells reach 1,892 of the 2,055 (163 have an empty basin in the census; a basin there is about 0.05 %). The transient
+  56–70 at 2^19–2^21, then down to 38 and 10 at 2^22 and 2^23, 2,055 at 2^24, 1,343 at 2^25 and 138 at 2^26 (the pad
+  supply again: 4,093 distinct pads at 2^25, 250 at 2^26). The dips are the construction's, not the size's (section 6).
+- **The map alone reaches every designed type** at every size up to 2^23 and at 2^26 (basins 0.5–30 %); at 2^24 16,384
+  random cells reach 1,892 of the 2,055 (163 have an empty basin in the census; a basin there is about 0.05 %), at 2^25
+  1,263 of 1,343. The transient
   to a designed state is 5–8 steps (p90 9–15) except at 2^13–2^15 (10–16 steps, p90 20–40). The closure index C(A, A)
   of every designed type is 100 % at r = 0.25 (the Gray and fixed types by DEFINITION.md §4; the chasing cubes route
   every child to a phase): the strays are the open ones (14–54 %), with a few closed stray fixed points.
 - **On the frame** the types alive at turn 2,000 (share ≥ 0.1 % of the whole lattice) rise from 1 at 2^8–2^10 to 5 at
-  2^12, 12–17 at 2^16–2^20, 1–5 at 2^21–2^23, and 36 at 2^24. The entropy of the type shares follows: 0
-  bits to 2^10, 1.9 at 2^12, 2.4–3.0 from 2^16 to 2^20, 0.3–1.0 at 2^21–2^23, 4.9 at 2^24 (the maximum, log₂ of the
-  types designed, is 11 there). The 512² run of 2^24 has the same 36 alive and 4.86 bits: the count is not a lattice-size
+  2^12, 12–17 at 2^16–2^20, 1–5 at 2^21–2^23, 36 at 2^24, then 8 at 2^25 and 4 at 2^26. The entropy of the type shares
+  follows: 0 bits to 2^10, 1.9 at 2^12, 2.4–3.0 from 2^16 to 2^20, 0.3–1.0 at 2^21–2^23, 4.9 at 2^24 (the maximum, log₂
+  of the types designed, is 11 there), 1.4 at 2^25 and 2.7 at 2^26. At 2^26 95 % of the frame's cells are transients
+  at turn 2,000 (58 % at 2^25, 43 % at 2^24): with 26 header bits a crossover of two types lands almost anywhere in
+  64 MB of filler, and the few designed domains that form stay small. The 512² run of 2^24 has the same 36 alive and 4.86 bits: the count is not a lattice-size
   effect. Of the 2,055 types at 2^24, 22 Gray and 14 chasing are alive, no fixed point; the largest share is a chasing
   type with 9.7 %, and 85 % of the borders are type–type (15 % against transients), against 51 % at 2^16.
 - **Domains** at 2,000 are 100–2,200 on the frame (the frame's lower half is a mottle of closed domains; the upper
@@ -187,8 +203,8 @@ threads).
 
 Under this construction, measured on the page's frame at 256² for 2,000 turns: the types alive at turn 2,000 grow
 from 1 to about 16 between 2^8 and 2^16 (about one doubling of alive types per two doublings of the dictionary from
-2^11 on), stay at 12–17 through 2^20 while the types designed grow from 25 to 70, and reach 36 at 2^24 where 2,055 are
-designed. The entropy of the type shares is 2.4–3.0 bits from 2^16 to 2^20 and 4.9 bits at 2^24. So a 256-fold larger
+2^11 on), stay at 12–17 through 2^20 while the types designed grow from 25 to 70, reach 36 at 2^24 where 2,055 are
+designed, and fall to 8 and 4 at 2^25 and 2^26, where the frame is more than half transients. The entropy of the type shares is 2.4–3.0 bits from 2^16 to 2^20 and 4.9 bits at 2^24. So a 256-fold larger
 dictionary (2^16 to 2^24) with 80 times the types buys 2.3 times the types alive and two more bits of entropy; the
 number of domains does not grow (2,158 at 2^16, 2,227 at 2^24, both the mottle of the frame's settled half); and no
 size moves. Richness saturates at about 16 types alive from 2^16 on, where the frame's settled half has room for a
@@ -196,7 +212,9 @@ dozen domains of a few hundred cells each, and the one further gain, at 2^24, co
 each 0.05 % of the random cells, so that the lattice's 65,536 cells sample a different few dozen each run (36–37
 alive over three seeds, 4.86–4.95 bits). What a bigger dictionary buys is more types to choose from and a flatter
 share distribution among the winners, not movement and not more domains; the medium, not the dictionary, sets the
-number of domains the frame holds, as the mechanism results found for the winners (mechanism-v2.md §9).
+number of domains the frame holds, as the mechanism results found for the winners (mechanism-v2.md §9). Beyond 2^24
+the header costs more than the words give: at 2^25 and 2^26 (25 and 26 of the cell's 128 bits select the window) the
+frame is 58–95 % transients at turn 2,000 and holds 4–8 types.
 
 ## 6. Caveats
 
@@ -205,8 +223,8 @@ number of domains the frame holds, as the mechanism results found for the winner
   overlap. Patterns of period 1–4 over the 98 safe bytes give 13,971–22,931 distinct pads at 2^16 and 2^24 but only
   14–295 at 2^15 and 2^19–2^23, and at 15 and 23 header bits only control-byte patterns land at all (the "no
   literals" code falls on bits 5 and 6 of a byte). So 2^23 has 10 types where 981 were scheduled, 2^22 38 of 444,
-  and the curve's dip from 2^20 to 2^23 says nothing about size. 2^24 is where the schedule is met in full and shows
-  what the size allows. A pad supply that scales with the size (longer patterns, or a second funnel stage) would be
+  and the curve's dip from 2^20 to 2^23 says nothing about size; 2^26 has 138 of 3,300 scheduled (250 pads). 2^24 is
+  where the schedule is met in full and shows what the size allows; 2^25 has 1,343 of 3,300. A pad supply that scales with the size (longer patterns, or a second funnel stage) would be
   needed to make the type count monotone.
 - **Printable heads.** Only an eighth to a quarter of the spots have heads the text pipeline carries (byte 1 of the
   head must avoid the letters when a pattern's commands lowercase that byte; control bytes are allowed in heads).
@@ -219,11 +237,15 @@ number of domains the frame holds, as the mechanism results found for the winner
   is over the cells on a type (so a lattice with 1 % of its cells on types can show 7.8 bits, as the uniform runs at
   2^24 do); block change compares the most common label 200 turns apart, so a cycle in place counts as unchanged;
   three seeds, 2,000 turns, 256² (and one 512²). No bootstrap intervals: the ranges over seeds are printed.
-- **The page at 16 MB.** The fetched dictionaries work over http (headless Chrome reached ready with a clean console
-  at 2^20 and 2^24 with four workers); each worker holds its own 16 MB copy and rebuilds the code tables over it, a
-  few hundred milliseconds on a desktop; not tried on a phone. Over file:// the page says the dictionary could not be
-  loaded and keeps the one it had.
+- **The page at 16–64 MB.** The large dictionaries are inlined gzip-compressed and inflated by the browser when
+  selected, so they work from `file://`, on the artifact copy and on GitHub Pages alike (headless Chrome reached ready
+  with a clean console at 2^20, 2^24 and 2^26 with four workers); each worker holds its own copy and rebuilds the code
+  tables over it, a few hundred milliseconds on a desktop at 16 MB, about 280 MB of memory in all at 2^26; not tried on
+  a phone. A page built without the generated files falls back to fetching them, and says so when that fails.
+  The Pages workflow regenerates 2^17 .. 2^26 before the build; 2^25 is the slow one (267 s here on four threads, 165 s
+  of it the single-threaded placement of 1,343 types in 32 MB), so the run grows from about 10 to roughly 20 minutes.
 - **Not tested here.** Other settling strengths; the salted hashes; dictionaries searched rather than built at these
   sizes; whether the chasing types move on their own at 2^24 (one chasing type alone per dictionary would be the
-  control).
+  control). Whether one design per size is typical of the construction is the question of
+  `dictionary-size-seeds.md` (eleven designs per size, the approach varied by the seed).
 

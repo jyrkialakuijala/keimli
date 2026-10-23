@@ -28,8 +28,9 @@ Open the published page, or run `./build.sh` and open `index.html` (the lattice)
 or `life.html` (a Game of Life, the older and smaller demo) in a browser.
 The built pages are not committed: a GitHub Action (.github/workflows/pages.yml)
 builds them from `src/` on every push and publishes them to GitHub Pages; it also
-regenerates the designed dictionaries of 128 KB to 16 MB (`ca-size-17` .. `24`,
-deterministic, not tracked) that the page fetches when one is selected. Click a
+first regenerates the designed dictionaries of 128 KB to 64 MB (`ca-size-17` .. `26`,
+deterministic, not tracked), which the build inlines gzip-compressed (about 0.5 MB
+in all) and the page inflates when one is selected. Click a
 cell to inspect it, shift-drag to paint ones, ctrl-shift-drag to paint
 zeros.
 

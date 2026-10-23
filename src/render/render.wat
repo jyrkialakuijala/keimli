@@ -74,7 +74,7 @@
     (local.set $v (i32.load offset=52 (local.get $prm)))
     (if (i32.or (i32.eqz (local.get $v)) (i32.gt_u (local.get $v) (local.get $tl))) (then (local.set $v (local.get $tl))))
     (local.set $c (i32.rem_u (i32.add (i32.sub (i32.add (i32.load offset=48 (local.get $prm)) (local.get $tl)) (i32.rem_u (i32.load offset=100 (local.get $prm)) (local.get $tl))) (local.get $tl)) (local.get $tl)))   ;; the cursor less the offset, mod the text
-    (local.set $k (i32.div_u (i32.shl (local.get $c) (i32.const 7)) (local.get $v)))
+    (local.set $k (i32.wrap_i64 (i64.div_u (i64.shl (i64.extend_i32_u (local.get $c)) (i64.const 7)) (i64.extend_i32_u (local.get $v)))))   ;; in 64 bits: the text may be 2^26 bytes
     (select (i32.const 128) (local.get $k) (i32.gt_u (local.get $k) (i32.const 128))))
   (func (export "render") (param $n i32) (param $grid i32) (param $pix i32) (param $pal i32) (param $mode i32) (param $prm i32)
     (local $i i32) (local $p i32) (local $w0 i64) (local $w1 i64) (local $out i32) (local $L i32) (local $third i32)

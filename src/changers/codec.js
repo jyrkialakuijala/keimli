@@ -145,7 +145,7 @@ const Codec = (() => {
   // Write the table, the dictionary, the byte LUT and the parameter block into wasm memory.
   // `gain` stretches the LUT-average views around the palette mean (1 = plain average).
   // A dictionary that fits the static region (up to 65,024 bytes) goes to LAYOUT.TEXT as always. A larger one (up to
-  // 2^24 bytes) goes to `textBase` when given, else to the end of the memory as it stands, and the memory grows; the
+  // 2^26 bytes) goes to `textBase` when given, else to the end of the memory as it stands, and the memory grows; the
   // output and flag buffers follow it, and every decoder reads the dictionary as out - textLen from the parameter
   // block, so nothing else moves. The host that lays out a lattice after such an install moves the text past the
   // lattice with io.relocate(base) (the worker's resize does), or passes textBase itself.
@@ -154,7 +154,7 @@ const Codec = (() => {
   const ensureMemory = (memory, need) => { const have = memory.buffer.byteLength; if (need > have) memory.grow(Math.ceil((need - have) / 65536)); };
   function install(memory, built, lut = byteLut(built.bytes), gain = 3, textBase) {
     const textLen = built.bytes.length;
-    if (textLen > 16777216) throw new Error('dictionary longer than 2^24 bytes');
+    if (textLen > 67108864) throw new Error('dictionary longer than 2^26 bytes');   // 64 MB: a 512² lattice, the text and its buffers stay far inside wasm32
     const TEXT = bigText(textLen) ? (textBase ?? memory.buffer.byteLength) : LAYOUT.TEXT;
     if (bigText(textLen)) ensureMemory(memory, TEXT + textLen + 512);
     const m8 = new Uint8Array(memory.buffer), m32 = new Int32Array(memory.buffer);
